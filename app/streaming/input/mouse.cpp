@@ -173,8 +173,23 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
 
         m_MouseWasInVideoRegion = mouseInVideoRegion;
     }
-    else {
+    else if (m_MouseSensitivity == 100) {
         LiSendMouseMoveEvent(xrel, yrel);
+    }
+    else {
+        // Norilight: scale relative motion, carrying the fractional part over
+        // to the next event so slow movements are not lost at low sensitivity.
+        float scale = m_MouseSensitivity / 100.0f;
+        float dx = xrel * scale + m_MouseRemainderX;
+        float dy = yrel * scale + m_MouseRemainderY;
+        int sendX = (int)dx;
+        int sendY = (int)dy;
+        m_MouseRemainderX = dx - sendX;
+        m_MouseRemainderY = dy - sendY;
+        if (sendX != 0 || sendY != 0) {
+            LiSendMouseMoveEvent((short)SDL_clamp(sendX, -32768, 32767),
+                                 (short)SDL_clamp(sendY, -32768, 32767));
+        }
     }
 }
 
@@ -211,7 +226,7 @@ void SdlInputHandler::handleMouseWheelEvent(SDL_MouseWheelEvent* event)
         event->preciseY = SDL_clamp(event->preciseY, -1.0f, 1.0f);
 #endif
 
-        LiSendHighResScrollEvent((short)(event->preciseY * 120)); // WHEEL_DELTA
+        LiSendHighResScrollEvent((short)SDL_clamp(event->preciseY * 120 * m_ScrollSpeed / 100.0f, -32768.0f, 32767.0f)); // WHEEL_DELTA
     }
 
     if (event->preciseX != 0.0f) {
@@ -226,7 +241,7 @@ void SdlInputHandler::handleMouseWheelEvent(SDL_MouseWheelEvent* event)
         event->preciseX = SDL_clamp(event->preciseX, -1.0f, 1.0f);
 #endif
 
-        LiSendHighResHScrollEvent((short)(event->preciseX * 120)); // WHEEL_DELTA
+        LiSendHighResHScrollEvent((short)SDL_clamp(event->preciseX * 120 * m_ScrollSpeed / 100.0f, -32768.0f, 32767.0f)); // WHEEL_DELTA
     }
 #else
     if (event->y != 0) {

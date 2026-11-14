@@ -32,6 +32,11 @@
 #define SER_QUITAPPAFTER "quitAppAfter"
 #define SER_ABSMOUSEMODE "mouseacceleration"
 #define SER_FREECURSORMODE "norilightfreecursor"
+#define SER_STREAMALWAYSONTOP "norilightalwaysontop"
+#define SER_REMEMBERWINDOWGEOMETRY "norilightrememberwindow"
+#define SER_MOUSESENSITIVITY "norilightmousesensitivity"
+#define SER_SCROLLSPEED "norilightscrollspeed"
+#define SER_SHOWLOCALCURSOR "norilightshowlocalcursor"
 #define SER_ABSTOUCHMODE "abstouchmode"
 #define SER_STARTWINDOWED "startwindowed"
 #define SER_FRAMEPACING "framepacing"
@@ -138,6 +143,11 @@ void StreamingPreferences::reload()
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
     absoluteMouseMode = settings.value(SER_ABSMOUSEMODE, false).toBool();
     freeCursorMode = settings.value(SER_FREECURSORMODE, false).toBool();
+    streamAlwaysOnTop = settings.value(SER_STREAMALWAYSONTOP, false).toBool();
+    rememberWindowGeometry = settings.value(SER_REMEMBERWINDOWGEOMETRY, false).toBool();
+    mouseSensitivity = qBound(10, settings.value(SER_MOUSESENSITIVITY, 100).toInt(), 400);
+    scrollSpeed = qBound(10, settings.value(SER_SCROLLSPEED, 100).toInt(), 400);
+    showLocalCursor = settings.value(SER_SHOWLOCALCURSOR, false).toBool();
     absoluteTouchMode = settings.value(SER_ABSTOUCHMODE, true).toBool();
     framePacing = settings.value(SER_FRAMEPACING, false).toBool();
     connectionWarnings = settings.value(SER_CONNWARNINGS, true).toBool();
@@ -339,6 +349,11 @@ void StreamingPreferences::save()
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
     settings.setValue(SER_ABSMOUSEMODE, absoluteMouseMode);
     settings.setValue(SER_FREECURSORMODE, freeCursorMode);
+    settings.setValue(SER_STREAMALWAYSONTOP, streamAlwaysOnTop);
+    settings.setValue(SER_REMEMBERWINDOWGEOMETRY, rememberWindowGeometry);
+    settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);
+    settings.setValue(SER_SCROLLSPEED, scrollSpeed);
+    settings.setValue(SER_SHOWLOCALCURSOR, showLocalCursor);
     settings.setValue(SER_ABSTOUCHMODE, absoluteTouchMode);
     settings.setValue(SER_FRAMEPACING, framePacing);
     settings.setValue(SER_CONNWARNINGS, connectionWarnings);

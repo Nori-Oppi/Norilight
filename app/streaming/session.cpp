@@ -40,6 +40,7 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include <QScreen>
+#include <QSettings>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
@@ -1814,6 +1815,26 @@ void Session::exec()
     int x, y, width, height;
     getWindowDimensions(x, y, width, height);
 
+    // Norilight: reopen the windowed stream where the user last left it, as long
+    // as that spot is still on a connected display.
+    if (m_Preferences->rememberWindowGeometry && !m_IsFullScreen) {
+        QSettings settings;
+        QRect saved = settings.value("norilightstreamwindowrect").toRect();
+        if (saved.width() >= 160 && saved.height() >= 90) {
+            for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+                SDL_Rect bounds;
+                if (SDL_GetDisplayUsableBounds(i, &bounds) == 0 &&
+                        QRect(bounds.x, bounds.y, bounds.w, bounds.h).intersects(saved)) {
+                    x = saved.x();
+                    y = saved.y();
+                    width = saved.width();
+                    height = saved.height();
+                    break;
+                }
+            }
+        }
+    }
+
 #ifdef STEAM_LINK
     // We need a little delay before creating the window or we will trigger some kind
     // of graphics driver bug on Steam Link that causes a jagged overlay to appear in
@@ -1832,6 +1853,11 @@ void Session::exec()
 
     // We always want a resizable window with High DPI enabled
     Uint32 defaultWindowFlags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
+
+    // Norilight: keep the stream window above other windows if requested
+    if (m_Preferences->streamAlwaysOnTop) {
+        defaultWindowFlags |= SDL_WINDOW_ALWAYS_ON_TOP;
+    }
 
     // If we're starting in windowed mode and the Moonlight GUI is maximized or
     // minimized, match that with the streaming window.
@@ -2377,6 +2403,16 @@ DispatchDeferredCleanup:
             m_QtWindow->setWindowState(Qt::WindowNoState);
         }
 #endif
+    }
+
+    // Norilight: remember where the windowed stream was, for next time
+    if (m_Preferences->rememberWindowGeometry && m_Window != nullptr &&
+            !(SDL_GetWindowFlags(m_Window) & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_MAXIMIZED))) {
+        int wx, wy, ww, wh;
+        SDL_GetWindowPosition(m_Window, &wx, &wy);
+        SDL_GetWindowSize(m_Window, &ww, &wh);
+        QSettings settings;
+        settings.setValue("norilightstreamwindowrect", QRect(wx, wy, ww, wh));
     }
 
     // This must be called after the decoder is deleted, because

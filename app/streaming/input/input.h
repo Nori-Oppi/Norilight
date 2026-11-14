@@ -241,6 +241,10 @@ private:
     int m_StreamHeight;
     bool m_AbsoluteMouseMode;
     bool m_FreeCursorMode;
+    int m_MouseSensitivity;
+    int m_ScrollSpeed;
+    float m_MouseRemainderX;
+    float m_MouseRemainderY;
     bool m_AbsoluteTouchMode;
     bool m_DisabledTouchFeedback;
 

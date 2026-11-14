@@ -133,6 +133,11 @@ public:
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
     Q_PROPERTY(bool absoluteMouseMode MEMBER absoluteMouseMode NOTIFY absoluteMouseModeChanged)
     Q_PROPERTY(bool freeCursorMode MEMBER freeCursorMode NOTIFY freeCursorModeChanged)
+    Q_PROPERTY(bool streamAlwaysOnTop MEMBER streamAlwaysOnTop NOTIFY streamAlwaysOnTopChanged)
+    Q_PROPERTY(bool rememberWindowGeometry MEMBER rememberWindowGeometry NOTIFY rememberWindowGeometryChanged)
+    Q_PROPERTY(int mouseSensitivity MEMBER mouseSensitivity NOTIFY mouseSensitivityChanged)
+    Q_PROPERTY(int scrollSpeed MEMBER scrollSpeed NOTIFY scrollSpeedChanged)
+    Q_PROPERTY(bool showLocalCursor MEMBER showLocalCursor NOTIFY showLocalCursorChanged)
     Q_PROPERTY(bool absoluteTouchMode MEMBER absoluteTouchMode NOTIFY absoluteTouchModeChanged)
     Q_PROPERTY(bool framePacing MEMBER framePacing NOTIFY framePacingChanged)
     Q_PROPERTY(bool connectionWarnings MEMBER connectionWarnings NOTIFY connectionWarningsChanged)
@@ -177,6 +182,12 @@ public:
     bool absoluteMouseMode;
     // Norilight: let the cursor leave the stream freely (desktop use, not games)
     bool freeCursorMode;
+    // Norilight additions
+    bool streamAlwaysOnTop;      // keep the stream window above other windows
+    bool rememberWindowGeometry; // reopen the stream window where it was last closed
+    int mouseSensitivity;        // percent, applies to game (relative) mouse mode
+    int scrollSpeed;             // percent, applies to the scroll wheel
+    bool showLocalCursor;        // show this PC's cursor over the stream in remote desktop mouse mode
     bool absoluteTouchMode;
     bool framePacing;
     bool connectionWarnings;
@@ -218,6 +229,11 @@ signals:
     void quitAppAfterChanged();
     void absoluteMouseModeChanged();
     void freeCursorModeChanged();
+    void streamAlwaysOnTopChanged();
+    void rememberWindowGeometryChanged();
+    void mouseSensitivityChanged();
+    void scrollSpeedChanged();
+    void showLocalCursorChanged();
     void absoluteTouchModeChanged();
     void audioConfigChanged();
     void videoCodecConfigChanged();
