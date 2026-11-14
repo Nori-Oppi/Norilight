@@ -3,6 +3,9 @@
 #include <Limelight.h>
 #include "SDL_compat.h"
 
+#include <QDesktopServices>
+#include <QUrl>
+
 #define VK_0 0x30
 #define VK_A 0x41
 
@@ -570,6 +573,81 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
     keyCode |= 0x8000;
     flags = shouldNotConvertToScanCodeOnServer ? SS_KBE_FLAG_NON_NORMALIZED : 0;
 
+    // Norilight: take screenshots on this PC only, so a screenshot isn't
+    // taken on both the client and the host at the same time.
+    if (m_ScreenshotsOnClient) {
+        if (event->state == SDL_PRESSED) {
+            bool guiHeld = (event->keysym.mod & KMOD_GUI) && isSystemKeyCaptureActive();
+            bool isPrintScreen = event->keysym.scancode == SDL_SCANCODE_PRINTSCREEN;
+#ifdef Q_OS_WIN32
+            // Win+Shift+S: with system keys captured, this PC never sees the
+            // Windows key, so open the snipping overlay here ourselves.
+            // (PrtScn itself still reaches this PC's own screenshot handler.)
+            bool isSnipShortcut = guiHeld &&
+                                  (event->keysym.mod & KMOD_SHIFT) &&
+                                  event->keysym.scancode == SDL_SCANCODE_S;
+#else
+            bool isSnipShortcut = false;
+#endif
+
+            if (isPrintScreen || isSnipShortcut) {
+                m_SwallowedKeys.insert(keyCode);
+
+                if (isSnipShortcut) {
+                    QDesktopServices::openUrl(QUrl("ms-screenclip:"));
+                }
+
+                // The host already has the Windows key down. Tap Ctrl so that
+                // releasing it doesn't open the Start menu on the host.
+                if (guiHeld && !m_ViewOnly) {
+                    LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_DOWN, modifiers, 0);
+                    LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_UP, modifiers, 0);
+                }
+                return;
+            }
+        }
+        else if (m_SwallowedKeys.remove(keyCode) ||
+                 event->keysym.scancode == SDL_SCANCODE_PRINTSCREEN) {
+            return;
+        }
+    }
+
+    // Norilight: PowerToys Quick Accent on the host opens when a letter is held
+    // and Space is pressed. Fast typing often still has the last letter of a word
+    // down when Space goes down, which would open it. Letters tapped more briefly
+    // than the hold time are released on the host before Space is sent, so only
+    // a deliberate hold opens Quick Accent.
+    if (m_AccentTypingFix) {
+        if (event->keysym.scancode >= SDL_SCANCODE_A && event->keysym.scancode <= SDL_SCANCODE_Z) {
+            if (event->state == SDL_PRESSED) {
+                m_LetterPressTime.insert(keyCode, event->timestamp);
+            }
+            else {
+                m_LetterPressTime.remove(keyCode);
+                if (m_EarlyReleasedLetters.remove(keyCode)) {
+                    // Already released on the host when Space was pressed
+                    return;
+                }
+            }
+        }
+        else if (event->keysym.scancode == SDL_SCANCODE_SPACE && event->state == SDL_PRESSED) {
+            for (auto it = m_LetterPressTime.begin(); it != m_LetterPressTime.end();) {
+                if (event->timestamp - it.value() < m_AccentHoldTime) {
+                    m_KeysDown.remove(MAKE_KEYPRESS_STATE(it.key(), 0, 0));
+                    m_EarlyReleasedLetters.insert(it.key());
+                    if (!m_ViewOnly) {
+                        LiSendKeyboardEvent2(it.key(), KEY_ACTION_UP,
+                                             modifiers & ~MODIFIER_EXTENDED, 0);
+                    }
+                    it = m_LetterPressTime.erase(it);
+                }
+                else {
+                    ++it;
+                }
+            }
+        }
+    }
+
     // Track the key state so we always know which keys are down
     if (event->state == SDL_PRESSED) {
         m_KeysDown.insert(MAKE_KEYPRESS_STATE(keyCode, modifiers, flags));
@@ -592,6 +670,11 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
 
 void SdlInputHandler::raiseAllKeys()
 {
+    // Norilight: keys raised here won't send their own key up anymore
+    m_LetterPressTime.clear();
+    m_EarlyReleasedLetters.clear();
+    m_SwallowedKeys.clear();
+
     if (m_KeysDown.isEmpty()) {
         return;
     }

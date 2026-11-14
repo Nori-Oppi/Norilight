@@ -153,6 +153,9 @@ public:
     Q_PROPERTY(int mouseSensitivity MEMBER mouseSensitivity NOTIFY mouseSensitivityChanged)
     Q_PROPERTY(int scrollSpeed MEMBER scrollSpeed NOTIFY scrollSpeedChanged)
     Q_PROPERTY(bool showLocalCursor MEMBER showLocalCursor NOTIFY showLocalCursorChanged)
+    Q_PROPERTY(bool screenshotsOnClient MEMBER screenshotsOnClient NOTIFY screenshotsOnClientChanged)
+    Q_PROPERTY(bool accentTypingFix MEMBER accentTypingFix NOTIFY accentTypingFixChanged)
+    Q_PROPERTY(int accentHoldTime MEMBER accentHoldTime NOTIFY accentHoldTimeChanged)
     Q_PROPERTY(bool absoluteTouchMode MEMBER absoluteTouchMode NOTIFY absoluteTouchModeChanged)
     Q_PROPERTY(bool framePacing MEMBER framePacing NOTIFY framePacingChanged)
     Q_PROPERTY(bool connectionWarnings MEMBER connectionWarnings NOTIFY connectionWarningsChanged)
@@ -222,6 +225,9 @@ public:
     int mouseSensitivity;        // percent, applies to game (relative) mouse mode
     int scrollSpeed;             // percent, applies to the scroll wheel
     bool showLocalCursor;        // show this PC's cursor over the stream in remote desktop mouse mode
+    bool screenshotsOnClient;    // keep PrtScn / Win+Shift+S on this PC instead of sending them to the host
+    bool accentTypingFix;        // release quickly tapped letters before Space so the host's Quick Accent doesn't trigger
+    int accentHoldTime;          // ms a letter must be held before Space opens Quick Accent on the host
     bool absoluteTouchMode;
     bool framePacing;
     bool connectionWarnings;
@@ -283,6 +289,9 @@ signals:
     void mouseSensitivityChanged();
     void scrollSpeedChanged();
     void showLocalCursorChanged();
+    void screenshotsOnClientChanged();
+    void accentTypingFixChanged();
+    void accentHoldTimeChanged();
     void absoluteTouchModeChanged();
     void audioConfigChanged();
     void videoCodecConfigChanged();

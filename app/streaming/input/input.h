@@ -4,6 +4,8 @@
 #include "backend/computermanager.h"
 
 #include "SDL_compat.h"
+#include <QHash>
+#include <QSet>
 
 struct GamepadState {
     SDL_GameController* controller;
@@ -258,6 +260,12 @@ private:
     bool m_ServerCommandsAllowed;
     bool m_ServerCommandMenuOpen;
     bool m_ViewOnly;
+    bool m_ScreenshotsOnClient;
+    bool m_AccentTypingFix;
+    Uint32 m_AccentHoldTime;
+    QHash<short, Uint32> m_LetterPressTime;   // letter keyCode -> SDL timestamp of key down
+    QSet<short> m_EarlyReleasedLetters;      // letters already released on the host before Space
+    QSet<short> m_SwallowedKeys;             // keys kept on this PC (screenshots)
     int m_StickDeadzone;           // raw axis units
     bool m_GamepadMotionSensors;
     bool m_GamepadTouchpadAsMouse;

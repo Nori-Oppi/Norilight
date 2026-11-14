@@ -2365,6 +2365,69 @@ Item {
                     }
 
                     SettingsCheck {
+                        id: screenshotsOnClientCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        text: qsTr("Take screenshots on this PC only")
+                        detail: qsTr("PrtScn and Win+Shift+S take a screenshot here and aren't sent to the host, so you don't get one on both PCs.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.screenshotsOnClient
+                        onCheckedChanged: {
+                            StreamingPreferences.screenshotsOnClient = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: accentTypingFixCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        text: qsTr("Keep fast typing from opening Quick Accent on the host")
+                        detail: qsTr("For PowerToys Quick Accent on the host. A letter that's still down when you press Space only opens Quick Accent if you've held it for the time below, so you can keep typing normally.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.accentTypingFix
+                        onCheckedChanged: {
+                            StreamingPreferences.accentTypingFix = checked
+                        }
+                    }
+
+                    Label {
+                        x: 36
+                        width: parent.width - 36
+                        visible: accentTypingFixCheck.checked
+                        text: qsTr("Hold a letter at least %1 ms to open Quick Accent").arg(Math.round(accentHoldTimeSlider.value))
+                        font.pointSize: 10
+                        color: "#9D9DA6"
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        x: 36
+                        spacing: 8
+                        visible: accentTypingFixCheck.checked
+
+                        Slider {
+                            id: accentHoldTimeSlider
+                            width: Math.min(360, parent.parent.width - 196)
+                            from: 50
+                            to: 1000
+                            stepSize: 25
+                            snapMode: Slider.SnapOnRelease
+                            value: StreamingPreferences.accentHoldTime
+                            onMoved: StreamingPreferences.accentHoldTime = Math.round(value)
+                        }
+
+                        Button {
+                            text: qsTr("Reset to 300 ms")
+                            flat: true
+                            visible: Math.round(accentHoldTimeSlider.value) !== 300
+                            onClicked: {
+                                StreamingPreferences.accentHoldTime = 300
+                                accentHoldTimeSlider.value = 300
+                            }
+                        }
+                    }
+
+                    SettingsCheck {
                         id: reverseScrollButtonsCheck
                         hoverEnabled: true
                         width: parent.width
