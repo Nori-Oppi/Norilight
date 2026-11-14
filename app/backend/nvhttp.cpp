@@ -205,6 +205,8 @@ NvHTTP::startApp(QString verb,
                  bool localAudio,
                  int gamepadMask,
                  bool persistGameControllersOnDisconnect,
+                 bool virtualDisplay,
+                 int virtualDisplayScale,
                  QString& rtspSessionUrl)
 {
     int riKeyId;
@@ -234,6 +236,10 @@ NvHTTP::startApp(QString verb,
                                    "&remoteControllersBitmap="+QString::number(gamepadMask)+
                                    "&gcmap="+QString::number(gamepadMask)+
                                    "&gcpersist="+QString::number(persistGameControllersOnDisconnect ? 1 : 0)+
+                                   // Norilight: Apollo virtual display options (other hosts ignore them)
+                                   (isGfe ? QString() :
+                                       "&virtualDisplay="+QString::number(virtualDisplay ? 1 : 0)+
+                                       "&scaleFactor="+QString::number(virtualDisplayScale))+
                                    LiGetLaunchUrlQueryParameters(),
                                    LAUNCH_TIMEOUT_MS);
 
@@ -243,6 +249,40 @@ NvHTTP::startApp(QString verb,
     verifyResponseStatus(response);
 
     rtspSessionUrl = getXmlString(response, "sessionUrl0");
+}
+
+QString
+NvHTTP::getClipboard()
+{
+    return openConnectionToString(m_BaseUrlHttps, "actions/clipboard", "type=text", 7000, NvLogLevel::NVLL_ERROR);
+}
+
+bool
+NvHTTP::sendClipboard(const QString& text)
+{
+    QByteArray body = text.toUtf8();
+    QString response = openConnectionToString(m_BaseUrlHttps, "actions/clipboard", "type=text", 7000,
+                                              NvLogLevel::NVLL_ERROR, &body);
+
+    // Apollo answers an empty 200; plain Sunshine answers 200 with a 404 XML body
+    return response.trimmed().isEmpty();
+}
+
+QStringList
+NvHTTP::getXmlStringList(QString xml,
+                         QString tagName)
+{
+    QXmlStreamReader xmlReader(xml);
+    QStringList values;
+
+    while (!xmlReader.atEnd()) {
+        if (xmlReader.readNext() == QXmlStreamReader::StartElement &&
+                xmlReader.name() == tagName) {
+            values.append(xmlReader.readElementText());
+        }
+    }
+
+    return values;
 }
 
 void
@@ -459,9 +499,10 @@ NvHTTP::openConnectionToString(QUrl baseUrl,
                                QString command,
                                QString arguments,
                                int timeoutMs,
-                               NvLogLevel logLevel)
+                               NvLogLevel logLevel,
+                               const QByteArray* postBody)
 {
-    QNetworkReply* reply = openConnection(baseUrl, command, arguments, timeoutMs, logLevel);
+    QNetworkReply* reply = openConnection(baseUrl, command, arguments, timeoutMs, logLevel, postBody);
     QString ret;
 
     QTextStream stream(reply);
@@ -483,7 +524,8 @@ NvHTTP::openConnection(QUrl baseUrl,
                        QString command,
                        QString arguments,
                        int timeoutMs,
-                       NvLogLevel logLevel)
+                       NvLogLevel logLevel,
+                       const QByteArray* postBody)
 {
     // Port must be set
     Q_ASSERT(baseUrl.port(0) != 0);
@@ -518,7 +560,15 @@ NvHTTP::openConnection(QUrl baseUrl,
 #endif
 
     auto sslErrorsConnection = connect(m_Nam, &QNetworkAccessManager::sslErrors, this, &NvHTTP::handleSslErrors);
-    QNetworkReply* reply = m_Nam->get(request);
+    QNetworkReply* reply;
+    if (postBody != nullptr) {
+        // Norilight: Apollo endpoints such as the clipboard take a text body
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "text/plain; charset=utf-8");
+        reply = m_Nam->post(request, *postBody);
+    }
+    else {
+        reply = m_Nam->get(request);
+    }
     QEventLoop loop;
 
     // Connect the quit signals

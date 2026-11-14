@@ -115,6 +115,12 @@ public:
     bool isNvidiaServerSoftware;
     // Remember to update isEqualSerialized() when adding fields here!
 
+    // Norilight: Apollo host details from serverinfo (runtime only, not saved)
+    bool vDisplaySupported = false;
+    bool vDisplayDriverReady = false;
+    int permission = -1;            // Apollo permission bits, -1 if the host doesn't say
+    QStringList serverCommands;     // names, in the order the host runs them
+
     // Synchronization
     mutable CopySafeReadWriteLock lock;
 

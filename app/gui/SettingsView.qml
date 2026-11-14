@@ -131,6 +131,12 @@ Item {
             keywords: "host game optimize quit close sunshine geforce"
         }
         ListElement {
+            key: "apollo"
+            name: qsTr("Apollo host")
+            summary: qsTr("Virtual display, clipboard, commands")
+            keywords: "apollo sunshine virtual display sudovda scale factor resolution clipboard copy paste sync history server commands run host"
+        }
+        ListElement {
             key: "app"
             name: qsTr("App")
             summary: qsTr("Language, warnings, Discord")
@@ -1440,6 +1446,135 @@ Item {
                         ToolTip.timeout: 5000
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("This will close the app or game you are streaming when you end your stream. You will lose any unsaved progress!")
+                    }
+                }
+            }
+
+            SettingsGroup {
+                id: apolloSettingsGroupBox
+                section: "apollo"
+                visible: settingsPage.currentSection === section
+                width: (parent.width - (parent.leftPadding + parent.rightPadding))
+                title: qsTr("Apollo host")
+                description: qsTr("Extras for hosts running Apollo, a fork of Sunshine. Other hosts ignore these settings.")
+                font.pointSize: 12
+
+                Column {
+                    anchors.fill: parent
+                    spacing: 5
+
+                    SettingsCheck {
+                        id: virtualDisplayCheck
+                        width: parent.width
+                        text: qsTr("Stream from a virtual display")
+                        detail: qsTr("The host creates a screen that matches this PC's resolution and frame rate for the stream, instead of using its real monitor. Needs the SudoVDA driver on the host.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.useVirtualDisplay
+                        onCheckedChanged: {
+                            StreamingPreferences.useVirtualDisplay = checked
+                        }
+                    }
+
+                    Label {
+                        width: parent.width - 36
+                        x: 36
+                        topPadding: 6
+                        text: qsTr("Virtual display scale: %1%").arg(Math.round(virtualDisplayScaleSlider.value))
+                        font.pointSize: 11
+                        color: virtualDisplayCheck.checked ? "#ECECEE" : "#76767E"
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width - 36
+                        x: 36
+                        text: qsTr("Makes the host's virtual screen bigger or smaller than the stream. At 150%, a 1920x1080 stream is drawn on a 2880x1620 screen, so text gets smaller and sharper.")
+                        font.pointSize: 10
+                        color: virtualDisplayCheck.checked ? "#9D9DA6" : "#62626A"
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        x: 36
+                        spacing: 8
+
+                        Slider {
+                            id: virtualDisplayScaleSlider
+                            width: Math.min(360, apolloSettingsGroupBox.width - 200)
+                            enabled: virtualDisplayCheck.checked
+                            from: 20
+                            to: 200
+                            stepSize: 5
+                            snapMode: Slider.SnapOnRelease
+                            value: StreamingPreferences.virtualDisplayScale
+                            onMoved: StreamingPreferences.virtualDisplayScale = Math.round(value)
+                        }
+
+                        Button {
+                            text: qsTr("Reset to 100%")
+                            flat: true
+                            visible: Math.round(virtualDisplayScaleSlider.value) !== 100
+                            onClicked: {
+                                StreamingPreferences.virtualDisplayScale = 100
+                                virtualDisplayScaleSlider.value = 100
+                            }
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: clipboardSyncCheck
+                        width: parent.width
+                        text: qsTr("Sync the clipboard with the host")
+                        detail: qsTr("Text you copy here is sent to the host when the stream starts or you switch back to it. The host's clipboard comes back when you switch away or end the stream.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.clipboardSync
+                        onCheckedChanged: {
+                            StreamingPreferences.clipboardSync = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: clipboardNotifyCheck
+                        width: parent.width - 36
+                        x: 36
+                        text: qsTr("Show a notice each time it syncs")
+                        detail: qsTr("A short message on the stream says whether text was sent or received.")
+                        font.pointSize: 12
+                        enabled: clipboardSyncCheck.checked
+                        checked: StreamingPreferences.clipboardSyncNotify
+                        onCheckedChanged: {
+                            StreamingPreferences.clipboardSyncNotify = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: hideClipboardCheck
+                        width: parent.width - 36
+                        x: 36
+                        text: qsTr("Keep text from the host out of clipboard history")
+                        detail: qsTr("Windows won't save it in Win+V history or sync it to your other devices.")
+                        font.pointSize: 12
+                        enabled: clipboardSyncCheck.checked
+                        checked: StreamingPreferences.hideSyncedClipboard
+                        onCheckedChanged: {
+                            StreamingPreferences.hideSyncedClipboard = checked
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 14
+                        text: qsTr("Host commands")
+                        font.pointSize: 12
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("During a stream, press Ctrl+Alt+Shift+R to list the commands set up on your Apollo host, then press a number to run one. Esc closes the list.")
+                        font.pointSize: 10
+                        color: "#9D9DA6"
+                        wrapMode: Text.Wrap
                     }
                 }
             }

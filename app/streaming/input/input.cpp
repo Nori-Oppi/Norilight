@@ -28,6 +28,8 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_StreamHeight(streamHeight),
       m_AbsoluteMouseMode(prefs.absoluteMouseMode || prefs.freeCursorMode),
       m_FreeCursorMode(prefs.freeCursorMode),
+      m_ServerCommandsAllowed(true),
+      m_ServerCommandMenuOpen(false),
       m_ViewOnly(prefs.viewOnly),
       m_StickDeadzone(prefs.stickDeadzone * 32767 / 100),
       m_GamepadMotionSensors(prefs.gamepadMotionSensors),
@@ -141,6 +143,11 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
     m_SpecialKeyCombos[KeyComboQuitAndExit].keyCode = SDLK_e;
     m_SpecialKeyCombos[KeyComboQuitAndExit].scanCode = SDL_SCANCODE_E;
     m_SpecialKeyCombos[KeyComboQuitAndExit].enabled = true;
+
+    m_SpecialKeyCombos[KeyComboServerCommands].keyCombo = KeyComboServerCommands;
+    m_SpecialKeyCombos[KeyComboServerCommands].keyCode = SDLK_r;
+    m_SpecialKeyCombos[KeyComboServerCommands].scanCode = SDL_SCANCODE_R;
+    m_SpecialKeyCombos[KeyComboServerCommands].enabled = true;
 
     m_SpecialKeyCombos[KeyComboToggleKeyboardGrab].keyCombo = KeyComboToggleKeyboardGrab;
     m_SpecialKeyCombos[KeyComboToggleKeyboardGrab].keyCode = SDLK_k;

@@ -139,7 +139,19 @@ public:
                            QString command,
                            QString arguments,
                            int timeoutMs,
-                           NvLogLevel logLevel = NvLogLevel::NVLL_VERBOSE);
+                           NvLogLevel logLevel = NvLogLevel::NVLL_VERBOSE,
+                           const QByteArray* postBody = nullptr);
+
+    // Norilight: Apollo clipboard sync (text only). sendClipboard returns false
+    // if the host answered but doesn't support it.
+    QString getClipboard();
+    bool sendClipboard(const QString& text);
+
+    // Norilight: every element with this tag, in document order
+    static
+    QStringList
+    getXmlStringList(QString xml,
+                     QString tagName);
 
     void setServerCert(QSslCertificate serverCert);
     void setAddress(NvAddress address);
@@ -170,6 +182,8 @@ public:
              bool localAudio,
              int gamepadMask,
              bool persistGameControllersOnDisconnect,
+             bool virtualDisplay,
+             int virtualDisplayScale,
              QString& rtspSessionUrl);
 
     QVector<NvApp>
@@ -193,7 +207,8 @@ private:
                    QString command,
                    QString arguments,
                    int timeoutMs,
-                   NvLogLevel logLevel);
+                   NvLogLevel logLevel,
+                   const QByteArray* postBody = nullptr);
 
     NvAddress m_Address;
     QNetworkAccessManager* m_Nam;

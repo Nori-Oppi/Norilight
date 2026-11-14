@@ -28,6 +28,9 @@
 #define SDL_CODE_GAMECONTROLLER_SET_MOTION_EVENT_STATE 103
 #define SDL_CODE_GAMECONTROLLER_SET_CONTROLLER_LED 104
 #define SDL_CODE_GAMECONTROLLER_SET_ADAPTIVE_TRIGGERS 105
+#define SDL_CODE_NORILIGHT_CLIPBOARD 200     // data1: QString* downloaded from the host
+#define SDL_CODE_NORILIGHT_STATUS 201        // data1: QString* to show briefly
+#define SDL_CODE_NORILIGHT_HIDE_STATUS 202   // data1: serial of the status to hide
 
 #include <openssl/rand.h>
 
@@ -41,6 +44,10 @@
 #include <QCursor>
 #include <QScreen>
 #include <QSettings>
+#include <QClipboard>
+#include <QMimeData>
+#include <QAtomicInt>
+#include <QRunnable>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
@@ -980,6 +987,16 @@ bool Session::validateLaunch(SDL_Window* testWindow)
         return false;
     }
 
+    // Norilight: virtual display needs Apollo with its display driver ready
+    if (m_Preferences->useVirtualDisplay && !m_Computer->isNvidiaServerSoftware) {
+        if (!m_Computer->vDisplaySupported) {
+            emitLaunchWarning(tr("This host can't create a virtual display. It needs Apollo; streaming the normal display instead."));
+        }
+        else if (!m_Computer->vDisplayDriverReady) {
+            emitLaunchWarning(tr("The host's virtual display driver isn't ready. Make sure SudoVDA is installed and enabled on the host."));
+        }
+    }
+
     if ((m_Preferences->absoluteMouseMode || m_Preferences->freeCursorMode) && !m_App.isAppCollectorGame) {
         emitLaunchWarning(tr("Your selection to enable remote desktop mouse mode may cause problems in games."));
     }
@@ -1640,6 +1657,8 @@ bool Session::startConnectionAsync()
                       m_Preferences->playAudioOnHost,
                       m_InputHandler->getAttachedGamepadMask(),
                       !m_Preferences->multiController,
+                      m_Preferences->useVirtualDisplay,
+                      m_Preferences->virtualDisplayScale,
                       rtspSessionUrl);
     } catch (const GfeHttpResponseException& e) {
         emit displayLaunchError(tr("Host returned error: %1").arg(e.toQString()));
@@ -1799,6 +1818,156 @@ void Session::interrupt()
     SDL_PushEvent(&event);
 }
 
+// ---------------------------------------------------------------- Norilight
+// Apollo clipboard sync. Network calls run on the thread pool so the stream
+// never stalls; results come back to the main thread as SDL events (or as a
+// queued Qt call once the stream has ended).
+
+#define APOLLO_PERM_CLIPBOARD_SET  0x00010000
+#define APOLLO_PERM_CLIPBOARD_READ 0x00020000
+#define APOLLO_PERM_SERVER_CMD     0x00100000
+
+static QString s_LastSyncedClipboard;
+static QAtomicInt s_ClipboardDownloadRunning;
+static QAtomicInt s_StatusSerial;
+
+static void pushStringEvent(int code, const QString& text)
+{
+    SDL_Event event = {};
+    event.type = SDL_USEREVENT;
+    event.user.code = code;
+    event.user.data1 = new QString(text);
+    if (SDL_PushEvent(&event) <= 0) {
+        delete (QString*)event.user.data1;
+    }
+}
+
+void Session::setLocalClipboard(const QString& text, bool hideFromHistory)
+{
+    auto mime = new QMimeData();
+    mime->setText(text);
+    if (hideFromHistory) {
+        // Windows: keep this text out of clipboard history, cloud clipboard and monitors
+        QByteArray zero(4, '\0');
+        mime->setData("application/x-qt-windows-mime;value=\"CanIncludeInClipboardHistory\"", zero);
+        mime->setData("application/x-qt-windows-mime;value=\"CanUploadToCloudClipboard\"", zero);
+        mime->setData("application/x-qt-windows-mime;value=\"ExcludeClipboardContentFromMonitorProcessing\"", zero);
+    }
+    s_LastSyncedClipboard = text;
+    QGuiApplication::clipboard()->setMimeData(mime);
+}
+
+class ClipboardSyncTask : public QRunnable
+{
+public:
+    ClipboardSyncTask(NvComputer* computer, bool upload, QString text, bool notify, bool streamEnded, bool hide)
+        : m_Computer(computer), m_Upload(upload), m_Text(text), m_Notify(notify),
+          m_StreamEnded(streamEnded), m_Hide(hide) {}
+
+    void run() override
+    {
+        QString status;
+        try {
+            NvHTTP http(m_Computer);
+            if (m_Upload) {
+                status = http.sendClipboard(m_Text) ?
+                            QObject::tr("Clipboard sent to host") :
+                            QObject::tr("This host doesn't support clipboard sync");
+            }
+            else {
+                QString text = http.getClipboard();
+                bool unsupported = text.trimmed().startsWith("<?xml") || text.trimmed().startsWith("<root");
+                if (unsupported) {
+                    status = QObject::tr("This host doesn't support clipboard sync");
+                }
+                else if (!text.isEmpty()) {
+                    if (m_StreamEnded) {
+                        bool hide = m_Hide;
+                        QMetaObject::invokeMethod(QCoreApplication::instance(), [text, hide]() {
+                            Session::setLocalClipboard(text, hide);
+                        }, Qt::QueuedConnection);
+                    }
+                    else {
+                        pushStringEvent(SDL_CODE_NORILIGHT_CLIPBOARD, text);
+                    }
+                    status = QObject::tr("Clipboard copied from host");
+                }
+            }
+        } catch (...) {
+            status = QObject::tr("Clipboard sync failed");
+        }
+
+        if (!m_Upload) {
+            s_ClipboardDownloadRunning.storeRelease(0);
+        }
+        if (m_Notify && !m_StreamEnded && !status.isEmpty()) {
+            pushStringEvent(SDL_CODE_NORILIGHT_STATUS, status);
+        }
+    }
+
+private:
+    NvComputer* m_Computer;
+    bool m_Upload;
+    QString m_Text;
+    bool m_Notify;
+    bool m_StreamEnded;
+    bool m_Hide;
+};
+
+void Session::startClipboardUpload()
+{
+    if (!m_Preferences->clipboardSync || m_Preferences->viewOnly) {
+        return;
+    }
+    if (m_Computer->permission != -1 && !(m_Computer->permission & APOLLO_PERM_CLIPBOARD_SET)) {
+        return;
+    }
+
+    QString text = QGuiApplication::clipboard()->text();
+    if (text.isEmpty() || text == s_LastSyncedClipboard) {
+        // Nothing new since we last sent or received it
+        return;
+    }
+    s_LastSyncedClipboard = text;
+
+    QThreadPool::globalInstance()->start(new ClipboardSyncTask(m_Computer, true, text,
+                                                               m_Preferences->clipboardSyncNotify,
+                                                               false, m_Preferences->hideSyncedClipboard));
+}
+
+void Session::startClipboardDownload(bool streamEnded)
+{
+    if (!m_Preferences->clipboardSync) {
+        return;
+    }
+    if (m_Computer->permission != -1 && !(m_Computer->permission & APOLLO_PERM_CLIPBOARD_READ)) {
+        return;
+    }
+    if (!s_ClipboardDownloadRunning.testAndSetAcquire(0, 1)) {
+        return;
+    }
+
+    QThreadPool::globalInstance()->start(new ClipboardSyncTask(m_Computer, false, QString(),
+                                                               m_Preferences->clipboardSyncNotify,
+                                                               streamEnded, m_Preferences->hideSyncedClipboard));
+}
+
+static Uint32 hideStatusTimerCallback(Uint32, void* param)
+{
+    SDL_Event event = {};
+    event.type = SDL_USEREVENT;
+    event.user.code = SDL_CODE_NORILIGHT_HIDE_STATUS;
+    event.user.data1 = param;
+    SDL_PushEvent(&event);
+    return 0;
+}
+
+void Session::scheduleStatusHide()
+{
+    int serial = s_StatusSerial.fetchAndAddOrdered(1) + 1;
+    SDL_AddTimer(2500, hideStatusTimerCallback, (void*)(intptr_t)serial);
+}
+
 void Session::exec()
 {
     // If the connection failed, clean up and abort the connection.
@@ -1931,6 +2100,11 @@ void Session::exec()
 
     m_InputHandler->setWindow(m_Window);
 
+    // Norilight: Apollo server commands and initial clipboard upload
+    m_InputHandler->setServerCommands(m_Computer->serverCommands,
+                                      m_Computer->permission == -1 || (m_Computer->permission & APOLLO_PERM_SERVER_CMD));
+    startClipboardUpload();
+
     QSvgRenderer svgIconRenderer(QString(":/res/moonlight.svg"));
     QImage svgImage(ICON_SIZE, ICON_SIZE, QImage::Format_RGBA8888);
     svgImage.fill(0);
@@ -2061,6 +2235,29 @@ void Session::exec()
                     m_VideoDecoder->renderFrameOnMainThread();
                 }
                 break;
+            case SDL_CODE_NORILIGHT_CLIPBOARD: {
+                auto text = (QString*)event.user.data1;
+                setLocalClipboard(*text, m_Preferences->hideSyncedClipboard);
+                delete text;
+                break;
+            }
+            case SDL_CODE_NORILIGHT_STATUS: {
+                auto text = (QString*)event.user.data1;
+                // Don't cover the server command menu or gamepad mouse notice
+                if (!m_InputHandler->isServerCommandMenuOpen() && m_MouseEmulationRefCount == 0) {
+                    m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate, text->toUtf8().constData());
+                    m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
+                    scheduleStatusHide();
+                }
+                delete text;
+                break;
+            }
+            case SDL_CODE_NORILIGHT_HIDE_STATUS:
+                if ((int)(intptr_t)event.user.data1 == s_StatusSerial.loadAcquire() &&
+                        !m_InputHandler->isServerCommandMenuOpen() && m_MouseEmulationRefCount == 0) {
+                    m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
+                }
+                break;
             case SDL_CODE_FLUSH_WINDOW_EVENT_BARRIER:
                 m_FlushingWindowEventsRef--;
                 break;
@@ -2102,12 +2299,16 @@ void Session::exec()
                     m_AudioMuted = true;
                 }
                 m_InputHandler->notifyFocusLost();
+                // Norilight: bring the host's clipboard over when you switch away
+                startClipboardDownload(false);
                 break;
             case SDL_WINDOWEVENT_FOCUS_GAINED:
                 if (m_Preferences->muteOnFocusLoss) {
                     m_AudioMuted = false;
                 }
                 m_InputHandler->notifyFocusGained();
+                // Norilight: send what you copied elsewhere when you come back
+                startClipboardUpload();
                 break;
             case SDL_WINDOWEVENT_LEAVE:
                 m_InputHandler->notifyMouseLeave();
@@ -2403,6 +2604,9 @@ DispatchDeferredCleanup:
     // NB: This must happen before LiStopConnection() for pull-based
     // decoders.
     SDL_LockMutex(m_DecoderLock);
+    // Norilight: fetch the host's clipboard one last time (delivered after the stream)
+    startClipboardDownload(true);
+
     // Norilight: grab the whole-session stats before the decoder goes away
     if (m_Preferences->postStreamSummary && m_VideoDecoder != nullptr) {
         QString summary = m_VideoDecoder->getSessionSummary();

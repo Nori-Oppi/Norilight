@@ -32,6 +32,11 @@
 #define SER_QUITAPPAFTER "quitAppAfter"
 #define SER_ABSMOUSEMODE "mouseacceleration"
 #define SER_FREECURSORMODE "norilightfreecursor"
+#define SER_HIDESYNCEDCLIPBOARD "norilighthideclipboard"
+#define SER_CLIPBOARDSYNCNOTIFY "norilightclipboardnotify"
+#define SER_CLIPBOARDSYNC "norilightclipboardsync"
+#define SER_VIRTUALDISPLAYSCALE "norilightvirtualdisplayscale"
+#define SER_USEVIRTUALDISPLAY "norilightvirtualdisplay"
 #define SER_GAMEPADTOUCHPADASMOUSE "norilighttouchpadmouse"
 #define SER_GAMEPADMOTIONSENSORS "norilightgamepadmotion"
 #define SER_VIEWONLY "norilightviewonly"
@@ -153,6 +158,11 @@ void StreamingPreferences::reload()
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
     absoluteMouseMode = settings.value(SER_ABSMOUSEMODE, false).toBool();
     freeCursorMode = settings.value(SER_FREECURSORMODE, false).toBool();
+    hideSyncedClipboard = settings.value(SER_HIDESYNCEDCLIPBOARD, true).toBool();
+    clipboardSyncNotify = settings.value(SER_CLIPBOARDSYNCNOTIFY, true).toBool();
+    clipboardSync = settings.value(SER_CLIPBOARDSYNC, false).toBool();
+    virtualDisplayScale = qBound(20, settings.value(SER_VIRTUALDISPLAYSCALE, 100).toInt(), 200);
+    useVirtualDisplay = settings.value(SER_USEVIRTUALDISPLAY, false).toBool();
     gamepadTouchpadAsMouse = settings.value(SER_GAMEPADTOUCHPADASMOUSE, false).toBool();
     gamepadMotionSensors = settings.value(SER_GAMEPADMOTIONSENSORS, true).toBool();
     viewOnly = settings.value(SER_VIEWONLY, false).toBool();
@@ -369,6 +379,11 @@ void StreamingPreferences::save()
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
     settings.setValue(SER_ABSMOUSEMODE, absoluteMouseMode);
     settings.setValue(SER_FREECURSORMODE, freeCursorMode);
+    settings.setValue(SER_HIDESYNCEDCLIPBOARD, hideSyncedClipboard);
+    settings.setValue(SER_CLIPBOARDSYNCNOTIFY, clipboardSyncNotify);
+    settings.setValue(SER_CLIPBOARDSYNC, clipboardSync);
+    settings.setValue(SER_VIRTUALDISPLAYSCALE, virtualDisplayScale);
+    settings.setValue(SER_USEVIRTUALDISPLAY, useVirtualDisplay);
     settings.setValue(SER_GAMEPADTOUCHPADASMOUSE, gamepadTouchpadAsMouse);
     settings.setValue(SER_GAMEPADMOTIONSENSORS, gamepadMotionSensors);
     settings.setValue(SER_VIEWONLY, viewOnly);

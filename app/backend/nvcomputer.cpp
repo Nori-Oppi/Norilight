@@ -201,6 +201,17 @@ NvComputer::NvComputer(NvHTTP& http, QString serverInfo)
     // some assumptions about Nvidia hardware that don't apply to Sunshine hosts.
     this->isNvidiaServerSoftware = NvHTTP::getXmlString(serverInfo, "state").contains("MJOLNIR");
 
+    // Norilight: Apollo extensions
+    this->vDisplaySupported = NvHTTP::getXmlString(serverInfo, "VirtualDisplayCapable") == "true";
+    this->vDisplayDriverReady = this->vDisplaySupported &&
+            NvHTTP::getXmlString(serverInfo, "VirtualDisplayDriverReady") == "true";
+    bool permissionOk = false;
+    this->permission = NvHTTP::getXmlString(serverInfo, "Permission").toInt(&permissionOk);
+    if (!permissionOk) {
+        this->permission = -1;
+    }
+    this->serverCommands = NvHTTP::getXmlStringList(serverInfo, "ServerCommand");
+
     this->pairState = NvHTTP::getXmlString(serverInfo, "PairStatus") == "1" ?
                 PS_PAIRED : PS_NOT_PAIRED;
     this->currentGameId = NvHTTP::getCurrentGame(serverInfo);
@@ -567,6 +578,10 @@ bool NvComputer::update(const NvComputer& that)
     ASSIGN_IF_CHANGED(appVersion);
     ASSIGN_IF_CHANGED(isSupportedServerVersion);
     ASSIGN_IF_CHANGED(isNvidiaServerSoftware);
+    ASSIGN_IF_CHANGED(vDisplaySupported);
+    ASSIGN_IF_CHANGED(vDisplayDriverReady);
+    ASSIGN_IF_CHANGED(permission);
+    ASSIGN_IF_CHANGED(serverCommands);
     ASSIGN_IF_CHANGED(maxLumaPixelsHEVC);
     ASSIGN_IF_CHANGED(gpuModel);
     ASSIGN_IF_CHANGED_AND_NONNULL(serverCert);

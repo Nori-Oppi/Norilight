@@ -22,6 +22,20 @@
 #define GET_KEYPRESS_EXTENDED_MODIFIER(x) ((char)(((x) >> 16) & 0xFF))
 #define GET_KEYPRESS_FLAGS(x) ((char)(((x) >> 24) & 0xFF))
 
+// Norilight: Apollo server command menu, drawn in the status overlay
+void SdlInputHandler::setServerCommands(const QStringList& commands, bool allowed)
+{
+    m_ServerCommands = commands;
+    m_ServerCommandsAllowed = allowed;
+}
+
+static void showServerCommandStatus(const QString& text)
+{
+    Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayStatusUpdate, text.toUtf8().constData());
+    Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, true);
+    Session::get()->scheduleStatusHide();
+}
+
 void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
 {
     switch (combo) {
@@ -162,6 +176,32 @@ void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
         SDL_PushEvent(&quitExitEvent);
         break;
 
+    case KeyComboServerCommands:
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Detected server command menu combo");
+
+        if (m_ServerCommandMenuOpen) {
+            m_ServerCommandMenuOpen = false;
+            Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, false);
+        }
+        else if (m_ServerCommands.isEmpty()) {
+            showServerCommandStatus(QObject::tr("This host has no server commands.\nAdd them in Apollo's settings."));
+        }
+        else if (!m_ServerCommandsAllowed) {
+            showServerCommandStatus(QObject::tr("This client isn't allowed to run server commands.\nGrant the permission in Apollo."));
+        }
+        else {
+            QString text = QObject::tr("Run a host command") + "\n";
+            for (int i = 0; i < m_ServerCommands.count() && i < 9; i++) {
+                text += QString("%1  %2\n").arg(i + 1).arg(m_ServerCommands[i]);
+            }
+            text += QObject::tr("Press a number, or Esc to close");
+            m_ServerCommandMenuOpen = true;
+            Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayStatusUpdate, text.toUtf8().constData());
+            Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, true);
+        }
+        break;
+
     case KeyComboToggleKeyboardGrab:
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "Detected keyboard grab toggle combo");
@@ -193,6 +233,33 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
         // Ignore repeat key down events
         SDL_assert(event->state == SDL_PRESSED);
         return;
+    }
+
+    // Norilight: while the server command menu is open, digits pick a command
+    if (m_ServerCommandMenuOpen && event->state == SDL_PRESSED) {
+        int index = -1;
+        if (event->keysym.sym >= SDLK_1 && event->keysym.sym <= SDLK_9) {
+            index = event->keysym.sym - SDLK_1;
+        }
+        else if (event->keysym.sym >= SDLK_KP_1 && event->keysym.sym <= SDLK_KP_9) {
+            index = event->keysym.sym - SDLK_KP_1;
+        }
+
+        if (index >= 0 && index < m_ServerCommands.count()) {
+            m_ServerCommandMenuOpen = false;
+            if (LiSendExecServerCmd((uint8_t)index) == 0) {
+                showServerCommandStatus(QObject::tr("Ran on host: %1").arg(m_ServerCommands[index]));
+            }
+            else {
+                showServerCommandStatus(QObject::tr("This host doesn't support server commands."));
+            }
+            return;
+        }
+        else if (event->keysym.sym == SDLK_ESCAPE) {
+            m_ServerCommandMenuOpen = false;
+            Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, false);
+            return;
+        }
     }
 
     // Check for our special key combos

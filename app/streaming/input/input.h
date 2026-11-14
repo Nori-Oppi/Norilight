@@ -150,6 +150,10 @@ public:
     // Norilight: 0 = d-pad scrolls, 1 = right stick scrolls, 2 = left stick scrolls
     static void setAnalogScrollStick(int stick);
 
+    // Norilight: Apollo server commands offered by Ctrl+Alt+Shift+R
+    void setServerCommands(const QStringList& commands, bool allowed);
+    bool isServerCommandMenuOpen() { return m_ServerCommandMenuOpen; }
+
     bool isSystemKeyCaptureActive();
 
     void setCaptureActive(bool active);
@@ -176,6 +180,7 @@ private:
         KeyComboTogglePointerRegionLock,
         KeyComboQuitAndExit,
         KeyComboToggleKeyboardGrab,
+        KeyComboServerCommands,
         KeyComboMax
     };
 
@@ -249,6 +254,9 @@ private:
     int m_StreamHeight;
     bool m_AbsoluteMouseMode;
     bool m_FreeCursorMode;
+    QStringList m_ServerCommands;
+    bool m_ServerCommandsAllowed;
+    bool m_ServerCommandMenuOpen;
     bool m_ViewOnly;
     int m_StickDeadzone;           // raw axis units
     bool m_GamepadMotionSensors;

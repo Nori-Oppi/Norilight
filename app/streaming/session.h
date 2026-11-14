@@ -125,6 +125,12 @@ public:
 
     void setShouldExit(bool quitHostApp = false);
 
+    // Norilight: hide the status overlay after a short delay
+    void scheduleStatusHide();
+
+    // Norilight: put text on this PC's clipboard (optionally hidden from history)
+    static void setLocalClipboard(const QString& text, bool hideFromHistory);
+
 signals:
     void stageStarting(QString stage);
 
@@ -148,6 +154,10 @@ signals:
 
 private:
     void exec();
+
+    // Norilight: Apollo clipboard sync
+    void startClipboardUpload();
+    void startClipboardDownload(bool streamEnded);
 
     bool startConnectionAsync();
 

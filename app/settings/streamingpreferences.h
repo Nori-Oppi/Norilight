@@ -133,6 +133,11 @@ public:
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
     Q_PROPERTY(bool absoluteMouseMode MEMBER absoluteMouseMode NOTIFY absoluteMouseModeChanged)
     Q_PROPERTY(bool freeCursorMode MEMBER freeCursorMode NOTIFY freeCursorModeChanged)
+    Q_PROPERTY(bool hideSyncedClipboard MEMBER hideSyncedClipboard NOTIFY hideSyncedClipboardChanged)
+    Q_PROPERTY(bool clipboardSyncNotify MEMBER clipboardSyncNotify NOTIFY clipboardSyncNotifyChanged)
+    Q_PROPERTY(bool clipboardSync MEMBER clipboardSync NOTIFY clipboardSyncChanged)
+    Q_PROPERTY(int virtualDisplayScale MEMBER virtualDisplayScale NOTIFY virtualDisplayScaleChanged)
+    Q_PROPERTY(bool useVirtualDisplay MEMBER useVirtualDisplay NOTIFY useVirtualDisplayChanged)
     Q_PROPERTY(bool gamepadTouchpadAsMouse MEMBER gamepadTouchpadAsMouse NOTIFY gamepadTouchpadAsMouseChanged)
     Q_PROPERTY(bool gamepadMotionSensors MEMBER gamepadMotionSensors NOTIFY gamepadMotionSensorsChanged)
     Q_PROPERTY(bool viewOnly MEMBER viewOnly NOTIFY viewOnlyChanged)
@@ -193,6 +198,11 @@ public:
     // Norilight: let the cursor leave the stream freely (desktop use, not games)
     bool freeCursorMode;
     // Norilight additions
+    bool hideSyncedClipboard; // keep synced text out of Windows clipboard history
+    bool clipboardSyncNotify; // show a notice when the clipboard syncs
+    bool clipboardSync; // Apollo: sync clipboard text with the host
+    int virtualDisplayScale; // Apollo: virtual display resolution scale, percent
+    bool useVirtualDisplay; // Apollo: stream from a virtual display matching this client
     bool gamepadTouchpadAsMouse; // controller touchpad moves the host mouse
     bool gamepadMotionSensors; // let the host use controller gyro/accelerometer
     bool viewOnly; // watch the stream without sending input
@@ -249,6 +259,11 @@ signals:
     void quitAppAfterChanged();
     void absoluteMouseModeChanged();
     void freeCursorModeChanged();
+    void hideSyncedClipboardChanged();
+    void clipboardSyncNotifyChanged();
+    void clipboardSyncChanged();
+    void virtualDisplayScaleChanged();
+    void useVirtualDisplayChanged();
     void gamepadTouchpadAsMouseChanged();
     void gamepadMotionSensorsChanged();
     void viewOnlyChanged();
