@@ -536,7 +536,7 @@ unix:!macx: {
     desktop.files = deploy/linux/com.moonlight_stream.Moonlight.desktop
     desktop.path = $$PREFIX/$$DATADIR/applications/
 
-    icons.files = res/moonlight.svg
+    icons.files = res/norilight.svg
     icons.path = $$PREFIX/$$DATADIR/icons/hicolor/scalable/apps/
 
     appstream.files = deploy/linux/com.moonlight_stream.Moonlight.appdata.xml
@@ -545,7 +545,7 @@ unix:!macx: {
     INSTALLS += target desktop icons appstream
 }
 win32 {
-    RC_ICONS = moonlight.ico
+    RC_ICONS = norilight.ico
     QMAKE_TARGET_COMPANY = Norilight (fork of Moonlight)
     QMAKE_TARGET_DESCRIPTION = Norilight Streaming Client
     QMAKE_TARGET_PRODUCT = Norilight
@@ -560,7 +560,7 @@ macx {
 
     QMAKE_INFO_PLIST = $$OUT_PWD/Info.plist
 
-    APP_BUNDLE_RESOURCES.files = moonlight.icns
+    APP_BUNDLE_RESOURCES.files = norilight.icns
     APP_BUNDLE_RESOURCES.path = Contents/Resources
 
     APP_BUNDLE_PLIST.files = $$OUT_PWD/Info.plist

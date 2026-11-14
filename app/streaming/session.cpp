@@ -2105,7 +2105,7 @@ void Session::exec()
                                       m_Computer->permission == -1 || (m_Computer->permission & APOLLO_PERM_SERVER_CMD));
     startClipboardUpload();
 
-    QSvgRenderer svgIconRenderer(QString(":/res/moonlight.svg"));
+    QSvgRenderer svgIconRenderer(QString(":/res/norilight.svg"));
     QImage svgImage(ICON_SIZE, ICON_SIZE, QImage::Format_RGBA8888);
     svgImage.fill(0);
 
