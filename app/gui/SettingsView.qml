@@ -43,9 +43,49 @@ Item {
         return count
     }
 
+    function entryMatches(index) {
+        var e = sectionModel.get(index)
+        return sectionMatches(e.name, e.summary, e.keywords)
+    }
+
+    // A category heading is drawn above the first entry of its group that the
+    // search leaves visible
+    function firstVisibleInCategory(index) {
+        if (!entryMatches(index)) {
+            return false
+        }
+        var category = sectionModel.get(index).category
+        for (var i = index - 1; i >= 0 && sectionModel.get(i).category === category; i--) {
+            if (entryMatches(i)) {
+                return false
+            }
+        }
+        return true
+    }
+
     function showSection(key) {
         currentSection = key
         settingsFlick.contentY = 0
+    }
+
+    // Up/Down in the sidebar: open the previous/next visible page and keep focus there
+    function stepSection(fromIndex, delta) {
+        for (var i = fromIndex + delta; i >= 0 && i < sectionModel.count; i += delta) {
+            if (entryMatches(i)) {
+                showSection(sectionModel.get(i).key)
+                navRepeater.itemAt(i).navButton.forceActiveFocus(Qt.TabFocusReason)
+                return
+            }
+        }
+    }
+
+    function focusCurrentSection() {
+        for (var i = 0; i < sectionModel.count; i++) {
+            if (sectionModel.get(i).key === currentSection) {
+                navRepeater.itemAt(i).navButton.forceActiveFocus(Qt.TabFocusReason)
+                return
+            }
+        }
     }
 
     // When the search hides the open section, jump to the first one that matches
@@ -91,62 +131,94 @@ Item {
         StreamingPreferences.save()
     }
 
+    // Norilight: each entry is one short page, grouped under a heading in the
+    // sidebar. Pages are kept small enough to fit on screen without scrolling.
     ListModel {
         id: sectionModel
 
         ListElement {
             key: "video"
+            category: qsTr("Stream")
             name: qsTr("Video quality")
             summary: qsTr("Resolution, frame rate, bitrate, HDR")
             keywords: "fps hz resolution 720p 1080p 1440p 4k bitrate mbps sharp quality hdr"
         }
         ListElement {
             key: "window"
-            name: qsTr("Stream window")
-            summary: qsTr("Fullscreen, picture fit, always on top")
-            keywords: "picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter on top remember position size sleep awake screensaver watch only view observe monitor input"
+            category: qsTr("Stream")
+            name: qsTr("Display")
+            summary: qsTr("Fullscreen, V-Sync, picture fit")
+            keywords: "picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter"
         }
         ListElement {
-            key: "input"
-            name: qsTr("Mouse & keyboard")
-            summary: qsTr("Cursor, shortcuts, scrolling")
-            keywords: "mouse cursor remote desktop free drag leave capture lock keyboard shortcuts alt tab windows key touch touchscreen trackpad swap buttons scroll wheel sensitivity speed"
+            key: "behaviour"
+            category: qsTr("Stream")
+            name: qsTr("Window behaviour")
+            summary: qsTr("Always on top, position, watch only")
+            keywords: "window on top remember position size sleep awake screensaver watch only view observe monitor input"
         }
         ListElement {
             key: "audio"
+            category: qsTr("Stream")
             name: qsTr("Audio")
             summary: qsTr("Speakers and muting")
             keywords: "sound surround 5.1 7.1 stereo mute speakers volume"
         }
         ListElement {
+            key: "input"
+            category: qsTr("Input")
+            name: qsTr("Mouse")
+            summary: qsTr("Cursor, buttons, speed")
+            keywords: "mouse cursor remote desktop free drag leave capture lock swap buttons sensitivity speed"
+        }
+        ListElement {
+            key: "keyboard"
+            category: qsTr("Input")
+            name: qsTr("Keyboard & touch")
+            summary: qsTr("Shortcuts, scrolling, touchscreen")
+            keywords: "keyboard shortcuts alt tab windows key scroll wheel reverse natural speed touch touchscreen trackpad"
+        }
+        ListElement {
             key: "gamepad"
+            category: qsTr("Input")
             name: qsTr("Controllers")
             summary: qsTr("Gamepads and button layout")
             keywords: "gamepad controller joystick xbox playstation dualsense nintendo buttons start mouse background scroll stick deadzone drift gyro motion sensors touchpad"
         }
         ListElement {
             key: "host"
+            category: qsTr("Host")
             name: qsTr("Host PC")
             summary: qsTr("What happens on the host")
             keywords: "host game optimize quit close sunshine geforce"
         }
         ListElement {
             key: "apollo"
+            category: qsTr("Host")
             name: qsTr("Apollo host")
             summary: qsTr("Virtual display, clipboard, commands")
             keywords: "apollo sunshine virtual display sudovda scale factor resolution clipboard copy paste sync history server commands run host"
         }
         ListElement {
             key: "app"
+            category: qsTr("Norilight")
             name: qsTr("App")
             summary: qsTr("Language, warnings, Discord")
             keywords: "language translation gui main window maximized warnings notices discord presence"
         }
         ListElement {
             key: "advanced"
-            name: qsTr("Advanced")
-            summary: qsTr("Decoder, codec, network")
-            keywords: "decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 yuv 4:4:4 444 colour color full range bitrate limit unlock mdns network discover blocked firewall performance stats overlay compact lite summary latency renderer"
+            category: qsTr("Norilight")
+            name: qsTr("Video decoding")
+            summary: qsTr("Decoder, codec, colour")
+            keywords: "advanced decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 renderer yuv 4:4:4 444 colour color full range bitrate limit unlock"
+        }
+        ListElement {
+            key: "network"
+            category: qsTr("Norilight")
+            name: qsTr("Network & diagnostics")
+            summary: qsTr("Host discovery, stats overlay")
+            keywords: "advanced mdns network discover blocked firewall performance stats overlay compact lite summary latency"
         }
     }
 
@@ -170,7 +242,7 @@ Item {
             color: "#3B3B42"
         }
 
-        // Search stays pinned at the top; the section list scrolls in short windows
+        // Search stays pinned at the top; the grouped page list sits below it
         TextField {
             id: searchField
             x: 16
@@ -184,6 +256,7 @@ Item {
                 settingsPage.followSearch()
             }
             Keys.onEscapePressed: text = ""
+            Keys.onDownPressed: settingsPage.focusCurrentSection()
         }
 
         Flickable {
@@ -209,66 +282,80 @@ Item {
                 id: navColumn
                 width: navFlick.width
                 bottomPadding: 12
-                spacing: 2
+                spacing: 0
 
                 Repeater {
+                    id: navRepeater
                     model: sectionModel
 
-                    delegate: ItemDelegate {
-                        id: navItem
+                    delegate: Column {
+                        property alias navButton: navItem
 
-                        readonly property bool selected: settingsPage.currentSection === model.key
-
+                        width: navColumn.width
                         visible: settingsPage.sectionMatches(model.name, model.summary, model.keywords)
-                        width: parent.width
-                        height: 58
-                        padding: 0
-                        hoverEnabled: true
-                        focusPolicy: Qt.TabFocus
 
-                        onClicked: settingsPage.showSection(model.key)
-                        Keys.onReturnPressed: settingsPage.showSection(model.key)
-                        Keys.onEnterPressed: settingsPage.showSection(model.key)
-
-                        background: Rectangle {
-                            color: navItem.selected ? "#37373E" : (navItem.hovered || navItem.visualFocus ? "#303036" : "transparent")
-
-                            Behavior on color {
-                                ColorAnimation { duration: 90 }
-                            }
-
-                            Rectangle {
-                                x: 0
-                                width: 3
-                                radius: 1.5
-                                height: parent.height - 20
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: "#9FA8DA"
-                                visible: navItem.selected
-                            }
+                        Label {
+                            x: 24
+                            width: parent.width - 40
+                            topPadding: index === 0 ? 4 : 16
+                            bottomPadding: 6
+                            visible: settingsPage.firstVisibleInCategory(index)
+                            text: model.category.toUpperCase()
+                            font.pointSize: 8.5
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 0.8
+                            color: "#7E7E88"
+                            elide: Text.ElideRight
                         }
 
-                        contentItem: Item {
-                            Column {
-                                x: 24
-                                width: parent.width - 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 2
+                        ItemDelegate {
+                            id: navItem
 
+                            readonly property bool selected: settingsPage.currentSection === model.key
+
+                            width: parent.width
+                            height: 38
+                            padding: 0
+                            hoverEnabled: true
+                            focusPolicy: Qt.TabFocus
+
+                            ToolTip.text: model.summary
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 600
+
+                            onClicked: settingsPage.showSection(model.key)
+                            Keys.onReturnPressed: settingsPage.showSection(model.key)
+                            Keys.onEnterPressed: settingsPage.showSection(model.key)
+                            Keys.onUpPressed: settingsPage.stepSection(index, -1)
+                            Keys.onDownPressed: settingsPage.stepSection(index, 1)
+
+                            background: Rectangle {
+                                color: navItem.selected ? "#37373E" : (navItem.hovered || navItem.visualFocus ? "#303036" : "transparent")
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 90 }
+                                }
+
+                                Rectangle {
+                                    x: 0
+                                    width: 3
+                                    radius: 1.5
+                                    height: parent.height - 16
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: "#9FA8DA"
+                                    visible: navItem.selected
+                                }
+                            }
+
+                            contentItem: Item {
                                 Label {
-                                    width: parent.width
+                                    x: 24
+                                    width: parent.width - 40
+                                    anchors.verticalCenter: parent.verticalCenter
                                     text: model.name
                                     font.pointSize: 11.5
                                     font.weight: navItem.selected ? Font.DemiBold : Font.Normal
                                     color: navItem.selected ? "#FFFFFF" : "#D6D6DB"
-                                    elide: Text.ElideRight
-                                }
-
-                                Label {
-                                    width: parent.width
-                                    text: model.summary
-                                    font.pointSize: 9.5
-                                    color: navItem.selected ? "#AEB5DD" : "#8E8E97"
                                     elide: Text.ElideRight
                                 }
                             }
@@ -1068,8 +1155,8 @@ Item {
                 section: "window"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Stream window")
-                description: qsTr("How the stream window looks and behaves on this PC.")
+                title: qsTr("Display")
+                description: qsTr("Fullscreen or windowed, smoothness, and how the picture fits the screen.")
                 font.pointSize: 12
 
                 Column {
@@ -1265,6 +1352,22 @@ Item {
                             StreamingPreferences.alignVideoTop = checked
                         }
                     }
+
+                }
+            }
+
+            SettingsGroup {
+                id: windowBehaviourGroupBox
+                section: "behaviour"
+                visible: settingsPage.currentSection === section
+                width: (parent.width - (parent.leftPadding + parent.rightPadding))
+                title: qsTr("Window behaviour")
+                description: qsTr("Where the stream window sits, and what it does while you stream.")
+                font.pointSize: 12
+
+                Column {
+                    anchors.fill: parent
+                    spacing: 5
 
                     SettingsCheck {
                         id: alwaysOnTopCheck
@@ -1870,8 +1973,8 @@ Item {
                 section: "input"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Mouse & keyboard")
-                description: qsTr("How your mouse, keyboard and touchscreen control the host.")
+                title: qsTr("Mouse")
+                description: qsTr("How your mouse and cursor control the host.")
                 font.pointSize: 12
 
                 Column {
@@ -1925,6 +2028,76 @@ Item {
                             StreamingPreferences.showLocalCursor = checked
                         }
                     }
+
+                    SettingsCheck {
+                        id: swapMouseButtonsCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        text: qsTr("Swap left and right mouse buttons")
+                        detail: qsTr("For left-handed mouse setups.")
+                        font.pointSize:  12
+                        checked: StreamingPreferences.swapMouseButtons
+                        onCheckedChanged: {
+                            StreamingPreferences.swapMouseButtons = checked
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 12
+                        text: qsTr("Mouse speed in game mode: %1%").arg(Math.round(mouseSensitivitySlider.value))
+                        font.pointSize: 12
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("Scales mouse movement while the cursor is captured for a game. 100% matches your mouse exactly.")
+                        font.pointSize: 10
+                        color: "#9D9DA6"
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Slider {
+                            id: mouseSensitivitySlider
+                            width: Math.min(360, parent.parent.width - 160)
+                            from: 10
+                            to: 400
+                            stepSize: 5
+                            snapMode: Slider.SnapOnRelease
+                            value: StreamingPreferences.mouseSensitivity
+                            onMoved: StreamingPreferences.mouseSensitivity = Math.round(value)
+                        }
+
+                        Button {
+                            text: qsTr("Reset to 100%")
+                            flat: true
+                            visible: Math.round(mouseSensitivitySlider.value) !== 100
+                            onClicked: {
+                                StreamingPreferences.mouseSensitivity = 100
+                                mouseSensitivitySlider.value = 100
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            SettingsGroup {
+                id: keyboardSettingsGroupBox
+                section: "keyboard"
+                visible: settingsPage.currentSection === section
+                width: (parent.width - (parent.leftPadding + parent.rightPadding))
+                title: qsTr("Keyboard, scrolling & touch")
+                description: qsTr("Shortcuts, the scroll wheel and touchscreens.")
+                font.pointSize: 12
+
+                Column {
+                    anchors.fill: parent
+                    spacing: 5
 
                     Column {
                         spacing: 5
@@ -1999,32 +2172,6 @@ Item {
                     }
 
                     SettingsCheck {
-                        id: absoluteTouchCheck
-                        hoverEnabled: true
-                        width: parent.width
-                        text: qsTr("Touchscreen works like a trackpad")
-                        detail: qsTr("Drag to move the cursor and tap to click. When off, the cursor jumps to wherever you touch.")
-                        font.pointSize:  12
-                        checked: !StreamingPreferences.absoluteTouchMode
-                        onCheckedChanged: {
-                            StreamingPreferences.absoluteTouchMode = !checked
-                        }
-                    }
-
-                    SettingsCheck {
-                        id: swapMouseButtonsCheck
-                        hoverEnabled: true
-                        width: parent.width
-                        text: qsTr("Swap left and right mouse buttons")
-                        detail: qsTr("For left-handed mouse setups.")
-                        font.pointSize:  12
-                        checked: StreamingPreferences.swapMouseButtons
-                        onCheckedChanged: {
-                            StreamingPreferences.swapMouseButtons = checked
-                        }
-                    }
-
-                    SettingsCheck {
                         id: reverseScrollButtonsCheck
                         hoverEnabled: true
                         width: parent.width
@@ -2078,46 +2225,20 @@ Item {
                         }
                     }
 
-                    Label {
+
+                    SettingsCheck {
+                        id: absoluteTouchCheck
+                        hoverEnabled: true
                         width: parent.width
-                        topPadding: 12
-                        text: qsTr("Mouse speed in game mode: %1%").arg(Math.round(mouseSensitivitySlider.value))
-                        font.pointSize: 12
-                        wrapMode: Text.Wrap
-                    }
-
-                    Label {
-                        width: parent.width
-                        text: qsTr("Scales mouse movement while the cursor is captured for a game. 100% matches your mouse exactly.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
-                        wrapMode: Text.Wrap
-                    }
-
-                    Row {
-                        spacing: 8
-
-                        Slider {
-                            id: mouseSensitivitySlider
-                            width: Math.min(360, parent.parent.width - 160)
-                            from: 10
-                            to: 400
-                            stepSize: 5
-                            snapMode: Slider.SnapOnRelease
-                            value: StreamingPreferences.mouseSensitivity
-                            onMoved: StreamingPreferences.mouseSensitivity = Math.round(value)
-                        }
-
-                        Button {
-                            text: qsTr("Reset to 100%")
-                            flat: true
-                            visible: Math.round(mouseSensitivitySlider.value) !== 100
-                            onClicked: {
-                                StreamingPreferences.mouseSensitivity = 100
-                                mouseSensitivitySlider.value = 100
-                            }
+                        text: qsTr("Touchscreen works like a trackpad")
+                        detail: qsTr("Drag to move the cursor and tap to click. When off, the cursor jumps to wherever you touch.")
+                        font.pointSize:  12
+                        checked: !StreamingPreferences.absoluteTouchMode
+                        onCheckedChanged: {
+                            StreamingPreferences.absoluteTouchMode = !checked
                         }
                     }
+
                 }
             }
 
@@ -2539,12 +2660,11 @@ Item {
 
             SettingsGroup {
                 id: networkSettingsGroupBox
-                section: "advanced"
+                section: "network"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Network and diagnostics")
-                description: qsTr("")
-                subheading: true
+                description: qsTr("Finding hosts, troubleshooting connections, and stream statistics.")
                 font.pointSize: 12
 
                 Column {
