@@ -143,6 +143,70 @@ void StreamUtils::scaleSourceToDestinationSurface(SDL_Rect* src, SDL_Rect* dst)
     }
 }
 
+static int s_VideoScaleMode = StreamUtils::VSM_FIT;
+static bool s_AlignVideoTop = false;
+
+void StreamUtils::setVideoScaleMode(int mode, bool alignTop)
+{
+    s_VideoScaleMode = mode;
+    s_AlignVideoTop = alignTop;
+}
+
+void StreamUtils::scaleVideoToDestinationSurface(SDL_Rect* src, SDL_Rect* dst)
+{
+    if (s_VideoScaleMode == VSM_STRETCH) {
+        // Use the whole destination as-is
+        return;
+    }
+
+    int dstH = SDL_ceilf((float)dst->w * src->h / src->w);
+    int dstW = SDL_ceilf((float)dst->h * src->w / src->h);
+
+    if (s_VideoScaleMode == VSM_FILL) {
+        // Grow the shorter side until there are no bars, centred
+        if (dstH < dst->h) {
+            dst->x += (dst->w - dstW) / 2;
+            dst->w = dstW;
+        }
+        else {
+            dst->y += s_AlignVideoTop ? 0 : (dst->h - dstH) / 2;
+            dst->h = dstH;
+        }
+        return;
+    }
+
+    if (dstH > dst->h) {
+        dst->x += (dst->w - dstW) / 2;
+        dst->w = dstW;
+    }
+    else {
+        dst->y += s_AlignVideoTop ? 0 : (dst->h - dstH) / 2;
+        dst->h = dstH;
+    }
+}
+
+void StreamUtils::cropVideoToDestinationSurface(SDL_Rect* src, SDL_Rect* dst)
+{
+    if (s_VideoScaleMode != VSM_FILL) {
+        scaleVideoToDestinationSurface(src, dst);
+        return;
+    }
+
+    // Keep dst as the full window and cut the overflowing part out of src
+    float srcAspect = (float)src->w / src->h;
+    float dstAspect = (float)dst->w / dst->h;
+    if (srcAspect > dstAspect) {
+        int newW = (int)SDL_ceilf(src->h * dstAspect);
+        src->x += (src->w - newW) / 2;
+        src->w = newW;
+    }
+    else {
+        int newH = (int)SDL_ceilf(src->w / dstAspect);
+        src->y += s_AlignVideoTop ? 0 : (src->h - newH) / 2;
+        src->h = newH;
+    }
+}
+
 void StreamUtils::screenSpaceToNormalizedDeviceCoords(SDL_FRect* rect, int viewportWidth, int viewportHeight)
 {
     rect->x = (rect->x / (viewportWidth / 2.0f)) - 1.0f;

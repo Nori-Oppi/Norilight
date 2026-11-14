@@ -32,6 +32,9 @@
 #define SER_QUITAPPAFTER "quitAppAfter"
 #define SER_ABSMOUSEMODE "mouseacceleration"
 #define SER_FREECURSORMODE "norilightfreecursor"
+#define SER_FORCEFULLRANGE "norilightforcefullrange"
+#define SER_ALIGNVIDEOTOP "norilightalignvideotop"
+#define SER_VIDEOSCALEMODE "norilightvideoscalemode"
 #define SER_STREAMALWAYSONTOP "norilightalwaysontop"
 #define SER_REMEMBERWINDOWGEOMETRY "norilightrememberwindow"
 #define SER_MOUSESENSITIVITY "norilightmousesensitivity"
@@ -143,6 +146,9 @@ void StreamingPreferences::reload()
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
     absoluteMouseMode = settings.value(SER_ABSMOUSEMODE, false).toBool();
     freeCursorMode = settings.value(SER_FREECURSORMODE, false).toBool();
+    forceFullRange = settings.value(SER_FORCEFULLRANGE, false).toBool();
+    alignVideoTop = settings.value(SER_ALIGNVIDEOTOP, false).toBool();
+    videoScaleMode = qBound(0, settings.value(SER_VIDEOSCALEMODE, 0).toInt(), 2);
     streamAlwaysOnTop = settings.value(SER_STREAMALWAYSONTOP, false).toBool();
     rememberWindowGeometry = settings.value(SER_REMEMBERWINDOWGEOMETRY, false).toBool();
     mouseSensitivity = qBound(10, settings.value(SER_MOUSESENSITIVITY, 100).toInt(), 400);
@@ -349,6 +355,9 @@ void StreamingPreferences::save()
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
     settings.setValue(SER_ABSMOUSEMODE, absoluteMouseMode);
     settings.setValue(SER_FREECURSORMODE, freeCursorMode);
+    settings.setValue(SER_FORCEFULLRANGE, forceFullRange);
+    settings.setValue(SER_ALIGNVIDEOTOP, alignVideoTop);
+    settings.setValue(SER_VIDEOSCALEMODE, videoScaleMode);
     settings.setValue(SER_STREAMALWAYSONTOP, streamAlwaysOnTop);
     settings.setValue(SER_REMEMBERWINDOWGEOMETRY, rememberWindowGeometry);
     settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);

@@ -552,6 +552,10 @@ bool Session::populateDecoderProperties(SDL_Window* window)
                     "Using color range override: %d",
                     m_StreamConfig.colorRange);
     }
+    else if (m_Preferences->forceFullRange) {
+        // Norilight: user asked for full-range colour from the host
+        m_StreamConfig.colorRange = COLOR_RANGE_FULL;
+    }
     else {
         m_StreamConfig.colorRange = decoder->getDecoderColorRange();
     }
@@ -1814,6 +1818,9 @@ void Session::exec()
 
     int x, y, width, height;
     getWindowDimensions(x, y, width, height);
+
+    // Norilight: how the picture fills the window (fit, fill or stretch)
+    StreamUtils::setVideoScaleMode(m_Preferences->videoScaleMode, m_Preferences->alignVideoTop);
 
     // Norilight: reopen the windowed stream where the user last left it, as long
     // as that spot is still on a connected display.

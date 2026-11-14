@@ -103,8 +103,8 @@ Item {
         ListElement {
             key: "window"
             name: qsTr("Stream window")
-            summary: qsTr("Fullscreen, V-Sync, always on top")
-            keywords: "display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter on top remember position size sleep awake screensaver"
+            summary: qsTr("Fullscreen, picture fit, always on top")
+            keywords: "picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter on top remember position size sleep awake screensaver"
         }
         ListElement {
             key: "input"
@@ -140,7 +140,7 @@ Item {
             key: "advanced"
             name: qsTr("Advanced")
             summary: qsTr("Decoder, codec, network")
-            keywords: "decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 yuv 4:4:4 444 colour color bitrate limit unlock mdns network discover blocked firewall performance stats overlay latency renderer"
+            keywords: "decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 yuv 4:4:4 444 colour color full range bitrate limit unlock mdns network discover blocked firewall performance stats overlay latency renderer"
         }
     }
 
@@ -953,7 +953,7 @@ Item {
                             to: StreamingPreferences.unlockBitrate ? 500000 : 150000
 
                             snapMode: "SnapOnRelease"
-                            width: Math.min(bitrateDesc.implicitWidth, parent.width - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0))
+                            width: Math.min(bitrateDesc.implicitWidth, parent.width - bitrateField.width - bitrateUnit.width - 3 * parent.spacing - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0))
 
                             onValueChanged: {
                                 bitrateTitle.text = qsTr("Video bitrate: %1 Mbps").arg(value / 1000.0)
@@ -968,6 +968,53 @@ Item {
                                 // Refresh the text after translations change
                                 languageChanged.connect(valueChanged)
                             }
+                        }
+
+                        // Norilight: type an exact bitrate instead of dragging
+                        TextField {
+                            id: bitrateField
+                            width: 84
+                            anchors.verticalCenter: slider.verticalCenter
+                            horizontalAlignment: TextInput.AlignRight
+                            selectByMouse: true
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            validator: DoubleValidator {
+                                bottom: 0.5
+                                top: 500
+                                decimals: 1
+                                notation: DoubleValidator.StandardNotation
+                                locale: "C"
+                            }
+                            text: (slider.value / 1000.0).toString()
+
+                            ToolTip.delay: 600
+                            ToolTip.timeout: 6000
+                            ToolTip.visible: hovered && !activeFocus
+                            ToolTip.text: qsTr("Type an exact bitrate from 0.5 to 500 Mbps. Above 150 Mbps turns on very high bitrates.")
+
+                            function commit() {
+                                var mbps = parseFloat(text)
+                                if (!isNaN(mbps)) {
+                                    var kbps = Math.round(Math.min(Math.max(mbps, 0.5), 500) * 1000)
+                                    if (kbps > 150000 && !StreamingPreferences.unlockBitrate) {
+                                        StreamingPreferences.unlockBitrate = true
+                                    }
+                                    StreamingPreferences.autoAdjustBitrate = false
+                                    StreamingPreferences.bitrateKbps = kbps
+                                    slider.value = kbps
+                                }
+                                text = Qt.binding(function() { return (slider.value / 1000.0).toString() })
+                            }
+
+                            onEditingFinished: commit()
+                        }
+
+                        Label {
+                            id: bitrateUnit
+                            anchors.verticalCenter: slider.verticalCenter
+                            text: qsTr("Mbps")
+                            font.pointSize: 11
+                            color: "#9D9DA6"
                         }
 
                         Button {
@@ -1147,6 +1194,69 @@ Item {
                             onCheckedChanged: {
                                 StreamingPreferences.framePacing = checked
                             }
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 10
+                        text: qsTr("Picture fit")
+                        font.pointSize: 12
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("What happens when the stream's shape doesn't match the window or screen.")
+                        font.pointSize: 10
+                        color: "#9D9DA6"
+                        wrapMode: Text.Wrap
+                    }
+
+                    AutoResizingComboBox {
+                        id: videoScaleModeComboBox
+                        textRole: "text"
+                        model: ListModel {
+                            id: videoScaleModeListModel
+                            ListElement {
+                                text: qsTr("Fit: show the whole picture, with black bars if needed")
+                                val: 0
+                            }
+                            ListElement {
+                                text: qsTr("Fill: cover the window and crop the edges")
+                                val: 1
+                            }
+                            ListElement {
+                                text: qsTr("Stretch: cover the window and distort the picture")
+                                val: 2
+                            }
+                        }
+                        Component.onCompleted: {
+                            currentIndex = 0
+                            for (var i = 0; i < videoScaleModeListModel.count; i++) {
+                                if (videoScaleModeListModel.get(i).val === StreamingPreferences.videoScaleMode) {
+                                    currentIndex = i
+                                    break
+                                }
+                            }
+                            activated(currentIndex)
+                        }
+                        // ::onActivated must be used, as it only listens for when the index is changed by a human
+                        onActivated: {
+                            StreamingPreferences.videoScaleMode = videoScaleModeListModel.get(currentIndex).val
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: alignVideoTopCheck
+                        width: parent.width
+                        text: qsTr("Pin the picture to the top of the window")
+                        detail: qsTr("Black bars or cropping go at the bottom instead of being split between top and bottom. Not used with Stretch.")
+                        font.pointSize: 12
+                        enabled: StreamingPreferences.videoScaleMode !== 2
+                        checked: StreamingPreferences.alignVideoTop
+                        onCheckedChanged: {
+                            StreamingPreferences.alignVideoTop = checked
                         }
                     }
 
@@ -2138,6 +2248,18 @@ Item {
                                           qsTr("Good for streaming desktop and text-heavy games, but not recommended for fast-paced games.")
                                         :
                                           qsTr("YUV 4:4:4 is not supported on this PC.")
+                    }
+
+                    SettingsCheck {
+                        id: forceFullRangeCheck
+                        width: parent.width
+                        text: qsTr("Full-range colour (experimental)")
+                        detail: qsTr("Asks the host for the full 0-255 brightness range instead of the TV range. Can crush shadows and highlights if your display or decoder doesn't expect it.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.forceFullRange
+                        onCheckedChanged: {
+                            StreamingPreferences.forceFullRange = checked
+                        }
                     }
 
                     SettingsCheck {

@@ -135,7 +135,7 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
         dst.h = windowHeight;
 
         // Use the stream and window sizes to determine the video region
-        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        StreamUtils::scaleVideoToDestinationSurface(&src, &dst);
 
         mouseInVideoRegion = isMouseInVideoRegion(x, y, windowWidth, windowHeight);
 
@@ -291,7 +291,7 @@ bool SdlInputHandler::isMouseInVideoRegion(int mouseX, int mouseY, int windowWid
     dst.h = windowHeight;
 
     // Use the stream and window sizes to determine the video region
-    StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    StreamUtils::scaleVideoToDestinationSurface(&src, &dst);
 
     return (mouseX >= dst.x && mouseX <= dst.x + dst.w) &&
            (mouseY >= dst.y && mouseY <= dst.y + dst.h);
@@ -334,7 +334,12 @@ void SdlInputHandler::updatePointerRegionLock()
         SDL_GetWindowSize(m_Window, &dst.w, &dst.h);
 
         // Use the stream and window sizes to determine the video region
-        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        StreamUtils::scaleVideoToDestinationSurface(&src, &dst);
+
+        // Norilight: fill mode can overflow the window; keep the lock inside it
+        SDL_Rect windowRect = { 0, 0, 0, 0 };
+        SDL_GetWindowSize(m_Window, &windowRect.w, &windowRect.h);
+        SDL_IntersectRect(&dst, &windowRect, &dst);
 
         // SDL 2.0.18 lets us lock the cursor to a specific region
         SDL_SetWindowMouseRect(m_Window, &dst);

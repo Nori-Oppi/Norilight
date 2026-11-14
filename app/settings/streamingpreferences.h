@@ -133,6 +133,9 @@ public:
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
     Q_PROPERTY(bool absoluteMouseMode MEMBER absoluteMouseMode NOTIFY absoluteMouseModeChanged)
     Q_PROPERTY(bool freeCursorMode MEMBER freeCursorMode NOTIFY freeCursorModeChanged)
+    Q_PROPERTY(bool forceFullRange MEMBER forceFullRange NOTIFY forceFullRangeChanged)
+    Q_PROPERTY(bool alignVideoTop MEMBER alignVideoTop NOTIFY alignVideoTopChanged)
+    Q_PROPERTY(int videoScaleMode MEMBER videoScaleMode NOTIFY videoScaleModeChanged)
     Q_PROPERTY(bool streamAlwaysOnTop MEMBER streamAlwaysOnTop NOTIFY streamAlwaysOnTopChanged)
     Q_PROPERTY(bool rememberWindowGeometry MEMBER rememberWindowGeometry NOTIFY rememberWindowGeometryChanged)
     Q_PROPERTY(int mouseSensitivity MEMBER mouseSensitivity NOTIFY mouseSensitivityChanged)
@@ -183,6 +186,9 @@ public:
     // Norilight: let the cursor leave the stream freely (desktop use, not games)
     bool freeCursorMode;
     // Norilight additions
+    bool forceFullRange; // ask the host for full-range colour
+    bool alignVideoTop; // pin letterboxed video to the top edge
+    int videoScaleMode; // 0 fit, 1 fill (crop), 2 stretch
     bool streamAlwaysOnTop;      // keep the stream window above other windows
     bool rememberWindowGeometry; // reopen the stream window where it was last closed
     int mouseSensitivity;        // percent, applies to game (relative) mouse mode
@@ -229,6 +235,9 @@ signals:
     void quitAppAfterChanged();
     void absoluteMouseModeChanged();
     void freeCursorModeChanged();
+    void forceFullRangeChanged();
+    void alignVideoTopChanged();
+    void videoScaleModeChanged();
     void streamAlwaysOnTopChanged();
     void rememberWindowGeometryChanged();
     void mouseSensitivityChanged();

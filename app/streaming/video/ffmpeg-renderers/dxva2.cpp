@@ -924,7 +924,12 @@ void DXVA2Renderer::renderFrame(AVFrame *frame)
     dst.w = m_DisplayWidth;
     dst.h = m_DisplayHeight;
 
-    StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    StreamUtils::cropVideoToDestinationSurface(&src, &dst);
+
+    sample.SrcRect.left = src.x;
+    sample.SrcRect.top = src.y;
+    sample.SrcRect.right = src.x + src.w;
+    sample.SrcRect.bottom = src.y + src.h;
 
     sample.DstRect.left = dst.x;
     sample.DstRect.right = dst.x + dst.w;
