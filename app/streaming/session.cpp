@@ -2,6 +2,7 @@
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "backend/richpresencemanager.h"
+#include "settings/displaymanager.h"
 
 #include <Limelight.h>
 #include "SDL_compat.h"
@@ -1350,11 +1351,19 @@ void Session::getWindowDimensions(int& x, int& y,
         SDL_assert(displayIndex >= 0);
     }
     // Create our window on the same display that Qt's UI
-    // was being displayed on.
+    // was being displayed on (or, for a display manager profile,
+    // on the profile's monitor).
     else {
-        Q_ASSERT(m_QtWindow != nullptr);
-        if (m_QtWindow != nullptr) {
-            QScreen* screen = m_QtWindow->screen();
+        // Norilight: a display manager profile names its monitor
+        QScreen* targetScreen = DisplayManager::findScreen(m_Preferences->targetMonitor);
+        if (!m_Preferences->targetMonitor.isEmpty() && targetScreen == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Requested monitor is not connected; using the UI's display");
+        }
+
+        Q_ASSERT(m_QtWindow != nullptr || targetScreen != nullptr);
+        if (m_QtWindow != nullptr || targetScreen != nullptr) {
+            QScreen* screen = targetScreen != nullptr ? targetScreen : m_QtWindow->screen();
             if (screen != nullptr) {
                 QRect displayRect = screen->geometry();
 
@@ -1996,7 +2005,9 @@ void Session::exec()
 
     // Norilight: reopen the windowed stream where the user last left it, as long
     // as that spot is still on a connected display.
-    if (m_Preferences->rememberWindowGeometry && !m_IsFullScreen) {
+    // A display manager profile always opens on its own monitor instead.
+    if (m_Preferences->rememberWindowGeometry && !m_IsFullScreen &&
+            m_Preferences->targetMonitor.isEmpty()) {
         QSettings settings;
         QRect saved = settings.value("norilightstreamwindowrect").toRect();
         if (saved.width() >= 160 && saved.height() >= 90) {
@@ -2645,6 +2656,7 @@ DispatchDeferredCleanup:
 
     // Norilight: remember where the windowed stream was, for next time
     if (m_Preferences->rememberWindowGeometry && m_Window != nullptr &&
+            m_Preferences->targetMonitor.isEmpty() &&
             !(SDL_GetWindowFlags(m_Window) & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_MAXIMIZED))) {
         int wx, wy, ww, wh;
         SDL_GetWindowPosition(m_Window, &wx, &wy);
