@@ -1,60 +1,65 @@
-# Norilight
+<p align="center">
+  <img src="app/res/norilight.svg" width="128" height="128" alt="Norilight icon: a seal face on the Moonlight logo">
+</p>
 
-Norilight is a desktop streaming client for [Sunshine](https://github.com/LizardByte/Sunshine),
-[Apollo](https://github.com/ClassicOldSong/Apollo) and NVIDIA GameStream hosts. It is
-a fork of [Moonlight PC](https://github.com/moonlight-stream/moonlight-qt), aimed as much
-at everyday remote desktop use as at games.
+<h1 align="center">Norilight</h1>
 
-It keeps everything Moonlight does and adds:
+<p align="center">The cutest Moonlight client, for desktop users and gamers alike.</p>
 
-**A settings page you can find your way around**
-- Sections in a sidebar, with search ("cursor", "codec", "clipboard"…)
-- Every option has a plain name and a line saying what it actually does
+Norilight streams your PC from [Sunshine](https://github.com/LizardByte/Sunshine),
+[Apollo](https://github.com/ClassicOldSong/Apollo) or NVIDIA GameStream. It is a fork of
+[Moonlight PC](https://github.com/moonlight-stream/moonlight-qt): everything Moonlight does
+still works, with extras for using your PC remotely as well as for playing on it.
 
-**Desktop use**
-- Free cursor: the mouse can leave the stream window, even in fullscreen, so you can drag onto other windows and monitors
+## What's new
+
+**Easier settings.** Settings are split into sections with a search box, and every option
+says in plain words what it does.
+
+**For desktop use**
+- Free cursor: the mouse can leave the stream, even in fullscreen, so you can drag onto other windows and monitors
 - Keep the stream window on top, and reopen it where you left it
-- Watch-only mode: view the host without sending it any input
-- Show your own cursor over the stream, scroll speed, and game-mode mouse speed
+- Watch-only mode, to view the host without sending it any input
+- Your own cursor over the stream, adjustable scroll speed and game-mode mouse speed
 
-**Picture and stats**
-- Picture fit: Fit, Fill (crop) or Stretch, optionally pinned to the top
-- Type in an exact bitrate; full-range colour
-- Compact stats overlay and a latency summary when a stream ends
+**For the picture**
+- Fit, Fill or Stretch the stream to the window, optionally pinned to the top
+- Type an exact bitrate, or ask for full-range colour
+- A compact stats overlay, and a latency summary when the stream ends
 
-**Controllers**
-- Stick deadzone, scrolling with a stick in controller-as-mouse mode
-- Toggles for motion sensors and for using the touchpad as a mouse
+**For controllers**
+- Stick deadzone, and scrolling with a stick when a controller acts as a mouse
+- Switches for motion sensors and for using the touchpad as a mouse
 
-**Apollo hosts**
+**For Apollo hosts**
 - Stream from a virtual display that matches your screen, with a resolution scale
-- Clipboard sync, kept out of Windows clipboard history by default
-- Run the host's server commands during a stream (Ctrl+Alt+Shift+R)
+- Clipboard sync, kept out of Windows clipboard history
+- Run the host's server commands mid-stream with Ctrl+Alt+Shift+R
 
 ## Building
 
-See [BUILDING.md](BUILDING.md) for Windows (x64) and macOS on Apple Silicon.
-
-Clone with submodules, because Norilight uses its own fork of `moonlight-common-c`:
+Clone with submodules, because Norilight uses its own copy of `moonlight-common-c`:
 
 ```sh
 git clone --recursive https://github.com/azijnwater/Norilight.git
 ```
 
-## Keyboard shortcuts while streaming
+Then follow [BUILDING.md](BUILDING.md) for Windows (x64) or macOS on Apple Silicon.
 
-All of Moonlight's shortcuts still work (Ctrl+Alt+Shift+Q to quit, +Z to release the
-mouse, +S for stats, and so on). Norilight adds:
+## Shortcuts while streaming
+
+Moonlight's shortcuts all still work: Ctrl+Alt+Shift+Q quits, +Z releases the mouse,
++S shows stats, and so on. Norilight adds one:
 
 | Shortcut | What it does |
 | --- | --- |
-| Ctrl+Alt+Shift+R | List the Apollo host's server commands; press 1–9 to run one, Esc to close |
+| Ctrl+Alt+Shift+R | List the Apollo host's server commands. Press 1–9 to run one, Esc to close. |
 
-## Credits and license
+## Credits
 
-Norilight is built on [Moonlight PC](https://github.com/moonlight-stream/moonlight-qt) by
-the Moonlight Game Streaming Project. Several features follow the Android client
-[Artemis](https://github.com/ClassicOldSong/moonlight-android). Moonlight's original
-README is kept in [docs/MOONLIGHT-README.md](docs/MOONLIGHT-README.md).
+Norilight is built on [Moonlight PC](https://github.com/moonlight-stream/moonlight-qt) by the
+Moonlight Game Streaming Project, and several features follow the Android client
+[Artemis](https://github.com/ClassicOldSong/moonlight-android). Moonlight's original README is
+in [docs/MOONLIGHT-README.md](docs/MOONLIGHT-README.md).
 
 Licensed under the GNU General Public License v3, like Moonlight. See [LICENSE](LICENSE).
