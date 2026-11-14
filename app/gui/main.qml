@@ -9,6 +9,7 @@ import AutoUpdateChecker 1.0
 import StreamingPreferences 1.0
 import SystemProperties 1.0
 import SdlGamepadKeyNavigation 1.0
+import DisplayManager 1.0
 
 ApplicationWindow {
     property bool pollingActive: false
@@ -21,6 +22,16 @@ ApplicationWindow {
     id: window
     width: 1280
     height: 600
+
+    // Norilight: streams started from the display manager run in their own
+    // processes and end when the hub closes, so check with the user first.
+    property bool confirmedHubClose: false
+    onClosing: {
+        if (!confirmedHubClose && DisplayManager.runningCount > 0) {
+            close.accepted = false
+            hubCloseDialog.open()
+        }
+    }
 
     // This function runs prior to creation of the initial StackView item
     function doEarlyInit() {
@@ -451,6 +462,172 @@ ApplicationWindow {
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Settings") + (settingsShortcut.nativeText ? (" ("+settingsShortcut.nativeText+")") : "")
             }
+        }
+    }
+
+    // Norilight: the hub. Streams started on monitor profiles run in their own
+    // windows; this bar lists them and lets you stop or restart each one.
+    footer: Pane {
+        id: hubBar
+        visible: DisplayManager.sessions.length > 0
+        padding: 0
+        topPadding: 8
+        bottomPadding: 8
+        leftPadding: 16
+        rightPadding: 16
+
+        background: Rectangle {
+            color: "#26262B"
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: "#3B3B42"
+            }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: 14
+
+            Column {
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 1
+
+                Label {
+                    text: qsTr("Streams")
+                    font.pointSize: 12
+                    font.weight: Font.DemiBold
+                }
+                Label {
+                    text: qsTr("%1 running").arg(DisplayManager.runningCount)
+                    font.pointSize: 9.5
+                    color: "#9D9DA6"
+                }
+            }
+
+            ListView {
+                id: hubList
+                Layout.fillWidth: true
+                Layout.preferredHeight: 58
+                orientation: ListView.Horizontal
+                spacing: 8
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: DisplayManager.sessions
+
+                ScrollBar.horizontal: ScrollBar {
+                    policy: hubList.contentWidth > hubList.width ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                }
+
+                delegate: Rectangle {
+                    readonly property string status: modelData.stopping ? qsTr("Stopping…")
+                                                   : modelData.running ? qsTr("Streaming")
+                                                   : modelData.failed ? qsTr("Ended with an error")
+                                                   : qsTr("Ended")
+
+                    width: 330
+                    height: hubList.height
+                    radius: 6
+                    color: "#303036"
+                    border.color: "#3B3B42"
+
+                    Rectangle {
+                        id: statusDot
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 9
+                        height: 9
+                        radius: 4.5
+                        color: modelData.stopping ? "#E0B050"
+                             : modelData.running ? "#5FCB82"
+                             : modelData.failed ? "#E06B6B" : "#76767E"
+                    }
+
+                    Column {
+                        anchors.left: statusDot.right
+                        anchors.leftMargin: 10
+                        anchors.right: hubActions.left
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 2
+
+                        Label {
+                            width: parent.width
+                            text: modelData.hostName ? qsTr("%1 on %2").arg(modelData.appName).arg(modelData.hostName)
+                                                     : modelData.appName
+                            font.pointSize: 10.5
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            width: parent.width
+                            text: modelData.profileName + " · " + modelData.monitorLabel + " · " + status
+                            font.pointSize: 9
+                            color: "#9D9DA6"
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Row {
+                        id: hubActions
+                        anchors.right: parent.right
+                        anchors.rightMargin: 4
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        Button {
+                            visible: modelData.running
+                            enabled: !modelData.stopping
+                            flat: true
+                            text: qsTr("Stop")
+                            onClicked: DisplayManager.stopSession(modelData.id)
+                        }
+                        Button {
+                            visible: !modelData.running
+                            flat: true
+                            text: qsTr("Restart")
+                            onClicked: DisplayManager.relaunch(modelData.id)
+                        }
+                        Button {
+                            visible: !modelData.running
+                            flat: true
+                            text: "✕"
+                            onClicked: DisplayManager.dismissSession(modelData.id)
+
+                            ToolTip.text: qsTr("Remove from the list")
+                            ToolTip.delay: 600
+                            ToolTip.visible: hovered
+                        }
+                    }
+                }
+            }
+
+            Button {
+                visible: DisplayManager.runningCount > 1
+                text: qsTr("Stop all")
+                flat: true
+                onClicked: DisplayManager.stopAll()
+            }
+        }
+    }
+
+    Connections {
+        target: DisplayManager
+        onLaunchFailed: {
+            hubErrorDialog.text = message
+            hubErrorDialog.open()
+        }
+    }
+
+    ErrorMessageDialog {
+        id: hubErrorDialog
+    }
+
+    NavigableMessageDialog {
+        id: hubCloseDialog
+        standardButtons: Dialog.Yes | Dialog.No
+        text: qsTr("Closing Norilight will end the %n stream(s) you started on your monitors. Close anyway?", "", DisplayManager.runningCount)
+        onAccepted: {
+            window.confirmedHubClose = true
+            window.close()
         }
     }
 

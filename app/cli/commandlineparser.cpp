@@ -351,6 +351,8 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     parser.addValueOption("bitrate", "bitrate in Kbps");
     parser.addValueOption("packet-size", "video packet size");
     parser.addChoiceOption("display-mode", "display mode", m_WindowModeMap.keys());
+    parser.addValueOption("monitor", "monitor (display manager key) to open the stream on");
+    parser.addChoiceOption("picture-fit", "how the picture fits the window", QStringList({"fit", "fill", "stretch"}));
     parser.addChoiceOption("audio-config", "audio config", m_AudioConfigMap.keys());
     parser.addToggleOption("multi-controller", "multiple controller support");
     parser.addToggleOption("quit-after", "quit app after session");
@@ -439,6 +441,14 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
 
     // Resolve --vsync and --no-vsync options
     preferences->enableVsync = parser.getToggleOptionValue("vsync", preferences->enableVsync);
+
+    // Norilight: display manager profiles pick the monitor and picture fit
+    if (parser.isSet("monitor")) {
+        preferences->targetMonitor = parser.value("monitor");
+    }
+    if (parser.isSet("picture-fit")) {
+        preferences->videoScaleMode = QStringList({"fit", "fill", "stretch"}).indexOf(parser.getChoiceOptionValue("picture-fit").toLower());
+    }
 
     // Resolve --audio-config option
     if (parser.isSet("audio-config")) {

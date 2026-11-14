@@ -304,6 +304,21 @@ CenteredGridView {
                     onTriggered: doQuitGame()
                     visible: model.running
                 }
+                // Norilight: open the stream on a display manager profile's monitor
+                NavigableMenuItem {
+                    text: qsTr("Stream on a Monitor…")
+                    onTriggered: {
+                        profilePicker.appName = model.name
+                        profilePicker.hostUuid = appModel.getComputerUuid()
+                        profilePicker.hostName = appModel.getComputerName()
+                        profilePicker.open()
+                    }
+
+                    ToolTip.text: qsTr("Open this app in its own stream window on one of your monitor profiles. Norilight's main window stays open so you can watch and control the stream from it.")
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                }
                 NavigableMenuItem {
                     checkable: true
                     checked: model.directLaunch
@@ -343,6 +358,10 @@ CenteredGridView {
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.Wrap
         }
+    }
+
+    DisplayProfilePicker {
+        id: profilePicker
     }
 
     NavigableMessageDialog {
