@@ -297,6 +297,13 @@ void SdlInputHandler::updatePointerRegionLock()
         Uint32 fullscreenFlags = SDL_GetWindowFlags(m_Window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
         m_PointerRegionLockActive = (fullscreenFlags == SDL_WINDOW_FULLSCREEN) ||
                                     (fullscreenFlags != 0 && SDL_GetNumVideoDisplays() == 1);
+
+        // Norilight: in free cursor mode the cursor is never confined to the stream,
+        // even in fullscreen, so it can be moved and dragged onto other windows/monitors.
+        // Ctrl+Alt+Shift+L still lets the user lock it manually.
+        if (m_FreeCursorMode && m_AbsoluteMouseMode) {
+            m_PointerRegionLockActive = false;
+        }
     }
 
     // If region lock is enabled, grab the cursor so it can't accidentally leave our window.

@@ -1347,6 +1347,27 @@ Flickable {
                                   qsTr("NOTE: Due to a bug in GeForce Experience, this option may not work properly if your host PC has multiple monitors.")
                 }
 
+                CheckBox {
+                    id: freeCursorCheck
+                    hoverEnabled: true
+                    width: parent.width
+                    text: qsTr("Let the mouse leave the stream (desktop mode, not for games)")
+                    font.pointSize:  12
+                    checked: StreamingPreferences.freeCursorMode
+                    onCheckedChanged: {
+                        StreamingPreferences.freeCursorMode = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 10000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("The cursor is never locked inside the stream, even in fullscreen. Move it or drag across the edge onto your other windows and monitors without pressing a shortcut first.") + " " +
+                                  qsTr("Turns on the remote desktop mouse mode automatically.") + "
+
+" +
+                                  qsTr("You can still lock the cursor manually while streaming using Ctrl+Alt+Shift+L.")
+                }
+
                 Row {
                     spacing: 5
                     width: parent.width
