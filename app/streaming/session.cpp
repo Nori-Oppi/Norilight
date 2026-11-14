@@ -1968,7 +1968,7 @@ void Session::exec()
     // We still capture in windowed absolute mode because it doesn't
     // constrain the motion of the cursor. This allows the user to
     // easily reposition or resize the window.
-    if (m_IsFullScreen || m_Preferences->absoluteMouseMode || m_Preferences->freeCursorMode) {
+    if (!m_Preferences->viewOnly && (m_IsFullScreen || m_Preferences->absoluteMouseMode || m_Preferences->freeCursorMode)) {
         // HACK: For Wayland, we wait until we get the first SDL_WINDOWEVENT_ENTER
         // event where it seems to work consistently on GNOME. For other platforms,
         // especially where SDL may call SDL_RecreateWindow(), we must only capture
@@ -2303,33 +2303,48 @@ void Session::exec()
             presence.runCallbacks();
             m_InputHandler->handleKeyEvent(&event.key);
             break;
+        // Norilight: in watch-only mode, pointer, touch and controller input stays here
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
             presence.runCallbacks();
-            m_InputHandler->handleMouseButtonEvent(&event.button);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleMouseButtonEvent(&event.button);
+            }
             break;
         case SDL_MOUSEMOTION:
-            m_InputHandler->handleMouseMotionEvent(&event.motion);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleMouseMotionEvent(&event.motion);
+            }
             break;
         case SDL_MOUSEWHEEL:
-            m_InputHandler->handleMouseWheelEvent(&event.wheel);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleMouseWheelEvent(&event.wheel);
+            }
             break;
         case SDL_CONTROLLERAXISMOTION:
-            m_InputHandler->handleControllerAxisEvent(&event.caxis);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleControllerAxisEvent(&event.caxis);
+            }
             break;
         case SDL_CONTROLLERBUTTONDOWN:
         case SDL_CONTROLLERBUTTONUP:
             presence.runCallbacks();
-            m_InputHandler->handleControllerButtonEvent(&event.cbutton);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleControllerButtonEvent(&event.cbutton);
+            }
             break;
 #if SDL_VERSION_ATLEAST(2, 0, 14)
         case SDL_CONTROLLERSENSORUPDATE:
-            m_InputHandler->handleControllerSensorEvent(&event.csensor);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleControllerSensorEvent(&event.csensor);
+            }
             break;
         case SDL_CONTROLLERTOUCHPADDOWN:
         case SDL_CONTROLLERTOUCHPADUP:
         case SDL_CONTROLLERTOUCHPADMOTION:
-            m_InputHandler->handleControllerTouchpadEvent(&event.ctouchpad);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleControllerTouchpadEvent(&event.ctouchpad);
+            }
             break;
 #endif
 #if SDL_VERSION_ATLEAST(2, 24, 0)
@@ -2347,7 +2362,9 @@ void Session::exec()
         case SDL_FINGERDOWN:
         case SDL_FINGERMOTION:
         case SDL_FINGERUP:
-            m_InputHandler->handleTouchFingerEvent(&event.tfinger);
+            if (!m_Preferences->viewOnly) {
+                m_InputHandler->handleTouchFingerEvent(&event.tfinger);
+            }
             break;
         case SDL_DISPLAYEVENT:
             switch (event.display.event) {

@@ -28,6 +28,10 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_StreamHeight(streamHeight),
       m_AbsoluteMouseMode(prefs.absoluteMouseMode || prefs.freeCursorMode),
       m_FreeCursorMode(prefs.freeCursorMode),
+      m_ViewOnly(prefs.viewOnly),
+      m_StickDeadzone(prefs.stickDeadzone * 32767 / 100),
+      m_GamepadMotionSensors(prefs.gamepadMotionSensors),
+      m_GamepadTouchpadAsMouse(prefs.gamepadTouchpadAsMouse),
       m_MouseSensitivity(prefs.mouseSensitivity),
       m_ScrollSpeed(prefs.scrollSpeed),
       m_MouseRemainderX(0.0f),
@@ -57,6 +61,9 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
         // Disable the buggy auto-capture on earlier SDL2 builds
         SDL_SetHint(SDL_HINT_MOUSE_AUTO_CAPTURE, "0");
     }
+
+    // Norilight: which stick scrolls in controller-as-mouse mode
+    SdlInputHandler::setAnalogScrollStick(prefs.analogScrollStick);
 
     // Allow gamepad input when the app doesn't have focus if requested
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, prefs.backgroundGamepad ? "1" : "0");

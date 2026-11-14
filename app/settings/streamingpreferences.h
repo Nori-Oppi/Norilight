@@ -133,6 +133,11 @@ public:
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
     Q_PROPERTY(bool absoluteMouseMode MEMBER absoluteMouseMode NOTIFY absoluteMouseModeChanged)
     Q_PROPERTY(bool freeCursorMode MEMBER freeCursorMode NOTIFY freeCursorModeChanged)
+    Q_PROPERTY(bool gamepadTouchpadAsMouse MEMBER gamepadTouchpadAsMouse NOTIFY gamepadTouchpadAsMouseChanged)
+    Q_PROPERTY(bool gamepadMotionSensors MEMBER gamepadMotionSensors NOTIFY gamepadMotionSensorsChanged)
+    Q_PROPERTY(bool viewOnly MEMBER viewOnly NOTIFY viewOnlyChanged)
+    Q_PROPERTY(int analogScrollStick MEMBER analogScrollStick NOTIFY analogScrollStickChanged)
+    Q_PROPERTY(int stickDeadzone MEMBER stickDeadzone NOTIFY stickDeadzoneChanged)
     Q_PROPERTY(bool postStreamSummary MEMBER postStreamSummary NOTIFY postStreamSummaryChanged)
     Q_PROPERTY(bool liteStats MEMBER liteStats NOTIFY liteStatsChanged)
     Q_PROPERTY(bool forceFullRange MEMBER forceFullRange NOTIFY forceFullRangeChanged)
@@ -188,6 +193,11 @@ public:
     // Norilight: let the cursor leave the stream freely (desktop use, not games)
     bool freeCursorMode;
     // Norilight additions
+    bool gamepadTouchpadAsMouse; // controller touchpad moves the host mouse
+    bool gamepadMotionSensors; // let the host use controller gyro/accelerometer
+    bool viewOnly; // watch the stream without sending input
+    int analogScrollStick; // controller-as-mouse scrolling: 0 d-pad, 1 right stick, 2 left stick
+    int stickDeadzone; // percent of stick travel ignored around centre
     bool postStreamSummary; // show a latency summary after the stream
     bool liteStats; // compact performance overlay
     bool forceFullRange; // ask the host for full-range colour
@@ -239,6 +249,11 @@ signals:
     void quitAppAfterChanged();
     void absoluteMouseModeChanged();
     void freeCursorModeChanged();
+    void gamepadTouchpadAsMouseChanged();
+    void gamepadMotionSensorsChanged();
+    void viewOnlyChanged();
+    void analogScrollStickChanged();
+    void stickDeadzoneChanged();
     void postStreamSummaryChanged();
     void liteStatsChanged();
     void forceFullRangeChanged();

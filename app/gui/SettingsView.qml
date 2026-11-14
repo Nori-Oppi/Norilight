@@ -104,7 +104,7 @@ Item {
             key: "window"
             name: qsTr("Stream window")
             summary: qsTr("Fullscreen, picture fit, always on top")
-            keywords: "picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter on top remember position size sleep awake screensaver"
+            keywords: "picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter on top remember position size sleep awake screensaver watch only view observe monitor input"
         }
         ListElement {
             key: "input"
@@ -122,7 +122,7 @@ Item {
             key: "gamepad"
             name: qsTr("Controllers")
             summary: qsTr("Gamepads and button layout")
-            keywords: "gamepad controller joystick xbox playstation nintendo buttons start mouse background"
+            keywords: "gamepad controller joystick xbox playstation dualsense nintendo buttons start mouse background scroll stick deadzone drift gyro motion sensors touchpad"
         }
         ListElement {
             key: "host"
@@ -1287,6 +1287,18 @@ Item {
                     }
 
                     SettingsCheck {
+                        id: viewOnlyCheck
+                        width: parent.width
+                        text: qsTr("Watch only: don't send any input to the host")
+                        detail: qsTr("Your mouse, keyboard, touch and controllers stay on this PC, so you can keep an eye on the host without touching it. Norilight's shortcuts like Ctrl+Alt+Shift+Q still work.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.viewOnly
+                        onCheckedChanged: {
+                            StreamingPreferences.viewOnly = checked
+                        }
+                    }
+
+                    SettingsCheck {
                         id: keepAwakeCheck
                         width: parent.width
                         text: qsTr("Keep this PC's screen awake while streaming")
@@ -2030,6 +2042,51 @@ Item {
                         }
                     }
 
+                    Label {
+                        width: parent.width - 36
+                        x: 36
+                        text: qsTr("While a controller is a mouse, scroll with")
+                        font.pointSize: 11
+                        color: gamepadMouseCheck.checked ? "#ECECEE" : "#76767E"
+                        wrapMode: Text.Wrap
+                    }
+
+                    AutoResizingComboBox {
+                        id: analogScrollComboBox
+                        x: 36
+                        enabled: gamepadMouseCheck.checked
+                        textRole: "text"
+                        model: ListModel {
+                            id: analogScrollListModel
+                            ListElement {
+                                text: qsTr("The d-pad (either stick moves the cursor)")
+                                val: 0
+                            }
+                            ListElement {
+                                text: qsTr("The right stick (left stick moves the cursor)")
+                                val: 1
+                            }
+                            ListElement {
+                                text: qsTr("The left stick (right stick moves the cursor)")
+                                val: 2
+                            }
+                        }
+                        Component.onCompleted: {
+                            currentIndex = 0
+                            for (var i = 0; i < analogScrollListModel.count; i++) {
+                                if (analogScrollListModel.get(i).val === StreamingPreferences.analogScrollStick) {
+                                    currentIndex = i
+                                    break
+                                }
+                            }
+                            activated(currentIndex)
+                        }
+                        // ::onActivated must be used, as it only listens for when the index is changed by a human
+                        onActivated: {
+                            StreamingPreferences.analogScrollStick = analogScrollListModel.get(currentIndex).val
+                        }
+                    }
+
                     SettingsCheck {
                         id: backgroundGamepadCheck
                         width: parent.width
@@ -2040,6 +2097,71 @@ Item {
                         checked: StreamingPreferences.backgroundGamepad
                         onCheckedChanged: {
                             StreamingPreferences.backgroundGamepad = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: gamepadMotionCheck
+                        width: parent.width
+                        text: qsTr("Let games use controller motion sensors")
+                        detail: qsTr("Passes gyro and accelerometer data to the host for motion aiming. Turn off if motion causes drift or stutter.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.gamepadMotionSensors
+                        onCheckedChanged: {
+                            StreamingPreferences.gamepadMotionSensors = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: gamepadTouchpadMouseCheck
+                        width: parent.width
+                        text: qsTr("Controller touchpad moves the mouse")
+                        detail: qsTr("On PlayStation-style controllers, slide on the touchpad to move the host cursor and press it to click, instead of passing the touchpad to games.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.gamepadTouchpadAsMouse
+                        onCheckedChanged: {
+                            StreamingPreferences.gamepadTouchpadAsMouse = checked
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 12
+                        text: qsTr("Stick deadzone: %1%").arg(Math.round(deadzoneSlider.value))
+                        font.pointSize: 12
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("How far a stick must move before it counts. Raise it if a worn stick drifts on its own; 0% passes the stick through untouched.")
+                        font.pointSize: 10
+                        color: "#9D9DA6"
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Slider {
+                            id: deadzoneSlider
+                            width: Math.min(360, parent.parent.width - 160)
+                            from: 0
+                            to: 30
+                            stepSize: 1
+                            snapMode: Slider.SnapOnRelease
+                            value: StreamingPreferences.stickDeadzone
+                            onMoved: StreamingPreferences.stickDeadzone = Math.round(value)
+                        }
+
+                        Button {
+                            text: qsTr("Reset to 0%")
+                            flat: true
+                            visible: Math.round(deadzoneSlider.value) !== 0
+                            onClicked: {
+                                StreamingPreferences.stickDeadzone = 0
+                                deadzoneSlider.value = 0
+                            }
                         }
                     }
                 }

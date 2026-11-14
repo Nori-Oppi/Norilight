@@ -154,6 +154,25 @@ void SdlInputHandler::sendGamepadBatteryState(GamepadState* state, SDL_JoystickP
     LiSendControllerBatteryEvent(state->index, batteryState, batteryPercentage);
 }
 
+static int s_AnalogScrollStick = 0;
+
+void SdlInputHandler::setAnalogScrollStick(int stick)
+{
+    s_AnalogScrollStick = stick;
+}
+
+// Norilight: cubic response with a small centre deadzone, in WHEEL_DELTA units per tick
+static short analogScrollAmount(short axis)
+{
+    float v = axis / 32767.0f;
+    const float dz = 0.15f;
+    if (qAbs(v) <= dz) {
+        return 0;
+    }
+    v = (v > 0 ? v - dz : v + dz) / (1.0f - dz);
+    return (short)(v * v * v * 90.0f);
+}
+
 Uint32 SdlInputHandler::mouseEmulationTimerCallback(Uint32 interval, void *param)
 {
     auto gamepad = reinterpret_cast<GamepadState*>(param);
@@ -161,8 +180,27 @@ Uint32 SdlInputHandler::mouseEmulationTimerCallback(Uint32 interval, void *param
     int rawX;
     int rawY;
 
+    if (s_AnalogScrollStick != 0) {
+        // One stick moves the cursor, the other scrolls
+        bool rightScrolls = s_AnalogScrollStick == 1;
+        short moveX = rightScrolls ? gamepad->lsX : gamepad->rsX;
+        short moveY = rightScrolls ? gamepad->lsY : gamepad->rsY;
+        short scrollX = rightScrolls ? gamepad->rsX : gamepad->lsX;
+        short scrollY = rightScrolls ? gamepad->rsY : gamepad->lsY;
+        rawX = moveX;
+        rawY = -moveY;
+
+        short v = analogScrollAmount(scrollY);
+        if (v != 0) {
+            LiSendHighResScrollEvent(v);
+        }
+        short h = analogScrollAmount(scrollX);
+        if (h != 0) {
+            LiSendHighResHScrollEvent(h);
+        }
+    }
     // Determine which analog stick is currently receiving the strongest input
-    if (abs(gamepad->lsX) + abs(gamepad->lsY) > abs(gamepad->rsX) + abs(gamepad->rsY)) {
+    else if (abs(gamepad->lsX) + abs(gamepad->lsY) > abs(gamepad->rsX) + abs(gamepad->rsY)) {
         rawX = gamepad->lsX;
         rawY = -gamepad->lsY;
     }
@@ -189,12 +227,23 @@ Uint32 SdlInputHandler::mouseEmulationTimerCallback(Uint32 interval, void *param
     return interval;
 }
 
-static void updateAnalogStickAxis(short& value, short newValue, bool& dirty)
+static void updateAnalogStickAxis(short& value, short newValue, bool& dirty, int deadzone)
 {
 #ifdef STEAM_LINK
     // Use a deadzone on Steam Link to reduce CPU usage from idle joysticks
     newValue = abs(newValue) < 1500 ? 0 : newValue;
 #endif
+    // Norilight: user deadzone, rescaled so full travel still reaches the edge
+    if (deadzone > 0 && deadzone < 32767) {
+        int magnitude = abs(newValue);
+        if (magnitude <= deadzone) {
+            newValue = 0;
+        }
+        else {
+            int scaled = (magnitude - deadzone) * 32767 / (32767 - deadzone);
+            newValue = (short)(newValue < 0 ? -scaled : scaled);
+        }
+    }
     dirty |= (newValue != value);
     value = newValue;
 }
@@ -224,7 +273,7 @@ void SdlInputHandler::handleControllerAxisEvent(SDL_ControllerAxisEvent* event)
         switch (event->axis)
         {
             case SDL_CONTROLLER_AXIS_LEFTX:
-                updateAnalogStickAxis(state->lsX, event->value, dirty);
+                updateAnalogStickAxis(state->lsX, event->value, dirty, m_StickDeadzone);
                 break;
             case SDL_CONTROLLER_AXIS_LEFTY:
                 // Signed values have one more negative value than
@@ -232,13 +281,13 @@ void SdlInputHandler::handleControllerAxisEvent(SDL_ControllerAxisEvent* event)
                 // could actually cause the value to overflow and
                 // wrap around to be negative again. Avoid that by
                 // capping the value at 32767.
-                updateAnalogStickAxis(state->lsY, -qMax(event->value, (short)-32767), dirty);
+                updateAnalogStickAxis(state->lsY, -qMax(event->value, (short)-32767), dirty, m_StickDeadzone);
                 break;
             case SDL_CONTROLLER_AXIS_RIGHTX:
-                updateAnalogStickAxis(state->rsX, event->value, dirty);
+                updateAnalogStickAxis(state->rsX, event->value, dirty, m_StickDeadzone);
                 break;
             case SDL_CONTROLLER_AXIS_RIGHTY:
-                updateAnalogStickAxis(state->rsY, -qMax(event->value, (short)-32767), dirty);
+                updateAnalogStickAxis(state->rsY, -qMax(event->value, (short)-32767), dirty, m_StickDeadzone);
                 break;
             case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
                 updateTriggerAxis(state->lt, (unsigned char)(event->value * 255UL / 32767), dirty);
@@ -287,6 +336,15 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
     if (state == NULL) {
         return;
     }
+
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    // Norilight: the touchpad click is a left mouse click in touchpad-mouse mode
+    if (m_GamepadTouchpadAsMouse && event->button == SDL_CONTROLLER_BUTTON_TOUCHPAD) {
+        LiSendMouseButtonEvent(event->state == SDL_PRESSED ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
+                               BUTTON_LEFT);
+        return;
+    }
+#endif
 
     if (m_SwapFaceButtons) {
         switch (event->button) {
@@ -464,6 +522,37 @@ void SdlInputHandler::handleControllerTouchpadEvent(SDL_ControllerTouchpadEvent*
 {
     GamepadState* state = findStateForGamepad(event->which);
     if (state == NULL) {
+        return;
+    }
+
+    // Norilight: move the host mouse with the first finger on the touchpad
+    if (m_GamepadTouchpadAsMouse) {
+        if (event->finger != 0) {
+            return;
+        }
+        if (event->type == SDL_CONTROLLERTOUCHPADDOWN) {
+            state->touchpadMouseActive = true;
+            state->touchpadLastX = event->x;
+            state->touchpadLastY = event->y;
+            state->touchpadRemainderX = state->touchpadRemainderY = 0;
+        }
+        else if (event->type == SDL_CONTROLLERTOUCHPADUP) {
+            state->touchpadMouseActive = false;
+        }
+        else if (event->type == SDL_CONTROLLERTOUCHPADMOTION && state->touchpadMouseActive) {
+            // Touchpads are roughly twice as wide as tall, so scale y less
+            float dx = (event->x - state->touchpadLastX) * 1400.0f + state->touchpadRemainderX;
+            float dy = (event->y - state->touchpadLastY) * 700.0f + state->touchpadRemainderY;
+            int sendX = (int)dx;
+            int sendY = (int)dy;
+            state->touchpadRemainderX = dx - sendX;
+            state->touchpadRemainderY = dy - sendY;
+            state->touchpadLastX = event->x;
+            state->touchpadLastY = event->y;
+            if (sendX != 0 || sendY != 0) {
+                LiSendMouseMoveEvent((short)sendX, (short)sendY);
+            }
+        }
         return;
     }
 
@@ -684,16 +773,16 @@ void SdlInputHandler::handleControllerDeviceEvent(SDL_ControllerDeviceEvent* eve
         if (hapticCaps & ML_HAPTIC_GC_TRIGGER_RUMBLE) {
             capabilities |= LI_CCAP_TRIGGER_RUMBLE;
         }
-        if (SDL_GameControllerGetNumTouchpads(state->controller) > 0) {
+        if (SDL_GameControllerGetNumTouchpads(state->controller) > 0 && !m_GamepadTouchpadAsMouse) {
             capabilities |= LI_CCAP_TOUCHPAD;
             if (SDL_GameControllerGetNumTouchpads(state->controller) > 1) {
                 capabilities |= LI_CCAP_DUAL_TOUCHPAD;
             }
         }
-        if (SDL_GameControllerHasSensor(state->controller, SDL_SENSOR_ACCEL)) {
+        if (m_GamepadMotionSensors && SDL_GameControllerHasSensor(state->controller, SDL_SENSOR_ACCEL)) {
             capabilities |= LI_CCAP_ACCEL;
         }
-        if (SDL_GameControllerHasSensor(state->controller, SDL_SENSOR_GYRO)) {
+        if (m_GamepadMotionSensors && SDL_GameControllerHasSensor(state->controller, SDL_SENSOR_GYRO)) {
             capabilities |= LI_CCAP_GYRO;
         }
         if (powerLevel != SDL_JOYSTICK_POWER_UNKNOWN || SDL_VERSION_ATLEAST(2, 24, 0)) {
@@ -916,6 +1005,11 @@ void SdlInputHandler::setMotionEventState(uint16_t controllerNumber, uint8_t mot
 {
     // Make sure the controller number is within our supported count
     if (controllerNumber >= MAX_GAMEPADS) {
+        return;
+    }
+
+    // Norilight: motion sensors were turned off in settings
+    if (!m_GamepadMotionSensors) {
         return;
     }
 

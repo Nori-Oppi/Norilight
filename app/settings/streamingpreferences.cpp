@@ -32,6 +32,11 @@
 #define SER_QUITAPPAFTER "quitAppAfter"
 #define SER_ABSMOUSEMODE "mouseacceleration"
 #define SER_FREECURSORMODE "norilightfreecursor"
+#define SER_GAMEPADTOUCHPADASMOUSE "norilighttouchpadmouse"
+#define SER_GAMEPADMOTIONSENSORS "norilightgamepadmotion"
+#define SER_VIEWONLY "norilightviewonly"
+#define SER_ANALOGSCROLLSTICK "norilightanalogscrollstick"
+#define SER_STICKDEADZONE "norilightstickdeadzone"
 #define SER_POSTSTREAMSUMMARY "norilightpoststreamsummary"
 #define SER_LITESTATS "norilightlitestats"
 #define SER_FORCEFULLRANGE "norilightforcefullrange"
@@ -148,6 +153,11 @@ void StreamingPreferences::reload()
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
     absoluteMouseMode = settings.value(SER_ABSMOUSEMODE, false).toBool();
     freeCursorMode = settings.value(SER_FREECURSORMODE, false).toBool();
+    gamepadTouchpadAsMouse = settings.value(SER_GAMEPADTOUCHPADASMOUSE, false).toBool();
+    gamepadMotionSensors = settings.value(SER_GAMEPADMOTIONSENSORS, true).toBool();
+    viewOnly = settings.value(SER_VIEWONLY, false).toBool();
+    analogScrollStick = qBound(0, settings.value(SER_ANALOGSCROLLSTICK, 0).toInt(), 2);
+    stickDeadzone = qBound(0, settings.value(SER_STICKDEADZONE, 0).toInt(), 30);
     postStreamSummary = settings.value(SER_POSTSTREAMSUMMARY, false).toBool();
     liteStats = settings.value(SER_LITESTATS, false).toBool();
     forceFullRange = settings.value(SER_FORCEFULLRANGE, false).toBool();
@@ -359,6 +369,11 @@ void StreamingPreferences::save()
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
     settings.setValue(SER_ABSMOUSEMODE, absoluteMouseMode);
     settings.setValue(SER_FREECURSORMODE, freeCursorMode);
+    settings.setValue(SER_GAMEPADTOUCHPADASMOUSE, gamepadTouchpadAsMouse);
+    settings.setValue(SER_GAMEPADMOTIONSENSORS, gamepadMotionSensors);
+    settings.setValue(SER_VIEWONLY, viewOnly);
+    settings.setValue(SER_ANALOGSCROLLSTICK, analogScrollStick);
+    settings.setValue(SER_STICKDEADZONE, stickDeadzone);
     settings.setValue(SER_POSTSTREAMSUMMARY, postStreamSummary);
     settings.setValue(SER_LITESTATS, liteStats);
     settings.setValue(SER_FORCEFULLRANGE, forceFullRange);

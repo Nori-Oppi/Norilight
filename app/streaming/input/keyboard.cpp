@@ -511,6 +511,11 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
         m_KeysDown.remove(MAKE_KEYPRESS_STATE(keyCode, modifiers, flags));
     }
 
+    // Norilight: watch-only mode keeps Norilight's own shortcuts but sends nothing
+    if (m_ViewOnly) {
+        return;
+    }
+
     LiSendKeyboardEvent2(keyCode,
                          event->state == SDL_PRESSED ?
                              KEY_ACTION_DOWN : KEY_ACTION_UP,

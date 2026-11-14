@@ -22,6 +22,11 @@ struct GamepadState {
     bool clickpadButtonEmulationEnabled;
     bool emulatedClickpadButtonDown;
 
+    // Norilight: controller touchpad used as a mouse
+    bool touchpadMouseActive;
+    float touchpadLastX, touchpadLastY;
+    float touchpadRemainderX, touchpadRemainderY;
+
 #if SDL_VERSION_ATLEAST(2, 0, 14)
     uint8_t gyroReportPeriodMs;
     float lastGyroEventData[SDL_arraysize(SDL_ControllerSensorEvent::data)];
@@ -142,6 +147,9 @@ public:
 
     bool isCaptureActive();
 
+    // Norilight: 0 = d-pad scrolls, 1 = right stick scrolls, 2 = left stick scrolls
+    static void setAnalogScrollStick(int stick);
+
     bool isSystemKeyCaptureActive();
 
     void setCaptureActive(bool active);
@@ -241,6 +249,10 @@ private:
     int m_StreamHeight;
     bool m_AbsoluteMouseMode;
     bool m_FreeCursorMode;
+    bool m_ViewOnly;
+    int m_StickDeadzone;           // raw axis units
+    bool m_GamepadMotionSensors;
+    bool m_GamepadTouchpadAsMouse;
     int m_MouseSensitivity;
     int m_ScrollSpeed;
     float m_MouseRemainderX;
