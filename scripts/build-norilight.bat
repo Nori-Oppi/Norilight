@@ -1,0 +1,64 @@
+@echo off
+rem Norilight: simple local build (x64). Compiles and deploys a runnable folder.
+rem Usage: scripts\build-norilight.bat [release^|debug]   (default: release)
+rem Needs: Qt 6 MSVC x64 (QT_DIR, default C:\Qt\6.11.3\msvc2022_64), Visual Studio C++ tools,
+rem        and prebuilt deps from setup-deps.ps1.
+setlocal enableDelayedExpansion
+
+set BUILD_CONFIG=%1
+if "%BUILD_CONFIG%"=="" set BUILD_CONFIG=release
+if not defined QT_DIR set QT_DIR=C:\Qt\6.11.3\msvc2022_64
+
+set SOURCE_ROOT=%~dp0..
+set BUILD_FOLDER=%SOURCE_ROOT%\build\build-x64-%BUILD_CONFIG%
+set DEPLOY_FOLDER=%SOURCE_ROOT%\build\Norilight-x64-%BUILD_CONFIG%
+
+if not exist "%QT_DIR%\bin\qmake.exe" (
+    echo Qt not found at %QT_DIR%. Set QT_DIR.
+    exit /b 1
+)
+if not exist "%SOURCE_ROOT%\libs\windows\lib\x64" (
+    echo Prebuilt deps missing. Run setup-deps.ps1 first.
+    exit /b 1
+)
+
+set PATH=%QT_DIR%\bin;%PATH%
+
+where /q cl.exe
+if !ERRORLEVEL! NEQ 0 (
+    set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+    for /f "usebackq delims=" %%i in (`call "!VSWHERE!" -latest -property installationPath`) do set "VS_PATH=%%i"
+    call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" x64 >nul
+)
+where /q cl.exe || (echo MSVC compiler not found & exit /b 1)
+
+rem Compile several files at once inside each cl.exe call
+set CL=/MP
+
+if not exist "%BUILD_FOLDER%" mkdir "%BUILD_FOLDER%"
+pushd "%BUILD_FOLDER%"
+echo === Configuring
+qmake.exe "%SOURCE_ROOT%\moonlight-qt.pro" || goto Error
+echo === Compiling (%BUILD_CONFIG%)
+nmake /nologo %BUILD_CONFIG% || goto Error
+popd
+
+echo === Deploying to %DEPLOY_FOLDER%
+if exist "%DEPLOY_FOLDER%" rmdir /s /q "%DEPLOY_FOLDER%"
+mkdir "%DEPLOY_FOLDER%"
+copy /y "%BUILD_FOLDER%\app\%BUILD_CONFIG%\Norilight.exe" "%DEPLOY_FOLDER%" >nul || goto Error
+copy /y "%SOURCE_ROOT%\libs\windows\lib\x64\*.dll" "%DEPLOY_FOLDER%" >nul || goto Error
+copy /y "%BUILD_FOLDER%\AntiHooking\%BUILD_CONFIG%\AntiHooking.dll" "%DEPLOY_FOLDER%" >nul || goto Error
+copy /y "%SOURCE_ROOT%\app\SDL_GameControllerDB\gamecontrollerdb.txt" "%DEPLOY_FOLDER%" >nul || goto Error
+
+windeployqt.exe --dir "%DEPLOY_FOLDER%" --%BUILD_CONFIG% --qmldir "%SOURCE_ROOT%\app\gui" ^
+    --no-opengl-sw --no-sql --skip-plugin-types qmltooling,generic --no-ffmpeg --force-openssl ^
+    "%DEPLOY_FOLDER%\Norilight.exe" || goto Error
+
+echo === Done: %DEPLOY_FOLDER%\Norilight.exe
+exit /b 0
+
+:Error
+popd
+echo === Build failed
+exit /b 1
