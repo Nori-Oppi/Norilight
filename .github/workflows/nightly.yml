@@ -148,4 +148,4 @@ jobs:
 
           These builds are untested and unsigned.
           - **Windows:** unzip and run Norilight.exe.
-          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`."
+          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`. Allow the Local Network prompt; if your PC isn't found, turn Norilight on under System Settings → Privacy & Security → Local Network."
