@@ -31,6 +31,7 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_ServerCommandsAllowed(true),
       m_ServerCommandMenuOpen(false),
       m_ViewOnly(prefs.viewOnly),
+      m_ScreenshotsOnClient(prefs.screenshotsOnClient),
       m_StickDeadzone(prefs.stickDeadzone * 32767 / 100),
       m_GamepadMotionSensors(prefs.gamepadMotionSensors),
       m_GamepadTouchpadAsMouse(prefs.gamepadTouchpadAsMouse),
@@ -66,6 +67,9 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
 
     // Norilight: which stick scrolls in controller-as-mouse mode
     SdlInputHandler::setAnalogScrollStick(prefs.analogScrollStick);
+
+    // Norilight: let Quick Accent's characters (and its Space) reach the host
+    SdlInputHandler::setUnicodeInputForwarding(prefs.forwardUnicodeInput && !prefs.viewOnly);
 
     // Allow gamepad input when the app doesn't have focus if requested
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, prefs.backgroundGamepad ? "1" : "0");
@@ -237,6 +241,8 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
 
 SdlInputHandler::~SdlInputHandler()
 {
+    SdlInputHandler::setUnicodeInputForwarding(false);
+
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         if (m_GamepadState[i].mouseEmulationTimer != 0) {
             Session::get()->notifyMouseEmulationMode(false);
