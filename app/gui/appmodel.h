@@ -41,6 +41,11 @@ public:
 
     Q_INVOKABLE void setAppDirectLaunch(int appIndex, bool directLaunch);
 
+    // Norilight: identify the host for display manager launches
+    Q_INVOKABLE QString getComputerUuid();
+
+    Q_INVOKABLE QString getComputerName();
+
     QVariant data(const QModelIndex &index, int role) const override;
 
     int rowCount(const QModelIndex &parent) const override;

@@ -53,6 +53,10 @@
 #include "backend/systemproperties.h"
 #include "streaming/session.h"
 #include "settings/streamingpreferences.h"
+#include "settings/displaymanager.h"
+
+#include <QScreen>
+#include <QWindow>
 #include "gui/sdlgamepadkeynavigation.h"
 
 #if defined(Q_OS_WIN32)
@@ -967,6 +971,11 @@ int main(int argc, char *argv[])
                                                       [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
                                                           return new SdlGamepadKeyNavigation(StreamingPreferences::get(qmlEngine));
                                                       });
+    qmlRegisterSingletonType<DisplayManager>("DisplayManager", 1, 0,
+                                             "DisplayManager",
+                                             [](QQmlEngine*, QJSEngine*) -> QObject* {
+                                                 return new DisplayManager();
+                                             });
     qmlRegisterSingletonType<StreamingPreferences>("StreamingPreferences", 1, 0,
                                                    "StreamingPreferences",
                                                    [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
@@ -1053,6 +1062,18 @@ int main(int argc, char *argv[])
         engine.load(QUrl(QStringLiteral("qrc:/gui/main.qml")));
         if (engine.rootObjects().isEmpty())
             return -1;
+
+        // Norilight: a display manager stream shows its "starting" window on
+        // the monitor the stream will open on, not wherever the OS puts it
+        if (commandLineParserResult == GlobalCommandLineParser::StreamRequested) {
+            QScreen* target = DisplayManager::findScreen(StreamingPreferences::get()->targetMonitor);
+            auto* rootWindow = qobject_cast<QWindow*>(engine.rootObjects().constFirst());
+            if (target != nullptr && rootWindow != nullptr && rootWindow->visibility() == QWindow::Windowed) {
+                QRect available = target->availableGeometry();
+                QSize size = rootWindow->size().boundedTo(available.size());
+                rootWindow->setGeometry(QRect(available.center() - QPoint(size.width() / 2, size.height() / 2), size));
+            }
+        }
     }
 
     int err = app.exec();
