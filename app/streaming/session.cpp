@@ -1819,6 +1819,9 @@ void Session::exec()
     int x, y, width, height;
     getWindowDimensions(x, y, width, height);
 
+    // Norilight: compact stats overlay
+    FFmpegVideoDecoder::setLiteStatsMode(m_Preferences->liteStats);
+
     // Norilight: how the picture fills the window (fit, fill or stretch)
     StreamUtils::setVideoScaleMode(m_Preferences->videoScaleMode, m_Preferences->alignVideoTop);
 
@@ -2383,6 +2386,13 @@ DispatchDeferredCleanup:
     // NB: This must happen before LiStopConnection() for pull-based
     // decoders.
     SDL_LockMutex(m_DecoderLock);
+    // Norilight: grab the whole-session stats before the decoder goes away
+    if (m_Preferences->postStreamSummary && m_VideoDecoder != nullptr) {
+        QString summary = m_VideoDecoder->getSessionSummary();
+        if (!summary.isEmpty()) {
+            emit streamSummaryReady(summary);
+        }
+    }
     delete m_VideoDecoder;
     m_VideoDecoder = nullptr;
     SDL_UnlockMutex(m_DecoderLock);

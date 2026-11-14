@@ -59,6 +59,14 @@ Item {
         window.visible = true
     }
 
+    // Norilight: latency summary from the session, shown after the stream
+    property string streamSummary: ""
+
+    function streamSummaryReady(summary)
+    {
+        streamSummary = summary
+    }
+
     function sessionFinished(portTestResult)
     {
         if (portTestResult !== 0 && portTestResult !== -1 && streamSegueErrorDialog.text) {
@@ -88,6 +96,10 @@ Item {
             if (streamSegueErrorDialog.text) {
                 streamSegueErrorDialog.quitAfter = quitAfter
                 streamSegueErrorDialog.open()
+            }
+            else if (streamSummary !== "" && !quitAfter) {
+                streamSummaryDialog.text = qsTr("Stream summary") + "\n\n" + streamSummary
+                streamSummaryDialog.open()
             }
         }
     }
@@ -119,6 +131,7 @@ Item {
         session.displayLaunchError.connect(displayLaunchError)
         session.quitStarting.connect(quitStarting)
         session.sessionFinished.connect(sessionFinished)
+        session.streamSummaryReady.connect(streamSummaryReady)
         session.readyForDeletion.connect(sessionReadyForDeletion)
 
         // Ensure the SystemProperties async thread is finished,

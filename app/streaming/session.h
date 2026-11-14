@@ -138,6 +138,9 @@ signals:
 
     void sessionFinished(int portTestResult);
 
+    // Norilight: whole-session latency summary, emitted before sessionFinished
+    void streamSummaryReady(QString summary);
+
     // Emitted after sessionFinished() when the session is ready to be destroyed
     void readyForDeletion();
 

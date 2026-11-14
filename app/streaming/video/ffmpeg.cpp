@@ -3,6 +3,8 @@
 #include "utils.h"
 #include "streaming/session.h"
 
+#include <QStringList>
+
 #include <h264_stream.h>
 
 extern "C" {
@@ -795,6 +797,42 @@ void FFmpegVideoDecoder::addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst)
     dst.receivedFps     = (double)dst.receivedFrames / timeDiffSecs;
     dst.decodedFps      = (double)dst.decodedFrames / timeDiffSecs;
     dst.renderedFps     = (double)dst.renderedFrames / timeDiffSecs;
+}
+
+static bool s_LiteStatsMode = false;
+
+void FFmpegVideoDecoder::setLiteStatsMode(bool enabled)
+{
+    s_LiteStatsMode = enabled;
+}
+
+QString FFmpegVideoDecoder::getSessionSummary()
+{
+    // Include the window that was still being measured when the stream ended
+    VIDEO_STATS stats = {};
+    addVideoStats(m_GlobalVideoStats, stats);
+    addVideoStats(m_ActiveWndVideoStats, stats);
+
+    if (stats.renderedFrames == 0 || stats.decodedFrames == 0 || stats.totalFrames == 0) {
+        return QString();
+    }
+
+    QStringList lines;
+    if (stats.lastRtt != 0) {
+        lines << QObject::tr("Network latency: %1 ms (varies by %2 ms)").arg(stats.lastRtt).arg(stats.lastRttVariance);
+    }
+    if (stats.framesWithHostProcessingLatency > 0) {
+        lines << QObject::tr("Host processing: %1 ms average, %2 ms worst")
+                 .arg((double)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency, 0, 'f', 1)
+                 .arg((double)stats.maxHostProcessingLatency / 10, 0, 'f', 1);
+    }
+    lines << QObject::tr("Decoding: %1 ms average").arg((double)stats.totalDecodeTimeUs / 1000.0 / stats.decodedFrames, 0, 'f', 2);
+    lines << QObject::tr("Frame queue: %1 ms average").arg((double)stats.totalPacerTimeUs / 1000.0 / stats.renderedFrames, 0, 'f', 2);
+    lines << QObject::tr("Rendering: %1 ms average").arg((double)stats.totalRenderTimeUs / 1000.0 / stats.renderedFrames, 0, 'f', 2);
+    lines << QObject::tr("Frames lost on the network: %1%").arg((double)stats.networkDroppedFrames / stats.totalFrames * 100, 0, 'f', 2);
+    lines << QObject::tr("Frames dropped for smoothness: %1%").arg((double)stats.pacerDroppedFrames / stats.decodedFrames * 100, 0, 'f', 2);
+    lines << QObject::tr("Frames shown: %1").arg(stats.renderedFrames);
+    return lines.join('\n');
 }
 
 void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, int length)
@@ -2142,9 +2180,34 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
             addVideoStats(m_LastWndVideoStats, lastTwoWndStats);
             addVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
 
-            stringifyVideoStats(lastTwoWndStats,
-                                Session::get()->getOverlayManager().getOverlayText(Overlay::OverlayDebug),
-                                Session::get()->getOverlayManager().getOverlayMaxTextLength());
+            if (s_LiteStatsMode) {
+                char* out = Session::get()->getOverlayManager().getOverlayText(Overlay::OverlayDebug);
+                int maxLen = Session::get()->getOverlayManager().getOverlayMaxTextLength();
+                VIDEO_STATS& s = lastTwoWndStats;
+                char rtt[16];
+                if (s.lastRtt != 0) {
+                    snprintf(rtt, sizeof(rtt), "%u ms", s.lastRtt);
+                }
+                else {
+                    snprintf(rtt, sizeof(rtt), "N/A");
+                }
+                snprintf(out, maxLen,
+                         "%dx%d  %.0f FPS  %.1f Mbps\n"
+                         "Network %s  Decode %.1f ms  Render %.1f ms  Loss %.1f%%\n",
+                         m_VideoDecoderCtx ? m_VideoDecoderCtx->width : 0,
+                         m_VideoDecoderCtx ? m_VideoDecoderCtx->height : 0,
+                         s.renderedFps,
+                         m_BwTracker.GetAverageMbps(),
+                         rtt,
+                         s.decodedFrames ? (double)(s.totalDecodeTimeUs / 1000.0) / s.decodedFrames : 0.0,
+                         s.renderedFrames ? (double)(s.totalRenderTimeUs / 1000.0) / s.renderedFrames : 0.0,
+                         s.totalFrames ? (float)s.networkDroppedFrames / s.totalFrames * 100 : 0.0f);
+            }
+            else {
+                stringifyVideoStats(lastTwoWndStats,
+                                    Session::get()->getOverlayManager().getOverlayText(Overlay::OverlayDebug),
+                                    Session::get()->getOverlayManager().getOverlayMaxTextLength());
+            }
             Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayDebug);
         }
 

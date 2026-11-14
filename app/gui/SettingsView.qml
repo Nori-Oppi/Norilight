@@ -140,7 +140,7 @@ Item {
             key: "advanced"
             name: qsTr("Advanced")
             summary: qsTr("Decoder, codec, network")
-            keywords: "decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 yuv 4:4:4 444 colour color full range bitrate limit unlock mdns network discover blocked firewall performance stats overlay latency renderer"
+            keywords: "decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 yuv 4:4:4 444 colour color full range bitrate limit unlock mdns network discover blocked firewall performance stats overlay compact lite summary latency renderer"
         }
     }
 
@@ -2329,6 +2329,18 @@ Item {
                     }
 
                     SettingsCheck {
+                        id: postStreamSummaryCheck
+                        width: parent.width
+                        text: qsTr("Show a latency summary when a stream ends")
+                        detail: qsTr("Average network latency, decode and render times, and dropped frames for the whole session.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.postStreamSummary
+                        onCheckedChanged: {
+                            StreamingPreferences.postStreamSummary = checked
+                        }
+                    }
+
+                    SettingsCheck {
                         id: showPerformanceOverlay
                         width: parent.width
                         text: qsTr("Show performance stats over the stream")
@@ -2345,6 +2357,20 @@ Item {
                         ToolTip.text: qsTr("Display real-time stream performance information while streaming.") + "\n\n" +
                                       qsTr("You can toggle it at any time while streaming using Ctrl+Alt+Shift+S or Select+L1+R1+X.") + "\n\n" +
                                       qsTr("The performance overlay is not supported on Steam Link or Raspberry Pi.")
+                    }
+
+                    SettingsCheck {
+                        id: liteStatsCheck
+                        width: parent.width - 36
+                        x: 36
+                        text: qsTr("Compact stats")
+                        detail: qsTr("Just resolution, frame rate, bitrate, latency, decode and render time, and packet loss on two short lines.")
+                        font.pointSize: 12
+                        enabled: showPerformanceOverlay.checked
+                        checked: StreamingPreferences.liteStats
+                        onCheckedChanged: {
+                            StreamingPreferences.liteStats = checked
+                        }
                     }
                 }
             }

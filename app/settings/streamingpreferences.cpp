@@ -32,6 +32,8 @@
 #define SER_QUITAPPAFTER "quitAppAfter"
 #define SER_ABSMOUSEMODE "mouseacceleration"
 #define SER_FREECURSORMODE "norilightfreecursor"
+#define SER_POSTSTREAMSUMMARY "norilightpoststreamsummary"
+#define SER_LITESTATS "norilightlitestats"
 #define SER_FORCEFULLRANGE "norilightforcefullrange"
 #define SER_ALIGNVIDEOTOP "norilightalignvideotop"
 #define SER_VIDEOSCALEMODE "norilightvideoscalemode"
@@ -146,6 +148,8 @@ void StreamingPreferences::reload()
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
     absoluteMouseMode = settings.value(SER_ABSMOUSEMODE, false).toBool();
     freeCursorMode = settings.value(SER_FREECURSORMODE, false).toBool();
+    postStreamSummary = settings.value(SER_POSTSTREAMSUMMARY, false).toBool();
+    liteStats = settings.value(SER_LITESTATS, false).toBool();
     forceFullRange = settings.value(SER_FORCEFULLRANGE, false).toBool();
     alignVideoTop = settings.value(SER_ALIGNVIDEOTOP, false).toBool();
     videoScaleMode = qBound(0, settings.value(SER_VIDEOSCALEMODE, 0).toInt(), 2);
@@ -355,6 +359,8 @@ void StreamingPreferences::save()
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
     settings.setValue(SER_ABSMOUSEMODE, absoluteMouseMode);
     settings.setValue(SER_FREECURSORMODE, freeCursorMode);
+    settings.setValue(SER_POSTSTREAMSUMMARY, postStreamSummary);
+    settings.setValue(SER_LITESTATS, liteStats);
     settings.setValue(SER_FORCEFULLRANGE, forceFullRange);
     settings.setValue(SER_ALIGNVIDEOTOP, alignVideoTop);
     settings.setValue(SER_VIDEOSCALEMODE, videoScaleMode);

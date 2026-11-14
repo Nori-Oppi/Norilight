@@ -504,6 +504,15 @@ ApplicationWindow {
     // To repro: Start a stream, cut the network connection to trigger the "Connection
     // terminated" dialog, wait until the app grid times out back to the PC grid, then
     // try to dismiss the dialog.
+    // Norilight: end-of-stream latency summary (hosted here for the same reason
+    // as the error dialog below)
+    NavigableMessageDialog {
+        id: streamSummaryDialog
+        standardButtons: Dialog.Ok
+        imageSrc: "qrc:/res/baseline-check_circle_outline-24px.svg"
+        onClosed: text = ""
+    }
+
     ErrorMessageDialog {
         id: streamSegueErrorDialog
 

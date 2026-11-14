@@ -29,8 +29,12 @@ public:
     virtual void renderFrameOnMainThread() override;
     virtual void setHdrMode(bool enabled) override;
     virtual bool notifyWindowChanged(PWINDOW_STATE_CHANGE_INFO info) override;
+    virtual QString getSessionSummary() override;
 
     virtual IFFmpegRenderer* getBackendRenderer();
+
+    // Norilight: compact stats overlay
+    static void setLiteStatsMode(bool enabled);
 
 private:
     enum class TestMode {

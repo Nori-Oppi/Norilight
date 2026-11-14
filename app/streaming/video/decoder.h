@@ -77,4 +77,7 @@ public:
     virtual void renderFrameOnMainThread() = 0;
     virtual void setHdrMode(bool enabled) = 0;
     virtual bool notifyWindowChanged(PWINDOW_STATE_CHANGE_INFO info) = 0;
+
+    // Norilight: plain-text summary of the whole session, or empty if unknown
+    virtual QString getSessionSummary() { return QString(); }
 };

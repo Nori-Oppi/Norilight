@@ -133,6 +133,8 @@ public:
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
     Q_PROPERTY(bool absoluteMouseMode MEMBER absoluteMouseMode NOTIFY absoluteMouseModeChanged)
     Q_PROPERTY(bool freeCursorMode MEMBER freeCursorMode NOTIFY freeCursorModeChanged)
+    Q_PROPERTY(bool postStreamSummary MEMBER postStreamSummary NOTIFY postStreamSummaryChanged)
+    Q_PROPERTY(bool liteStats MEMBER liteStats NOTIFY liteStatsChanged)
     Q_PROPERTY(bool forceFullRange MEMBER forceFullRange NOTIFY forceFullRangeChanged)
     Q_PROPERTY(bool alignVideoTop MEMBER alignVideoTop NOTIFY alignVideoTopChanged)
     Q_PROPERTY(int videoScaleMode MEMBER videoScaleMode NOTIFY videoScaleModeChanged)
@@ -186,6 +188,8 @@ public:
     // Norilight: let the cursor leave the stream freely (desktop use, not games)
     bool freeCursorMode;
     // Norilight additions
+    bool postStreamSummary; // show a latency summary after the stream
+    bool liteStats; // compact performance overlay
     bool forceFullRange; // ask the host for full-range colour
     bool alignVideoTop; // pin letterboxed video to the top edge
     int videoScaleMode; // 0 fit, 1 fill (crop), 2 stretch
@@ -235,6 +239,8 @@ signals:
     void quitAppAfterChanged();
     void absoluteMouseModeChanged();
     void freeCursorModeChanged();
+    void postStreamSummaryChanged();
+    void liteStatsChanged();
     void forceFullRangeChanged();
     void alignVideoTopChanged();
     void videoScaleModeChanged();
