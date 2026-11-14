@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/res/norilight.svg" width="128" height="128" alt="Norilight icon: a seal face on the Moonlight logo">
+  <img src="app/res/norilight.svg" width="128" height="128" alt="Norilight icon: a seal pup's face inside the Moonlight ring">
 </p>
 
 <h1 align="center">Norilight</h1>
