@@ -2365,6 +2365,33 @@ Item {
                     }
 
                     SettingsCheck {
+                        id: screenshotsOnClientCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        text: qsTr("Take screenshots on this PC only")
+                        detail: qsTr("PrtScn and Win+Shift+S take a screenshot here and aren't sent to the host, so you don't get one on both PCs.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.screenshotsOnClient
+                        onCheckedChanged: {
+                            StreamingPreferences.screenshotsOnClient = checked
+                        }
+                    }
+
+                    SettingsCheck {
+                        id: forwardUnicodeInputCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        visible: Qt.platform.os === "windows"
+                        text: qsTr("Work with PowerToys Quick Accent")
+                        detail: qsTr("Sends characters that Quick Accent types on this PC to the host, including the Space it holds back while a letter is down. Without this, Space doesn't work until you stop typing, and picked accents are lost.")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.forwardUnicodeInput
+                        onCheckedChanged: {
+                            StreamingPreferences.forwardUnicodeInput = checked
+                        }
+                    }
+
+                    SettingsCheck {
                         id: reverseScrollButtonsCheck
                         hoverEnabled: true
                         width: parent.width

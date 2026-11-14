@@ -3,6 +3,13 @@
 #include <Limelight.h>
 #include "SDL_compat.h"
 
+#include <QDesktopServices>
+#include <QUrl>
+
+#ifdef Q_OS_WIN32
+#include <windows.h>
+#endif
+
 #define VK_0 0x30
 #define VK_A 0x41
 
@@ -570,6 +577,45 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
     keyCode |= 0x8000;
     flags = shouldNotConvertToScanCodeOnServer ? SS_KBE_FLAG_NON_NORMALIZED : 0;
 
+    // Norilight: take screenshots on this PC only, so a screenshot isn't
+    // taken on both the client and the host at the same time.
+    if (m_ScreenshotsOnClient) {
+        if (event->state == SDL_PRESSED) {
+            bool guiHeld = (event->keysym.mod & KMOD_GUI) && isSystemKeyCaptureActive();
+            bool isPrintScreen = event->keysym.scancode == SDL_SCANCODE_PRINTSCREEN;
+#ifdef Q_OS_WIN32
+            // Win+Shift+S: with system keys captured, this PC never sees the
+            // Windows key, so open the snipping overlay here ourselves.
+            // (PrtScn itself still reaches this PC's own screenshot handler.)
+            bool isSnipShortcut = guiHeld &&
+                                  (event->keysym.mod & KMOD_SHIFT) &&
+                                  event->keysym.scancode == SDL_SCANCODE_S;
+#else
+            bool isSnipShortcut = false;
+#endif
+
+            if (isPrintScreen || isSnipShortcut) {
+                m_SwallowedKeys.insert(keyCode);
+
+                if (isSnipShortcut) {
+                    QDesktopServices::openUrl(QUrl("ms-screenclip:"));
+                }
+
+                // The host already has the Windows key down. Tap Ctrl so that
+                // releasing it doesn't open the Start menu on the host.
+                if (guiHeld && !m_ViewOnly) {
+                    LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_DOWN, modifiers, 0);
+                    LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_UP, modifiers, 0);
+                }
+                return;
+            }
+        }
+        else if (m_SwallowedKeys.remove(keyCode) ||
+                 event->keysym.scancode == SDL_SCANCODE_PRINTSCREEN) {
+            return;
+        }
+    }
+
     // Track the key state so we always know which keys are down
     if (event->state == SDL_PRESSED) {
         m_KeysDown.insert(MAKE_KEYPRESS_STATE(keyCode, modifiers, flags));
@@ -592,6 +638,9 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
 
 void SdlInputHandler::raiseAllKeys()
 {
+    // Norilight: keys raised here won't send their own key up anymore
+    m_SwallowedKeys.clear();
+
     if (m_KeysDown.isEmpty()) {
         return;
     }
@@ -608,4 +657,70 @@ void SdlInputHandler::raiseAllKeys()
     }
 
     m_KeysDown.clear();
+}
+
+#ifdef Q_OS_WIN32
+// Norilight: tools like PowerToys Quick Accent type characters on this PC as
+// Unicode input (VK_PACKET) instead of real key presses. That includes the
+// Space that Quick Accent holds back while a letter is down and gives back
+// when the letter is released quickly, so without this, Space is lost while
+// typing. Forward those characters to the host as text.
+namespace {
+    bool s_ForwardUnicodeInput = false;
+    bool s_PacketPending = false;
+    wchar_t s_HighSurrogate = 0;
+}
+
+static void SDLCALL unicodeInputMessageHook(void*, void*, unsigned int message, Uint64 wParam, Sint64)
+{
+    if (!s_ForwardUnicodeInput) {
+        return;
+    }
+
+    if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN) {
+        // Only the character right after a VK_PACKET key down is forwarded;
+        // characters from real key presses already reach the host as keys.
+        s_PacketPending = (wParam == VK_PACKET);
+        s_HighSurrogate = 0;
+    }
+    else if (message == WM_CHAR && s_PacketPending) {
+        wchar_t ch = (wchar_t)wParam;
+
+        if (IS_HIGH_SURROGATE(ch)) {
+            // The low surrogate arrives in the next WM_CHAR
+            s_HighSurrogate = ch;
+            return;
+        }
+
+        QString text;
+        if (IS_LOW_SURROGATE(ch) && s_HighSurrogate != 0) {
+            wchar_t pair[2] = { s_HighSurrogate, ch };
+            text = QString::fromWCharArray(pair, 2);
+        }
+        else {
+            text = QString::fromWCharArray(&ch, 1);
+        }
+        s_HighSurrogate = 0;
+        s_PacketPending = false;
+
+        if (text == "\r") {
+            text = "\n";
+        }
+
+        QByteArray utf8 = text.toUtf8();
+        LiSendUtf8TextEvent(utf8.constData(), (unsigned int)utf8.size());
+    }
+}
+#endif
+
+void SdlInputHandler::setUnicodeInputForwarding(bool enabled)
+{
+#ifdef Q_OS_WIN32
+    s_ForwardUnicodeInput = enabled;
+    s_PacketPending = false;
+    s_HighSurrogate = 0;
+    SDL_SetWindowsMessageHook(enabled ? unicodeInputMessageHook : nullptr, nullptr);
+#else
+    Q_UNUSED(enabled);
+#endif
 }
