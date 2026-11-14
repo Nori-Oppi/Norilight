@@ -5,10 +5,6 @@
 # pre-release, replacing the previous build. Nights without new commits on
 # main are skipped. Start a build by hand from the Actions tab
 # ("Run workflow") to build even when nothing changed.
-#
-# The moonlight-common-c submodule is Norilight's private fork, which the
-# default GITHUB_TOKEN can't read. The COMMON_C_DEPLOY_KEY secret holds the
-# private half of a read-only deploy key on azijnwater/norilight-common-c.
 name: Nightly
 
 on:
@@ -70,25 +66,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          submodules: false
+          submodules: recursive
           fetch-depth: 1
-
-      - name: Fetch submodules
-        shell: bash
-        env:
-          COMMON_C_DEPLOY_KEY: ${{ secrets.COMMON_C_DEPLOY_KEY }}
-        run: |
-          if [ -z "${COMMON_C_DEPLOY_KEY}" ]; then
-            echo "::error::The COMMON_C_DEPLOY_KEY secret is missing, so the private norilight-common-c submodule can't be cloned."
-            exit 1
-          fi
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "${COMMON_C_DEPLOY_KEY}" > "$HOME/.ssh/common_c_key"
-          chmod 600 "$HOME/.ssh/common_c_key"
-          ssh-keyscan -t ed25519 github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
-          git config --global url."git@github.com:azijnwater/norilight-common-c.git".insteadOf "https://github.com/azijnwater/norilight-common-c.git"
-          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/common_c_key -o IdentitiesOnly=yes"
-          git submodule update --init --recursive
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4

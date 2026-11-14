@@ -17,9 +17,6 @@ git clone --recursive https://github.com/azijnwater/Norilight.git
 cd Norilight
 ```
 
-The Norilight repositories are private, so sign in to GitHub with an account that
-has access first (for example with `gh auth login`, or a Git credential manager).
-
 If you already cloned without `--recursive`:
 
 ```sh
