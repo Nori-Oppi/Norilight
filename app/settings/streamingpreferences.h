@@ -213,6 +213,10 @@ public:
     bool forceFullRange; // ask the host for full-range colour
     bool alignVideoTop; // pin letterboxed video to the top edge
     int videoScaleMode; // 0 fit, 1 fill (crop), 2 stretch
+    // Norilight: monitor to open the stream on (DisplayManager::monitorKey).
+    // Set only by the stream command line for display manager profiles;
+    // never saved.
+    QString targetMonitor;
     bool streamAlwaysOnTop;      // keep the stream window above other windows
     bool rememberWindowGeometry; // reopen the stream window where it was last closed
     int mouseSensitivity;        // percent, applies to game (relative) mouse mode

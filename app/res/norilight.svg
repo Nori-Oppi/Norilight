@@ -1,45 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <title>Norilight</title>
 
-  <!-- Moonlight's grey ring, now also the seal's fur, with a few faint speckles -->
+  <!-- Moonlight's grey ring and white disc: the disc is the seal pup's face -->
   <circle cx="128" cy="128" r="128" fill="rgb(86,92,100)"/>
-  <g fill="rgb(104,110,118)">
-    <circle cx="40" cy="58" r="3.2"/>
-    <circle cx="50" cy="44" r="2.2"/>
-    <circle cx="214" cy="70" r="2.8"/>
-    <circle cx="224" cy="168" r="2.4"/>
-    <circle cx="74" cy="226" r="2.8"/>
-  </g>
-
-  <!-- Moonlight's white disc: the seal's face -->
   <circle cx="128" cy="128" r="96" fill="rgb(255,255,255)"/>
 
-  <!-- Moonlight's eight-point star. The lower and side spokes start at the nose,
-       so they read as whiskers and the muzzle line; the upper three are trimmed
-       back to the rim to leave room for the eyes. -->
+  <!-- Moonlight's eight-point star, same hub, angles and stroke as the original.
+       The side and lower rays run out from under the muzzle as whiskers; the
+       upper three are trimmed back to the rim to leave room for the eyes. -->
   <g stroke="rgb(86,92,100)" stroke-width="8" fill="none">
-    <line x1="148" y1="128" x2="224" y2="128"/>
-    <line x1="108" y1="128" x2="32" y2="128"/>
-    <line x1="128" y1="142" x2="128" y2="224"/>
-    <line x1="142.1" y1="142.1" x2="198.7" y2="198.7"/>
-    <line x1="113.9" y1="142.1" x2="57.3" y2="198.7"/>
-    <line x1="128" y1="50" x2="128" y2="32"/>
-    <line x1="183.2" y1="72.8" x2="198.7" y2="57.3"/>
-    <line x1="72.8" y1="72.8" x2="57.3" y2="57.3"/>
+    <line x1="32" y1="128" x2="224" y2="128"/>
+    <line x1="128" y1="128" x2="128" y2="224"/>
+    <line x1="128" y1="128" x2="195.9" y2="195.9"/>
+    <line x1="128" y1="128" x2="60.1" y2="195.9"/>
+    <line x1="128" y1="32" x2="128" y2="60"/>
+    <line x1="60.1" y1="60.1" x2="80.1" y2="80.1"/>
+    <line x1="195.9" y1="60.1" x2="175.9" y2="80.1"/>
   </g>
 
-  <!-- Glossy seal eyes in the upper gaps of the star -->
+  <!-- Big, wide-set, glossy eyes -->
   <g fill="rgb(30,32,36)">
-    <ellipse cx="101" cy="84" rx="14" ry="16.5"/>
-    <ellipse cx="155" cy="84" rx="14" ry="16.5"/>
+    <ellipse cx="80" cy="100" rx="18" ry="20"/>
+    <ellipse cx="176" cy="100" rx="18" ry="20"/>
   </g>
   <g fill="rgb(255,255,255)">
-    <circle cx="96" cy="78" r="4.5"/>
-    <circle cx="150" cy="78" r="4.5"/>
+    <circle cx="74" cy="92" r="6"/>
+    <circle cx="170" cy="92" r="6"/>
+    <circle cx="87" cy="108" r="2.6" opacity="0.7"/>
+    <circle cx="183" cy="108" r="2.6" opacity="0.7"/>
   </g>
 
-  <!-- Seal nose at the hub, with a small mouth either side of the muzzle line -->
-  <path d="M115 121 Q128 116 141 121 Q144 125 137 132 Q128 140 119 132 Q112 125 115 121 Z" fill="rgb(30,32,36)"/>
-  <path d="M128 150 Q121 159 112 155 M128 150 Q135 159 144 155"
+  <!-- Whisker pads over the hub, so the rays emerge from them -->
+  <g fill="rgb(226,230,235)">
+    <ellipse cx="106" cy="140" rx="27" ry="20"/>
+    <ellipse cx="150" cy="140" rx="27" ry="20"/>
+  </g>
+  <path d="M128 132 V146 M128 146 Q120 158 108 153 M128 146 Q136 158 148 153"
         fill="none" stroke="rgb(86,92,100)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="rgb(86,92,100)">
+    <circle cx="96" cy="134" r="2.4"/>
+    <circle cx="106" cy="141" r="2.4"/>
+    <circle cx="93" cy="145" r="2.4"/>
+    <circle cx="160" cy="134" r="2.4"/>
+    <circle cx="150" cy="141" r="2.4"/>
+    <circle cx="163" cy="145" r="2.4"/>
+  </g>
+
+  <!-- Nose -->
+  <path d="M115 117 Q128 112 141 117 Q144 121 137 128 Q128 135 119 128 Q112 121 115 117 Z" fill="rgb(30,32,36)"/>
 </svg>

@@ -318,3 +318,15 @@ void AppModel::handleBoxArtLoaded(NvComputer* computer, NvApp app, QUrl /* image
         qWarning() << "App not found for box art callback:" << app.name;
     }
 }
+
+QString AppModel::getComputerUuid()
+{
+    QReadLocker lock(&m_Computer->lock);
+    return m_Computer->uuid;
+}
+
+QString AppModel::getComputerName()
+{
+    QReadLocker lock(&m_Computer->lock);
+    return m_Computer->name;
+}
