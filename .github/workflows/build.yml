@@ -3,11 +3,11 @@ name: Build
 permissions:
   contents: read
 
+# Norilight: upstream's full matrix (AppImage, Steam Link, Windows x64/arm64,
+# macOS). It no longer runs on every push; Norilight's builds come from
+# nightly.yml for now. Run it by hand from the Actions tab if needed.
 on:
-  push:
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
 
 concurrency:
   group: build-${{ github.ref }}

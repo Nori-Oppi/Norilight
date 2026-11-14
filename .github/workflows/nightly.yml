@@ -1,0 +1,172 @@
+---
+# Norilight nightly builds for Windows (x64) and macOS (universal DMG).
+#
+# Runs every night and publishes the result to the rolling "nightly"
+# pre-release, replacing the previous build. Nights without new commits on
+# main are skipped. Start a build by hand from the Actions tab
+# ("Run workflow") to build even when nothing changed.
+#
+# The moonlight-common-c submodule is Norilight's private fork, which the
+# default GITHUB_TOKEN can't read. The COMMON_C_DEPLOY_KEY secret holds the
+# private half of a read-only deploy key on azijnwater/norilight-common-c.
+name: Nightly
+
+on:
+  schedule:
+    # 03:00 UTC every day
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.11.3
+  # Same aqtinstall revision upstream Moonlight uses; it understands Qt 6.11's archive layout
+  AQT_SOURCE: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Skip nights without new commits
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LAST_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/nightly" --jq '.object.sha' 2>/dev/null || true)
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] && [ "${LAST_SHA}" = "${GITHUB_SHA}" ]; then
+            echo "Nightly is already at ${GITHUB_SHA}; nothing to build."
+            echo "should_build=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "should_build=true" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "version=nightly-$(date -u +%Y%m%d)-$(echo ${GITHUB_SHA} | cut -c1-7)" >> "${GITHUB_OUTPUT}"
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            name: Windows-x64
+          - os: macos-26
+            name: macOS
+
+    runs-on: ${{ matrix.os }}
+    env:
+      CI_VERSION: ${{ needs.check.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Fetch submodules
+        shell: bash
+        env:
+          COMMON_C_DEPLOY_KEY: ${{ secrets.COMMON_C_DEPLOY_KEY }}
+        run: |
+          if [ -z "${COMMON_C_DEPLOY_KEY}" ]; then
+            echo "::error::The COMMON_C_DEPLOY_KEY secret is missing, so the private norilight-common-c submodule can't be cloned."
+            exit 1
+          fi
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "${COMMON_C_DEPLOY_KEY}" > "$HOME/.ssh/common_c_key"
+          chmod 600 "$HOME/.ssh/common_c_key"
+          ssh-keyscan -t ed25519 github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
+          git config --global url."git@github.com:azijnwater/norilight-common-c.git".insteadOf "https://github.com/azijnwater/norilight-common-c.git"
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/common_c_key -o IdentitiesOnly=yes"
+          git submodule update --init --recursive
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          cache: true
+          version: ${{ env.QT_VERSION }}
+          aqtsource: ${{ env.AQT_SOURCE }}
+
+      # Windows ------------------------------------------------------------
+
+      - name: Download dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./setup-deps.ps1
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set "QT_DIR=%QT_ROOT_DIR%"
+          scripts\build-norilight.bat release
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path build\Norilight-x64-release\* -DestinationPath "out\Norilight-Windows-x64-$env:CI_VERSION.zip"
+
+      # macOS --------------------------------------------------------------
+
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: npm install --global create-dmg
+
+      - name: Build and package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          bash scripts/generate-dmg.sh Release
+          mkdir -p out
+          cp build/installer-Release/*.dmg out/
+
+      # --------------------------------------------------------------------
+
+      - name: Upload build
+        uses: actions/upload-artifact@v6
+        with:
+          name: Norilight-${{ matrix.name }}-${{ env.CI_VERSION }}
+          path: out/*
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download builds
+        uses: actions/download-artifact@v6
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Replace the nightly pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          ls -la out
+          gh release delete nightly --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
+          gh release create nightly out/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --prerelease \
+            --title "Nightly (${VERSION})" \
+            --notes "Automatic build of main at ${GITHUB_SHA}, made $(date -u '+%Y-%m-%d %H:%M UTC').
+
+          These builds are untested and unsigned.
+          - **Windows:** unzip and run Norilight.exe.
+          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`."
