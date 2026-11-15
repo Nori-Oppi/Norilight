@@ -9,6 +9,13 @@
 #ifndef OutputDir
   #error OutputDir must point to the installer output folder
 #endif
+; Optional overrides to trade installer size for build speed.
+#ifndef InstallerCompression
+  #define InstallerCompression "lzma2"
+#endif
+#ifndef InstallerThreads
+  #define InstallerThreads "1"
+#endif
 
 [Setup]
 ; Keep this ID stable so subsequent nightly installers upgrade the same app.
@@ -30,7 +37,8 @@ OutputBaseFilename=Norilight-Windows-x64-{#BuildVersion}-Setup
 SetupIconFile=..\app\norilight.ico
 UninstallDisplayIcon={app}\Norilight.exe
 LicenseFile=..\LICENSE
-Compression=lzma2
+Compression={#InstallerCompression}
+LZMANumBlockThreads={#InstallerThreads}
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes

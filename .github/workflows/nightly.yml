@@ -25,6 +25,9 @@ env:
   QT_VERSION: 6.11.3
   # Same aqtinstall revision upstream Moonlight uses; it understands Qt 6.11's archive layout
   AQT_SOURCE: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
+  # Compiler caches (release tags of ccache/ccache and mozilla/sccache)
+  CCACHE_VERSION: 4.14.3
+  SCCACHE_VERSION: v0.19.0
 
 jobs:
   check:
@@ -108,7 +111,8 @@ jobs:
       - name: Download dependencies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./setup-deps.ps1
+        # Only x64 is built here, so skip the ARM64 libraries
+        run: ./setup-deps.ps1 -Assets windows-x64.zip
 
       # jom builds in parallel where nmake is serial. The build script falls
       # back to nmake if the download fails.
@@ -122,12 +126,63 @@ jobs:
           Expand-Archive -Path "$env:RUNNER_TEMP\jom.zip" -DestinationPath "$env:RUNNER_TEMP\jom" -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$env:RUNNER_TEMP\jom"
 
+      # sccache reuses compiled objects from earlier runs. If the download
+      # fails, USE_SCCACHE stays unset and everything is compiled normally.
+      - name: Install sccache (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $name = "sccache-$env:SCCACHE_VERSION-x86_64-pc-windows-msvc"
+          curl.exe -s -L -f --retry 2 -o "$env:RUNNER_TEMP\sccache.zip" "https://github.com/mozilla/sccache/releases/download/$env:SCCACHE_VERSION/$name.zip"
+          if ($LASTEXITCODE -ne 0) { throw "sccache download failed ($LASTEXITCODE)" }
+          Expand-Archive -Path "$env:RUNNER_TEMP\sccache.zip" -DestinationPath "$env:RUNNER_TEMP\sccache" -Force
+          if (!(Test-Path "$env:RUNNER_TEMP\sccache\$name\sccache.exe")) { throw "sccache.exe not found in the archive" }
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:RUNNER_TEMP\sccache\$name"
+          Add-Content -Path $env:GITHUB_ENV -Value "USE_SCCACHE=1"
+          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_DIR=$env:RUNNER_TEMP\compiler-cache"
+          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_CACHE_SIZE=600M"
+
+      # ccache does the same for macOS. Falls back to Homebrew if the
+      # download fails.
+      - name: Install ccache (macOS)
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        run: |
+          mkdir -p "${RUNNER_TEMP}/ccache-dist"
+          if curl -sLf --retry 2 "https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-darwin.tar.gz" | tar -xz -C "${RUNNER_TEMP}/ccache-dist"; then
+            CCACHE_BIN=$(find "${RUNNER_TEMP}/ccache-dist" -type f -name ccache | head -n 1)
+          fi
+          if [ -n "${CCACHE_BIN}" ] && "${CCACHE_BIN}" --version; then
+            dirname "${CCACHE_BIN}" >> "${GITHUB_PATH}"
+          else
+            brew install ccache
+          fi
+          echo "CCACHE_DIR=${RUNNER_TEMP}/compiler-cache" >> "${GITHUB_ENV}"
+          echo "CCACHE_MAXSIZE=400M" >> "${GITHUB_ENV}"
+
+      # Each commit saves its own compiler cache and starts from the newest earlier one.
+      - name: Restore compiler cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/compiler-cache
+          key: compiler-cache-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ github.sha }}
+          restore-keys: |
+            compiler-cache-${{ matrix.os }}-${{ env.QT_VERSION }}-
+
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           set "QT_DIR=%QT_ROOT_DIR%"
-          scripts\build-norilight.bat release
+          call scripts\build-norilight.bat release
+          set BUILD_RESULT=%ERRORLEVEL%
+          rem Stop the sccache server so it cannot keep this step from finishing
+          if "%USE_SCCACHE%"=="1" sccache --show-stats
+          if "%USE_SCCACHE%"=="1" sccache --stop-server >nul
+          exit /b %BUILD_RESULT%
 
       - name: Package ZIP and installer (Windows)
         if: runner.os == 'Windows'
@@ -171,26 +226,6 @@ jobs:
 
       # macOS --------------------------------------------------------------
 
-      - name: Install ccache (macOS)
-        if: runner.os == 'macOS'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-        run: |
-          brew install ccache
-          echo "CCACHE_DIR=${RUNNER_TEMP}/ccache" >> "${GITHUB_ENV}"
-          echo "CCACHE_MAXSIZE=400M" >> "${GITHUB_ENV}"
-
-      # Each commit saves its own compiler cache and starts from the newest earlier one.
-      - name: Restore compiler cache (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.temp }}/ccache
-          key: ccache-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ matrix.os }}-${{ env.QT_VERSION }}-
-
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
         env:
@@ -208,6 +243,41 @@ jobs:
           cp build/installer-Release/*.dmg out/
 
       # --------------------------------------------------------------------
+
+      # TEMPORARY: timing experiments, removed before merging
+      - name: Experiment - DMG formats (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: |
+          S=build/build-Release/dmg-staging
+          T="${RUNNER_TEMP}/dmgtest"; mkdir -p "$T"
+          du -sh "$S"
+          echo "== A: create ULFO"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format ULFO -ov "$T/a.dmg" >/dev/null
+          echo "== B: makehybrid + convert ULFO"; time (hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/b-raw.dmg" $S >/dev/null && hdiutil convert "$T/b-raw.dmg" -format ULFO -o "$T/b.dmg" >/dev/null)
+          echo "== C: create UDZO"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format UDZO -ov "$T/c.dmg" >/dev/null
+          echo "== D: makehybrid + convert UDZO"; time (hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/d-raw.dmg" $S >/dev/null && hdiutil convert "$T/d-raw.dmg" -format UDZO -o "$T/d.dmg" >/dev/null)
+          echo "== E: create APFS ULFO"; time hdiutil create -volname Norilight -srcfolder $S -fs APFS -format ULFO -ov "$T/e.dmg" >/dev/null
+          echo "== A again"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format ULFO -ov "$T/a2.dmg" >/dev/null
+          ls -l "$T"
+
+      - name: Experiment - ZIP and installer compression (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $p = "build\Norilight-x64-release"
+          $t = "$env:RUNNER_TEMP\pkgtest"; New-Item -ItemType Directory -Force $t | Out-Null
+          "Compress-Archive: {0:n1}s" -f (Measure-Command { Compress-Archive -Path "$p\*" -DestinationPath "$t\ps.zip" }).TotalSeconds
+          "7z -mx5:          {0:n1}s" -f (Measure-Command { 7z a -tzip -mx=5 "$t\7z5.zip" ".\$p\*" | Out-Null }).TotalSeconds
+          "7z -mx3:          {0:n1}s" -f (Measure-Command { 7z a -tzip -mx=3 "$t\7z3.zip" ".\$p\*" | Out-Null }).TotalSeconds
+          "tar zip:          {0:n1}s" -f (Measure-Command { tar -a -cf "$t\tar.zip" -C $p . }).TotalSeconds
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          foreach ($c in @(@('lzma2','1'), @('lzma2','4'), @('lzma2/normal','1'), @('lzma2/normal','4'), @('lzma2/fast','1'))) {
+            $o = "$t\iss-" + ($c[0] -replace '/','-') + "-" + $c[1]
+            $s = (Measure-Command { & $iscc /Q "/DPayloadDir=$env:GITHUB_WORKSPACE\$p" "/DBuildVersion=test" "/DOutputDir=$o" "/DInstallerCompression=$($c[0])" "/DInstallerThreads=$($c[1])" scripts\norilight-installer.iss | Out-Null }).TotalSeconds
+            "ISCC {0} threads={1}: {2:n1}s exit={3}" -f $c[0], $c[1], $s, $LASTEXITCODE
+          }
+          Get-ChildItem $t -Recurse -File | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName.Substring($t.Length) }
 
       - name: Upload build
         uses: actions/upload-artifact@v6

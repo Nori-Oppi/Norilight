@@ -1,9 +1,13 @@
+# Pass -Assets windows-x64.zip to fetch only the x64 libraries.
+param(
+    [string[]]$Assets = @("windows-x64.zip", "windows-ARM64.zip")
+)
+
 $ErrorActionPreference = 'Stop'
 
 $Organization = "moonlight-stream"
 $PrebuiltRepo = "moonlight-qt-deps"
 $TargetDir = Join-Path $PSScriptRoot "libs\windows"
-$Assets = @("windows-x64.zip", "windows-ARM64.zip")
 $Tag = "v20.1"
 
 if (Test-Path $TargetDir) {

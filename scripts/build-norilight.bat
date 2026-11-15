@@ -48,7 +48,10 @@ if !ERRORLEVEL! EQU 0 (
 if not exist "%BUILD_FOLDER%" mkdir "%BUILD_FOLDER%"
 pushd "%BUILD_FOLDER%"
 echo === Configuring
-qmake.exe "%SOURCE_ROOT%\moonlight-qt.pro" || goto Error
+rem USE_SCCACHE=1 routes the compiler through sccache (which must be on PATH)
+set QMAKE_EXTRA_ARGS=
+if "%USE_SCCACHE%"=="1" set QMAKE_EXTRA_ARGS=CONFIG+=ccache QMAKE_CACHE_LAUNCHER_PREFIX=sccache
+qmake.exe "%SOURCE_ROOT%\moonlight-qt.pro" %QMAKE_EXTRA_ARGS% || goto Error
 echo === Compiling (%BUILD_CONFIG%)
 !MAKE_CMD! %BUILD_CONFIG% || goto Error
 popd

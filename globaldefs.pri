@@ -25,6 +25,16 @@ CONFIG(release, debug|release) {
     }
 }
 
+# A compiler cache (CONFIG+=ccache, used by the nightly build) can only reuse
+# objects whose debug info is embedded in them (-Z7), not written to a PDB
+# shared by the whole project (-Zi). The linker still produces the same PDB.
+msvc:ccache {
+    QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO -= -Zi
+    QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -Z7
+    QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO -= -Zi
+    QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO += -Z7
+}
+
 # Enable ASan for Linux or macOS
 #CONFIG += sanitizer sanitize_address
 
