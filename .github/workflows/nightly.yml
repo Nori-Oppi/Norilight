@@ -1,5 +1,5 @@
 ---
-# Norilight nightly builds for Windows (x64) and macOS (universal DMG).
+# Norilight nightly builds for Windows (x64 installer and ZIP) and macOS (universal DMG).
 #
 # Runs every night and publishes the result to the rolling "nightly"
 # pre-release, replacing the previous build. Nights without new commits on
@@ -9,8 +9,9 @@ name: Nightly
 
 on:
   schedule:
-    # 03:00 UTC every day
-    - cron: '0 3 * * *'
+    # 20:00 Amsterdam time every day, including daylight saving time.
+    - cron: '0 20 * * *'
+      timezone: 'Europe/Amsterdam'
   workflow_dispatch:
 
 permissions:
@@ -61,6 +62,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CI_VERSION: ${{ needs.check.outputs.version }}
+      # Lets the app compare itself against the latest nightly (see autoupdatechecker.cpp)
+      NORILIGHT_BUILD_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout
@@ -90,12 +93,45 @@ jobs:
           set "QT_DIR=%QT_ROOT_DIR%"
           scripts\build-norilight.bat release
 
-      - name: Package (Windows)
+      - name: Package ZIP and installer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
           Compress-Archive -Path build\Norilight-x64-release\* -DestinationPath "out\Norilight-Windows-x64-$env:CI_VERSION.zip"
+          # Inno Setup is preinstalled on the windows-2025 runner.
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "Inno Setup 6 compiler not found: $iscc" }
+          & $iscc "/DPayloadDir=$env:GITHUB_WORKSPACE\build\Norilight-x64-release" "/DBuildVersion=$env:CI_VERSION" "/DOutputDir=$env:GITHUB_WORKSPACE\out" scripts\norilight-installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Windows installer compilation failed ($LASTEXITCODE)" }
+          if (!(Test-Path "out\Norilight-Windows-x64-$env:CI_VERSION-Setup.exe")) { throw "Windows installer was not created" }
+
+      - name: Verify Windows install, upgrade and uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "out\Norilight-Windows-x64-$env:CI_VERSION-Setup.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP 'Norilight-install-test'
+          $uninstallKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{8B45E372-762F-4BF8-9B49-8363BD838E65}_is1'
+          # Installing twice exercises replacement of an existing nightly installation.
+          foreach ($attempt in 1..2) {
+            $log = Join-Path $env:RUNNER_TEMP "Norilight-install-$attempt.log"
+            $process = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installDir`"", "/LOG=`"$log`"") -Wait -PassThru
+            if ($process.ExitCode -ne 0) { Get-Content $log; throw "Installer failed ($($process.ExitCode))" }
+            foreach ($file in @('Norilight.exe', 'Qt6Core.dll', 'gamecontrollerdb.txt', 'unins000.exe')) {
+              if (!(Test-Path (Join-Path $installDir $file))) { throw "Installed file missing: $file" }
+            }
+            if (Test-Path (Join-Path $installDir 'portable.dat')) { throw 'Installed build must not use portable settings' }
+            $registration = Get-ItemProperty $uninstallKey -ErrorAction Stop
+            if ($registration.DisplayName -notlike 'Norilight*') { throw 'Norilight uninstall registration missing' }
+            if (!(Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Norilight.lnk")) { throw 'Start menu shortcut missing' }
+          }
+          $log = Join-Path $env:RUNNER_TEMP 'Norilight-uninstall.log'
+          $process = Start-Process -FilePath (Join-Path $installDir 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log`"") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { Get-Content $log; throw "Uninstaller failed ($($process.ExitCode))" }
+          if (Test-Path (Join-Path $installDir 'Norilight.exe')) { throw 'Uninstall left the application installed' }
+          if (Test-Path $uninstallKey) { throw 'Uninstall left the registration behind' }
+          if (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Norilight.lnk") { throw 'Uninstall left the Start menu shortcut behind' }
 
       # macOS --------------------------------------------------------------
 
@@ -147,5 +183,5 @@ jobs:
             --notes "Automatic build of main at ${GITHUB_SHA}, made $(date -u '+%Y-%m-%d %H:%M UTC').
 
           These builds are untested and unsigned.
-          - **Windows:** unzip and run Norilight.exe.
-          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`."
+          - **Windows:** download and run the **Setup.exe** for a regular installation with shortcuts and an uninstaller. To run without installing, download the ZIP, extract it and run Norilight.exe.
+          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`. Allow the Local Network prompt; if your PC isn't found, turn Norilight on under System Settings → Privacy & Security → Local Network."
