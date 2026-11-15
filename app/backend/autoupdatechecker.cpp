@@ -5,8 +5,18 @@
 #include <QJsonArray>
 #include <QJsonObject>
 
+// The nightly workflow passes the commit it builds through NORILIGHT_BUILD_SHA.
+// Local builds don't have one and never look for updates.
+#ifndef NORILIGHT_BUILD_SHA
+#define NORILIGHT_BUILD_SHA ""
+#endif
+
+static const char* k_NightlyReleaseUrl =
+        "https://api.github.com/repos/azijnwater/Norilight/releases/tags/nightly";
+
 AutoUpdateChecker::AutoUpdateChecker(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    m_BuildSha(QStringLiteral(NORILIGHT_BUILD_SHA).trimmed().toLower())
 {
     m_Nam = new QNetworkAccessManager(this);
 
@@ -19,200 +29,102 @@ AutoUpdateChecker::AutoUpdateChecker(QObject *parent) :
     connect(m_Nam, &QNetworkAccessManager::finished,
             this, &AutoUpdateChecker::handleUpdateCheckRequestFinished);
 
-    QString currentVersion(VERSION_STR);
-    qDebug() << "Current Moonlight version:" << currentVersion;
-    parseStringToVersionQuad(currentVersion, m_CurrentVersionQuad);
-
-    // Should at least have a 1.0-style version number
-    Q_ASSERT(m_CurrentVersionQuad.count() > 1);
+    qDebug() << "Norilight version:" << VERSION_STR << "commit:" << (m_BuildSha.isEmpty() ? QStringLiteral("unknown") : m_BuildSha);
 }
 
 void AutoUpdateChecker::start()
 {
     if (!m_Nam) {
-        Q_ASSERT(m_Nam);
         return;
     }
 
-#if defined(Q_OS_WIN32) || defined(Q_OS_DARWIN) || defined(STEAM_LINK) || defined(APP_IMAGE) // Only run update checker on platforms without auto-update
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(5, 15, 1) && !defined(QT_NO_BEARERMANAGEMENT)
-    // HACK: Set network accessibility to work around QTBUG-80947 (introduced in Qt 5.14.0 and fixed in Qt 5.15.1)
-    QT_WARNING_PUSH
-    QT_WARNING_DISABLE_DEPRECATED
-    m_Nam->setNetworkAccessible(QNetworkAccessManager::Accessible);
-    QT_WARNING_POP
-#endif
+    if (m_BuildSha.isEmpty()) {
+        qDebug() << "Not a nightly build; skipping the update check";
+        return;
+    }
 
-    // We'll get a callback when this is finished
-    QUrl url("https://moonlight-stream.org/updates/qt.json");
-    QNetworkRequest request(url);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+#if defined(Q_OS_WIN32) || defined(Q_OS_DARWIN)
+    QNetworkRequest request(QUrl(QString::fromLatin1(k_NightlyReleaseUrl)));
+    // GitHub's API rejects requests without a User-Agent
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Norilight-UpdateChecker"));
+    request.setRawHeader("Accept", "application/vnd.github+json");
     request.setAttribute(QNetworkRequest::Http2AllowedAttribute, true);
-#else
-    request.setAttribute(QNetworkRequest::HTTP2AllowedAttribute, true);
-#endif
     m_Nam->get(request);
 #endif
-}
-
-void AutoUpdateChecker::parseStringToVersionQuad(QString& string, QVector<int>& version)
-{
-    QStringList list = string.split('.');
-    for (const QString& component : std::as_const(list)) {
-        version.append(component.toInt());
-    }
-}
-
-QString AutoUpdateChecker::getPlatform()
-{
-#if defined(STEAM_LINK)
-    return QStringLiteral("steamlink");
-#elif defined(APP_IMAGE)
-    return QStringLiteral("appimage");
-#elif defined(Q_OS_DARWIN) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    // Qt 6 changed this from 'osx' to 'macos'. Use the old one
-    // to be consistent (and not require another entry in the manifest).
-    return QStringLiteral("osx");
-#else
-    return QSysInfo::productType();
-#endif
-}
-
-int AutoUpdateChecker::compareVersion(QVector<int>& version1, QVector<int>& version2) {
-    for (int i = 0;; i++) {
-        int v1Val = 0;
-        int v2Val = 0;
-
-        // Treat missing decimal places as 0
-        if (i < version1.count()) {
-            v1Val = version1[i];
-        }
-        if (i < version2.count()) {
-            v2Val = version2[i];
-        }
-        if (i >= version1.count() && i >= version2.count()) {
-            // Equal versions
-            return 0;
-        }
-
-        if (v1Val < v2Val) {
-            return -1;
-        }
-        else if (v1Val > v2Val) {
-            return 1;
-        }
-    }
 }
 
 void AutoUpdateChecker::handleUpdateCheckRequestFinished(QNetworkReply* reply)
 {
     Q_ASSERT(reply->isFinished());
+    reply->deleteLater();
 
-    // Delete the QNetworkAccessManager to free resources and
-    // prevent the bearer plugin from polling in the background.
+    // Only one check per launch; free the network stack afterwards
     m_Nam->deleteLater();
     m_Nam = nullptr;
 
-    if (reply->error() == QNetworkReply::NoError) {
-        QTextStream stream(reply);
+    if (reply->error() != QNetworkReply::NoError) {
+        // A 404 happens briefly while the workflow replaces the release
+        qWarning() << "Update check failed:" << reply->error() << reply->errorString();
+        return;
+    }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-        stream.setEncoding(QStringConverter::Utf8);
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &error);
+    if (!doc.isObject()) {
+        qWarning() << "Nightly release info malformed:" << error.errorString();
+        return;
+    }
+
+    QJsonObject release = doc.object();
+    QString targetSha = release["target_commitish"].toString().trimmed().toLower();
+    if (targetSha.isEmpty()) {
+        qWarning() << "Nightly release has no target commit";
+        return;
+    }
+
+    // The release targets a full SHA; tolerate short SHAs on either side
+    if (targetSha.startsWith(m_BuildSha) || m_BuildSha.startsWith(targetSha)) {
+        qDebug() << "Running the latest nightly";
+        return;
+    }
+
+    // "Nightly (nightly-20261115-abc1234)" -> "nightly-20261115-abc1234"
+    QString version = release["name"].toString();
+    int open = version.indexOf('(');
+    int close = version.lastIndexOf(')');
+    if (open >= 0 && close > open) {
+        version = version.mid(open + 1, close - open - 1);
+    }
+    if (version.isEmpty()) {
+        version = targetSha.left(7);
+    }
+
+    // Link straight to the download for this platform, so the button fetches
+    // the build instead of opening a page to look for it on
+#if defined(Q_OS_WIN32)
+    const QString wantedSuffix = QStringLiteral("-Setup.exe");
+#elif defined(Q_OS_DARWIN)
+    const QString wantedSuffix = QStringLiteral(".dmg");
 #else
-        stream.setCodec("UTF-8");
+    const QString wantedSuffix;
 #endif
 
-        // Read all data and queue the reply for deletion
-        QString jsonString = stream.readAll();
-        reply->deleteLater();
-
-        QJsonParseError error;
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toUtf8(), &error);
-        if (jsonDoc.isNull()) {
-            qWarning() << "Update manifest malformed:" << error.errorString();
-            return;
-        }
-
-        QJsonArray array = jsonDoc.array();
-        if (array.isEmpty()) {
-            qWarning() << "Update manifest doesn't contain an array";
-            return;
-        }
-
-        for (const auto& updateEntry : std::as_const(array)) {
-            if (updateEntry.isObject()) {
-                QJsonObject updateObj = updateEntry.toObject();
-                if (!updateObj.contains("platform") ||
-                        !updateObj.contains("arch") ||
-                        !updateObj.contains("version") ||
-                        !updateObj.contains("browser_url")) {
-                    qWarning() << "Update manifest entry missing vital field";
-                    continue;
-                }
-
-                if (!updateObj["platform"].isString() ||
-                        !updateObj["arch"].isString() ||
-                        !updateObj["version"].isString() ||
-                        !updateObj["browser_url"].isString()) {
-                    qWarning() << "Update manifest entry has unexpected vital field type";
-                    continue;
-                }
-
-                if (updateObj["arch"] == QSysInfo::buildCpuArchitecture() &&
-                        updateObj["platform"] == getPlatform()) {
-
-                    // Check the kernel version minimum if one exists
-                    if (updateObj.contains("kernel_version_at_least") && updateObj["kernel_version_at_least"].isString()) {
-                        QVector<int> requiredVersionQuad;
-                        QVector<int> actualVersionQuad;
-
-                        QString requiredVersion = updateObj["kernel_version_at_least"].toString();
-                        QString actualVersion = QSysInfo::kernelVersion();
-                        parseStringToVersionQuad(requiredVersion, requiredVersionQuad);
-                        parseStringToVersionQuad(actualVersion, actualVersionQuad);
-
-                        if (compareVersion(actualVersionQuad, requiredVersionQuad) < 0) {
-                            qDebug() << "Skipping manifest entry due to kernel version (" << actualVersion << "<" << requiredVersion << ")";
-                            continue;
-                        }
-                    }
-
-                    qDebug() << "Found update manifest match for current platform";
-
-                    QString latestVersion = updateObj["version"].toString();
-                    qDebug() << "Latest version of Moonlight for this platform is:" << latestVersion;
-
-                    QVector<int> latestVersionQuad;
-                    parseStringToVersionQuad(latestVersion, latestVersionQuad);
-
-                    int res = compareVersion(m_CurrentVersionQuad, latestVersionQuad);
-                    if (res < 0) {
-                        // m_CurrentVersionQuad < latestVersionQuad
-                        qDebug() << "Update available";
-                        emit onUpdateAvailable(updateObj["version"].toString(),
-                                               updateObj["browser_url"].toString());
-                        return;
-                    }
-                    else if (res > 0) {
-                        qDebug() << "Update manifest version lower than current version";
-                        return;
-                    }
-                    else {
-                        qDebug() << "Update manifest version equal to current version";
-                        return;
-                    }
-                }
-            }
-            else {
-                qWarning() << "Update manifest contained unrecognized entry:" << updateEntry.toString();
+    QString url = release["html_url"].toString();
+    if (!wantedSuffix.isEmpty()) {
+        const QJsonArray assets = release["assets"].toArray();
+        for (const auto& asset : assets) {
+            QJsonObject assetObj = asset.toObject();
+            if (assetObj["name"].toString().endsWith(wantedSuffix, Qt::CaseInsensitive)) {
+                url = assetObj["browser_download_url"].toString();
+                break;
             }
         }
+    }
 
-        qWarning() << "No entry in update manifest found for current platform:"
-                   << QSysInfo::buildCpuArchitecture() << getPlatform() << QSysInfo::kernelVersion();
+    if (url.isEmpty()) {
+        url = QStringLiteral("https://github.com/azijnwater/Norilight/releases/tag/nightly");
     }
-    else {
-        qWarning() << "Update checking failed with error:" << reply->error();
-        reply->deleteLater();
-    }
+
+    qDebug() << "Newer nightly available:" << version << url;
+    emit onUpdateAvailable(version, url);
 }
