@@ -1,4 +1,6 @@
 #include "displaymanager.h"
+#include "profilemanager.h"
+#include "streamingpreferences.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -256,6 +258,10 @@ QStringList DisplayManager::buildArguments(const QVariantMap& profile, QScreen* 
 {
     QStringList args;
     args << "stream" << hostUuid << appName;
+    const QString settingsGroup = ProfileManager::settingsGroup();
+    if (!settingsGroup.isEmpty()) {
+        args << "--profile" << settingsGroup.section('/', 1, 1);
+    }
     args << "--monitor" << monitorKey(screen);
 
     // 0 means "match the monitor"
@@ -370,6 +376,7 @@ QString DisplayManager::launch(const QString& profileId, const QString& hostUuid
     m_Sessions.append(s);
     emit sessionsChanged();
 
+    StreamingPreferences::get()->save();
     process->start(QCoreApplication::applicationFilePath(),
                    buildArguments(profile, screen, hostUuid, appName));
 

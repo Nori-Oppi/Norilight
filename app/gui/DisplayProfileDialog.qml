@@ -16,7 +16,7 @@ NavigableDialog {
     property string monitorKey: ""
     property string missingMonitorLabel: ""
 
-    title: profileId === "" ? qsTr("New monitor profile") : qsTr("Edit monitor profile")
+    title: profileId === "" ? qsTr("New monitor preset") : qsTr("Edit monitor preset")
     standardButtons: Dialog.Save | Dialog.Cancel
     width: Math.min(560, (Overlay.overlay ? Overlay.overlay.width : 600) - 32)
 
