@@ -72,11 +72,19 @@ popd
 echo Creating app bundle
 EXTRA_ARGS=
 if [ "$BUILD_CONFIG" == "Debug" ]; then EXTRA_ARGS="$EXTRA_ARGS -use-debug-libs"; fi
+# Nightlies strip independent Mach-O files in parallel below. Signing stays in
+# the final codesign pass, after deployment and dSYM removal are complete.
+if [ "$FAST_DEPLOY" == "1" ]; then EXTRA_ARGS="$EXTRA_ARGS -no-strip -no-codesign"; fi
 echo Extra deployment arguments: $EXTRA_ARGS
 macdeployqt $BUILD_FOLDER/app/Norilight.app $EXTRA_ARGS -qmldir=$SOURCE_ROOT/app/gui -appstore-compliant || fail "macdeployqt failed!"
 
 echo Removing dSYM files from app bundle
 find $BUILD_FOLDER/app/Norilight.app/ -name '*.dSYM' | xargs rm -rf
+
+if [ "$FAST_DEPLOY" == "1" ] && [ "$BUILD_CONFIG" == "Release" ]; then
+  echo Stripping app bundle in parallel
+  python3 "$SOURCE_ROOT/scripts/strip-macos.py" "$BUILD_FOLDER/app/Norilight.app" || fail "Stripping failed!"
+fi
 
 if [ "$SIGNING_IDENTITY" != "" ]; then
   echo Signing app bundle
