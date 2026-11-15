@@ -4,6 +4,7 @@
 #include "backend/computermanager.h"
 
 #include "SDL_compat.h"
+#include <QSet>
 
 struct GamepadState {
     SDL_GameController* controller;
@@ -150,6 +151,9 @@ public:
     // Norilight: 0 = d-pad scrolls, 1 = right stick scrolls, 2 = left stick scrolls
     static void setAnalogScrollStick(int stick);
 
+    // Norilight: forward Unicode-typed characters (PowerToys Quick Accent) to the host
+    static void setUnicodeInputForwarding(bool enabled);
+
     // Norilight: Apollo server commands offered by Ctrl+Alt+Shift+R
     void setServerCommands(const QStringList& commands, bool allowed);
     bool isServerCommandMenuOpen() { return m_ServerCommandMenuOpen; }
@@ -258,6 +262,8 @@ private:
     bool m_ServerCommandsAllowed;
     bool m_ServerCommandMenuOpen;
     bool m_ViewOnly;
+    bool m_ScreenshotsOnClient;
+    QSet<short> m_SwallowedKeys;             // keys kept on this PC (screenshots)
     int m_StickDeadzone;           // raw axis units
     bool m_GamepadMotionSensors;
     bool m_GamepadTouchpadAsMouse;
