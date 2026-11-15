@@ -189,11 +189,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          Compress-Archive -Path build\Norilight-x64-release\* -DestinationPath "out\Norilight-Windows-x64-$env:CI_VERSION.zip"
+          # 7-Zip (preinstalled) makes the same ZIP several times faster than Compress-Archive
+          7z a -tzip -mx=3 "out\Norilight-Windows-x64-$env:CI_VERSION.zip" ".\build\Norilight-x64-release\*" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "ZIP creation failed ($LASTEXITCODE)" }
           # Inno Setup is preinstalled on the windows-2025 runner.
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) { throw "Inno Setup 6 compiler not found: $iscc" }
-          & $iscc "/DPayloadDir=$env:GITHUB_WORKSPACE\build\Norilight-x64-release" "/DBuildVersion=$env:CI_VERSION" "/DOutputDir=$env:GITHUB_WORKSPACE\out" scripts\norilight-installer.iss
+          # Normal compression on four threads builds in under half the time for a 3% larger installer
+          & $iscc "/DPayloadDir=$env:GITHUB_WORKSPACE\build\Norilight-x64-release" "/DBuildVersion=$env:CI_VERSION" "/DOutputDir=$env:GITHUB_WORKSPACE\out" "/DInstallerCompression=lzma2/normal" "/DInstallerThreads=4" scripts\norilight-installer.iss
           if ($LASTEXITCODE -ne 0) { throw "Windows installer compilation failed ($LASTEXITCODE)" }
           if (!(Test-Path "out\Norilight-Windows-x64-$env:CI_VERSION-Setup.exe")) { throw "Windows installer was not created" }
 
@@ -243,41 +246,6 @@ jobs:
           cp build/installer-Release/*.dmg out/
 
       # --------------------------------------------------------------------
-
-      # TEMPORARY: timing experiments, removed before merging
-      - name: Experiment - DMG formats (macOS)
-        if: runner.os == 'macOS'
-        continue-on-error: true
-        run: |
-          S=build/build-Release/dmg-staging
-          T="${RUNNER_TEMP}/dmgtest"; mkdir -p "$T"
-          du -sh "$S"
-          echo "== A: create ULFO"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format ULFO -ov "$T/a.dmg" >/dev/null
-          echo "== B: makehybrid + convert ULFO"; time (hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/b-raw.dmg" $S >/dev/null && hdiutil convert "$T/b-raw.dmg" -format ULFO -o "$T/b.dmg" >/dev/null)
-          echo "== C: create UDZO"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format UDZO -ov "$T/c.dmg" >/dev/null
-          echo "== D: makehybrid + convert UDZO"; time (hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/d-raw.dmg" $S >/dev/null && hdiutil convert "$T/d-raw.dmg" -format UDZO -o "$T/d.dmg" >/dev/null)
-          echo "== E: create APFS ULFO"; time hdiutil create -volname Norilight -srcfolder $S -fs APFS -format ULFO -ov "$T/e.dmg" >/dev/null
-          echo "== A again"; time hdiutil create -volname Norilight -srcfolder $S -fs HFS+ -format ULFO -ov "$T/a2.dmg" >/dev/null
-          ls -l "$T"
-
-      - name: Experiment - ZIP and installer compression (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $p = "build\Norilight-x64-release"
-          $t = "$env:RUNNER_TEMP\pkgtest"; New-Item -ItemType Directory -Force $t | Out-Null
-          "Compress-Archive: {0:n1}s" -f (Measure-Command { Compress-Archive -Path "$p\*" -DestinationPath "$t\ps.zip" }).TotalSeconds
-          "7z -mx5:          {0:n1}s" -f (Measure-Command { 7z a -tzip -mx=5 "$t\7z5.zip" ".\$p\*" | Out-Null }).TotalSeconds
-          "7z -mx3:          {0:n1}s" -f (Measure-Command { 7z a -tzip -mx=3 "$t\7z3.zip" ".\$p\*" | Out-Null }).TotalSeconds
-          "tar zip:          {0:n1}s" -f (Measure-Command { tar -a -cf "$t\tar.zip" -C $p . }).TotalSeconds
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          foreach ($c in @(@('lzma2','1'), @('lzma2','4'), @('lzma2/normal','1'), @('lzma2/normal','4'), @('lzma2/fast','1'))) {
-            $o = "$t\iss-" + ($c[0] -replace '/','-') + "-" + $c[1]
-            $s = (Measure-Command { & $iscc /Q "/DPayloadDir=$env:GITHUB_WORKSPACE\$p" "/DBuildVersion=test" "/DOutputDir=$o" "/DInstallerCompression=$($c[0])" "/DInstallerThreads=$($c[1])" scripts\norilight-installer.iss | Out-Null }).TotalSeconds
-            "ISCC {0} threads={1}: {2:n1}s exit={3}" -f $c[0], $c[1], $s, $LASTEXITCODE
-          }
-          Get-ChildItem $t -Recurse -File | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName.Substring($t.Length) }
 
       - name: Upload build
         uses: actions/upload-artifact@v6

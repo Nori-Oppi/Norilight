@@ -101,12 +101,22 @@ if [ "$PLAIN_DMG" == "1" ]; then
   mkdir $DMG_STAGING
   ditto $BUILD_FOLDER/app/Norilight.app $DMG_STAGING/Norilight.app || fail "Copying the app bundle failed!"
   ln -s /Applications $DMG_STAGING/Applications
-  # hdiutil occasionally fails with "Resource busy" on CI machines; retry a few times.
-  for attempt in 1 2 3; do
-    hdiutil create -volname Norilight -srcfolder $DMG_STAGING -fs HFS+ -format ULFO -ov $INSTALLER_FOLDER/Norilight.dmg && break
-    [ $attempt -lt 3 ] || fail "hdiutil failed!"
-    sleep 5
-  done
+  # Build the image straight from the folder and then compress it. This is
+  # about ten times faster than "hdiutil create -srcfolder", which mounts a
+  # scratch image and copies the files into it.
+  hdiutil makehybrid -hfs -hfs-volume-name Norilight -o $BUILD_FOLDER/Norilight-raw.dmg $DMG_STAGING || fail "hdiutil makehybrid failed!"
+  hdiutil convert $BUILD_FOLDER/Norilight-raw.dmg -format ULFO -o $INSTALLER_FOLDER/Norilight.dmg || fail "hdiutil convert failed!"
+
+  echo Verifying DMG
+  DMG_MOUNT=$BUILD_FOLDER/dmg-mount
+  mkdir $DMG_MOUNT
+  hdiutil attach $INSTALLER_FOLDER/Norilight.dmg -readonly -nobrowse -mountpoint $DMG_MOUNT || fail "Mounting the DMG failed!"
+  DMG_ERROR=
+  codesign --verify --deep --strict $DMG_MOUNT/Norilight.app || DMG_ERROR="App signature in the DMG is not valid!"
+  [ -x $DMG_MOUNT/Norilight.app/Contents/MacOS/Norilight ] || DMG_ERROR="App executable missing from the DMG!"
+  [ "$(readlink $DMG_MOUNT/Applications)" == "/Applications" ] || DMG_ERROR="Applications shortcut missing from the DMG!"
+  hdiutil detach $DMG_MOUNT || hdiutil detach -force $DMG_MOUNT
+  [ "$DMG_ERROR" == "" ] || fail "$DMG_ERROR"
 elif [ "$SIGNING_IDENTITY" != "" ]; then
   create-dmg $BUILD_FOLDER/app/Norilight.app $INSTALLER_FOLDER --identity="$SIGNING_IDENTITY" --no-version-in-filename || fail "create-dmg failed!"
 else
