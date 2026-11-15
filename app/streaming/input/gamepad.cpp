@@ -1153,7 +1153,7 @@ int SdlInputHandler::getAttachedGamepadMask()
             SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i),
                                       guidStr, sizeof(guidStr));
 
-            if (!m_IgnoreDeviceGuids.contains(guidStr, Qt::CaseInsensitive))
+            if (!m_IgnoreDeviceGuids.contains(guidStr, Qt::CaseInsensitive) && count < MAX_GAMEPADS)
             {
                 mask |= (1 << count++);
             }
