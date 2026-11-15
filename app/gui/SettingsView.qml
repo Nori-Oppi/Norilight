@@ -323,6 +323,17 @@ Item {
                 policy: navFlick.contentHeight > navFlick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
             }
 
+            // While the list moves, items slide under a still cursor; hover
+            // highlights would flicker from row to row, so hold them off
+            // until the list has stopped
+            readonly property bool scrolling: navScrollSettle.running || moving
+            onContentYChanged: navScrollSettle.restart()
+
+            Timer {
+                id: navScrollSettle
+                interval: 150
+            }
+
             Column {
                 id: navColumn
                 width: navFlick.width
@@ -364,10 +375,6 @@ Item {
                             hoverEnabled: true
                             focusPolicy: Qt.TabFocus
 
-                            ToolTip.text: qsTr(model.summary)
-                            ToolTip.visible: hovered
-                            ToolTip.delay: 600
-
                             onClicked: settingsPage.showSection(model.key)
                             Keys.onReturnPressed: settingsPage.showSection(model.key)
                             Keys.onEnterPressed: settingsPage.showSection(model.key)
@@ -375,11 +382,10 @@ Item {
                             Keys.onDownPressed: settingsPage.stepSection(index, 1)
 
                             background: Rectangle {
-                                color: navItem.selected ? Theme.navSelected : (navItem.hovered || navItem.visualFocus ? Theme.navHover : "transparent")
-
-                                Behavior on color {
-                                    ColorAnimation { duration: 90 }
-                                }
+                                // No colour animation: rows passing under the
+                                // cursor would each leave a fading trail
+                                color: navItem.selected ? Theme.navSelected
+                                     : ((navItem.hovered && !navFlick.scrolling) || navItem.visualFocus ? Theme.navHover : "transparent")
 
                                 Rectangle {
                                     x: 0
@@ -419,6 +425,10 @@ Item {
                     wrapMode: Text.Wrap
                 }
             }
+        }
+
+        WheelScroller {
+            flickable: navFlick
         }
     }
 
@@ -1797,6 +1807,7 @@ Item {
                         }
 
                         id: languageComboBox
+                        measureAllScripts: false
                         textRole: "text"
                         model: ListModel {
                             id: languageListModel
@@ -2938,4 +2949,7 @@ Item {
         }
     }
 
+    WheelScroller {
+        flickable: settingsFlick
+    }
 }

@@ -20,6 +20,7 @@
         <file>res/discord.svg</file>
         <file>res/close.svg</file>
         <file>res/expand_more.svg</file>
+        <file>res/check.svg</file>
         <file>res/tune.svg</file>
         <file>languages/qml_de.ts</file>
         <file>languages/qml_de.qm</file>

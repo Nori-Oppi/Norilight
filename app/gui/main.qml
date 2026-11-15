@@ -409,35 +409,29 @@ ApplicationWindow {
             }
 
             NavigableToolButton {
-                property string browserUrl: ""
-
                 id: updateButton
 
                 iconSource: "qrc:/res/update.svg"
 
                 ToolTip.delay: 1000
                 ToolTip.timeout: 3000
-                ToolTip.visible: hovered || visible
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Update to %1").arg(updateDialog.version)
 
                 // Invisible until we get a callback notifying us that
                 // an update is available
                 visible: false
 
-                onClicked: {
-                    if (SystemProperties.hasBrowser) {
-                        Qt.openUrlExternally(browserUrl);
-                    }
-                }
+                onClicked: updateDialog.open()
 
                 function updateAvailable(version, url)
                 {
-                    ToolTip.text = qsTr("A newer Norilight nightly is available (%1). Click to download it.").arg(version)
-                    updateButton.browserUrl = url
+                    updateDialog.version = version
                     updateButton.visible = true
                 }
 
                 // Norilight: the checker compares this build's commit with the
-                // latest nightly on GitHub and links straight to its download.
+                // latest nightly on GitHub; the dialog downloads and installs it.
                 Component.onCompleted: {
                     AutoUpdateChecker.onUpdateAvailable.connect(updateAvailable)
                     AutoUpdateChecker.start()
@@ -736,6 +730,166 @@ ApplicationWindow {
         onAccepted: {
             window.confirmedHubClose = true
             window.close()
+        }
+    }
+
+    // Norilight: downloads the newer nightly and hands it to the installer,
+    // which needs Norilight closed. Falls back to the browser when this copy
+    // can't update itself (or the download fails).
+    NavigableDialog {
+        id: updateDialog
+
+        // "offer", "downloading", "installing" or "failed"
+        property string phase: "offer"
+        property string version: ""
+        property string errorText: ""
+        property real received: 0
+        property real total: -1
+
+        title: phase === "failed" ? qsTr("Update failed") : qsTr("Update Norilight")
+        // Stay open while the download runs; Cancel stops it
+        closePolicy: phase === "offer" || phase === "failed" ? (Popup.CloseOnEscape | Popup.CloseOnPressOutside) : Popup.NoAutoClose
+        width: Math.min(460, window.width - 32)
+
+        function megabytes(bytes) {
+            return (bytes / (1024 * 1024)).toFixed(1)
+        }
+
+        onAboutToShow: {
+            if (phase === "failed") {
+                phase = "offer"
+            }
+        }
+
+        onOpened: updatePrimaryButton.forceActiveFocus(Qt.TabFocus)
+
+        Connections {
+            target: AutoUpdateChecker
+            function onDownloadProgress(received, total) {
+                updateDialog.received = received
+                updateDialog.total = total
+            }
+            function onInstallFailed(message) {
+                updateDialog.errorText = message
+                updateDialog.phase = "failed"
+                if (!updateDialog.opened) {
+                    updateDialog.open()
+                }
+            }
+            function onInstallerStarted() {
+                updateDialog.phase = "installing"
+                // Streams end with the main window, as when closing it normally.
+                // Give the dialog a frame to show the new state first.
+                Qt.callLater(function() {
+                    window.confirmedHubClose = true
+                    window.close()
+                    Qt.quit()
+                })
+            }
+        }
+
+        contentItem: Column {
+            spacing: 12
+
+            Label {
+                width: parent.width
+                wrapMode: Text.Wrap
+                text: {
+                    switch (updateDialog.phase) {
+                    case "downloading":
+                        return qsTr("Downloading %1…").arg(updateDialog.version)
+                    case "installing":
+                        return qsTr("Closing Norilight to install the update. It will open again when it's done.")
+                    case "failed":
+                        return updateDialog.errorText
+                    default:
+                        if (!AutoUpdateChecker.canInstall) {
+                            return qsTr("Norilight %1 is available. This copy can't update itself, so download it from the release page.").arg(updateDialog.version)
+                        }
+                        var text = qsTr("Norilight %1 is available (you have %2). Norilight will download it, close, install it and open again.").arg(updateDialog.version).arg(SystemProperties.versionString)
+                        if (AutoUpdateChecker.needsPermission) {
+                            text += " " + qsTr("Windows may ask for permission to install it.")
+                        }
+                        if (DisplayManager.runningCount > 0) {
+                            text += "\n\n" + qsTr("This will end the %n stream(s) you have open.", "", DisplayManager.runningCount)
+                        }
+                        return text
+                    }
+                }
+            }
+
+            ProgressBar {
+                width: parent.width
+                visible: updateDialog.phase === "downloading" || updateDialog.phase === "installing"
+                indeterminate: updateDialog.phase === "installing" || updateDialog.total <= 0
+                value: updateDialog.total > 0 ? updateDialog.received / updateDialog.total : 0
+            }
+
+            Label {
+                width: parent.width
+                visible: updateDialog.phase === "downloading"
+                text: updateDialog.total > 0
+                      ? qsTr("%1 of %2 MB").arg(updateDialog.megabytes(updateDialog.received)).arg(updateDialog.megabytes(updateDialog.total))
+                      : qsTr("%1 MB").arg(updateDialog.megabytes(updateDialog.received))
+                font.pointSize: Theme.fontDetail
+                color: Theme.textSecondary
+            }
+        }
+
+        footer: DialogButtonBox {
+            visible: updateDialog.phase !== "installing"
+
+            Button {
+                id: updatePrimaryButton
+                flat: true
+                visible: updateDialog.phase !== "downloading"
+                text: AutoUpdateChecker.canInstall
+                      ? (updateDialog.phase === "failed" ? qsTr("Try again") : qsTr("Install and restart"))
+                      : qsTr("Open release page")
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+                onClicked: {
+                    if (AutoUpdateChecker.canInstall) {
+                        updateDialog.received = 0
+                        updateDialog.total = -1
+                        updateDialog.phase = "downloading"
+                        AutoUpdateChecker.installUpdate()
+                    }
+                    else {
+                        Qt.openUrlExternally(AutoUpdateChecker.downloadUrl)
+                        updateDialog.close()
+                    }
+                }
+            }
+
+            Button {
+                flat: true
+                visible: updateDialog.phase === "failed" && SystemProperties.hasBrowser
+                text: qsTr("Download in browser")
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+                onClicked: {
+                    Qt.openUrlExternally(AutoUpdateChecker.downloadUrl)
+                    updateDialog.close()
+                }
+            }
+
+            Button {
+                flat: true
+                text: updateDialog.phase === "downloading" ? qsTr("Cancel") : qsTr("Later")
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+                onClicked: {
+                    if (updateDialog.phase === "downloading") {
+                        AutoUpdateChecker.cancelInstall()
+                    }
+                    updateDialog.phase = "offer"
+                    updateDialog.close()
+                }
+            }
         }
     }
 

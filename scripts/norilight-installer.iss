@@ -60,3 +60,12 @@ Name: "{autodesktop}\Norilight"; Filename: "{app}\Norilight.exe"; WorkingDir: "{
 
 [Run]
 Filename: "{app}\Norilight.exe"; Description: "{cm:LaunchProgram,Norilight}"; Flags: nowait postinstall skipifsilent
+; In-app updates run Setup with /SILENT /RELAUNCH=1 after Norilight has closed,
+; so start it again afterwards, as the signed-in user rather than as admin.
+Filename: "{app}\Norilight.exe"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: RelaunchRequested
+
+[Code]
+function RelaunchRequested: Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
+end;

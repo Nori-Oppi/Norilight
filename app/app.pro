@@ -50,7 +50,7 @@ win32 {
     }
 
     INCLUDEPATH += $$PWD/../libs/windows/include
-    LIBS += ws2_32.lib winmm.lib dxva2.lib ole32.lib gdi32.lib user32.lib d3d9.lib dwmapi.lib dbghelp.lib
+    LIBS += ws2_32.lib winmm.lib dxva2.lib ole32.lib gdi32.lib user32.lib d3d9.lib dwmapi.lib dbghelp.lib shell32.lib
 }
 macx:!disable-prebuilts {
     !exists($$PWD/../libs/mac) {
@@ -590,7 +590,11 @@ DEFINES += VERSION_STR=\\\"$$cat(version.txt)\\\"
 # newer nightly is out. Local builds leave it empty and skip the check.
 # It goes into a generated header rather than DEFINES: a define would change
 # every compile command on every commit and defeat the compiler cache in CI.
+# The nightly's name (CI_VERSION, e.g. nightly-20261115-0f4841b) is the version
+# the app shows, so it matches the release and its file names.
 NORILIGHT_BUILD_SHA = $$(NORILIGHT_BUILD_SHA)
-BUILDINFO_LINES = "$${LITERAL_HASH}define NORILIGHT_BUILD_SHA \"$$NORILIGHT_BUILD_SHA\""
+NORILIGHT_BUILD_VERSION = $$(CI_VERSION)
+BUILDINFO_LINES = "$${LITERAL_HASH}define NORILIGHT_BUILD_SHA \"$$NORILIGHT_BUILD_SHA\"" \
+                  "$${LITERAL_HASH}define NORILIGHT_BUILD_VERSION \"$$NORILIGHT_BUILD_VERSION\""
 !write_file($$OUT_PWD/buildinfo.h, BUILDINFO_LINES): error("Failed to write buildinfo.h")
 INCLUDEPATH += $$OUT_PWD

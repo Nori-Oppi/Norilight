@@ -24,6 +24,7 @@
 // that might include SDL.h themselves.
 #define SDL_MAIN_HANDLED
 #include "SDL_compat.h"
+#include "buildversion.h"
 
 #ifdef HAVE_FFMPEG
 #include "streaming/video/ffmpeg.h"
@@ -432,7 +433,7 @@ int main(int argc, char *argv[])
     SDL_SetMainReady();
 
     // Set the app version for the QCommandLineParser's showVersion() command
-    QCoreApplication::setApplicationVersion(VERSION_STR);
+    QCoreApplication::setApplicationVersion(NORILIGHT_VERSION_STR);
 
     // Set these here to allow us to use the default QSettings constructor.
     // These also ensure that our cache directory is named correctly. As such,

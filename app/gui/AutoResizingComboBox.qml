@@ -9,6 +9,11 @@ ComboBox {
     property int textWidth
     property int desiredWidth : leftPadding + textWidth + indicator.width + rightPadding
     property int maximumWidth : parent.width
+    // Measuring text in scripts the UI font lacks (CJK, Thai, Hindi, ...) makes
+    // the system load fallback fonts, which can take half a second the first
+    // time. Lists that name languages in their own script can skip those
+    // entries; they are never wider than the longest Latin one.
+    property bool measureAllScripts: true
 
     implicitWidth: desiredWidth < maximumWidth ? desiredWidth : maximumWidth
 
@@ -20,13 +25,29 @@ ComboBox {
         id: textMetrics
     }
 
+    // Latin, Greek and Cyrillic (including Vietnamese letters), which the
+    // UI font draws itself
+    function usesUiFontScripts(text) {
+        for (var i = 0; i < text.length; i++) {
+            var code = text.charCodeAt(i)
+            if (code > 0x052F && (code < 0x1E00 || code > 0x1EFF)) {
+                return false
+            }
+        }
+        return true
+    }
+
     function recalculateWidth() {
         textMetrics.font = font
         popupMetrics.font = popup.font
         textWidth = 0
         for (var i = 0; i < count; i++){
-            textMetrics.text = textAt(i)
-            popupMetrics.text = textAt(i)
+            var itemText = textAt(i)
+            if (!measureAllScripts && !usesUiFontScripts(itemText)) {
+                continue
+            }
+            textMetrics.text = itemText
+            popupMetrics.text = itemText
             textWidth = Math.max(textMetrics.width, textWidth)
             textWidth = Math.max(popupMetrics.width, textWidth)
         }

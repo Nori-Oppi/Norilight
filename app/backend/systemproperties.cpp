@@ -1,5 +1,6 @@
 #include "systemproperties.h"
 #include "utils.h"
+#include "buildversion.h"
 
 #include <QGuiApplication>
 #include <QLibraryInfo>
@@ -46,7 +47,7 @@ private:
 
 SystemProperties::SystemProperties()
 {
-    versionString = QString(VERSION_STR);
+    versionString = QString(NORILIGHT_VERSION_STR);
     hasDesktopEnvironment = WMUtils::isRunningDesktopEnvironment();
     isRunningWayland = WMUtils::isRunningWayland();
     isRunningXWayland = isRunningWayland && QGuiApplication::platformName() == "xcb";
