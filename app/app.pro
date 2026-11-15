@@ -582,3 +582,10 @@ macx {
 
 VERSION = "$$cat(version.txt)"
 DEFINES += VERSION_STR=\\\"$$cat(version.txt)\\\"
+
+# Norilight: nightly builds record their commit so the app can tell when a
+# newer nightly is out. Local builds leave it empty and skip the check.
+NORILIGHT_BUILD_SHA = $$(NORILIGHT_BUILD_SHA)
+!isEmpty(NORILIGHT_BUILD_SHA) {
+    DEFINES += NORILIGHT_BUILD_SHA=\\\"$$NORILIGHT_BUILD_SHA\\\"
+}

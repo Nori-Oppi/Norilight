@@ -74,6 +74,15 @@ find $BUILD_FOLDER/app/Norilight.app/ -name '*.dSYM' | xargs rm -rf
 if [ "$SIGNING_IDENTITY" != "" ]; then
   echo Signing app bundle
   codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" $BUILD_FOLDER/app/Norilight.app || fail "Signing failed!"
+else
+  # Unsigned builds still need a valid (ad-hoc) bundle signature. macdeployqt
+  # breaks the linker's per-binary signatures and leaves the bundle unsealed,
+  # and macOS then silently denies Local Network access (no prompt), so mDNS
+  # discovery and connecting to LAN IPs both fail. No hardened runtime here:
+  # library validation would reject the ad-hoc signed frameworks.
+  echo Ad-hoc signing app bundle
+  codesign --force --deep --sign - $BUILD_FOLDER/app/Norilight.app || fail "Ad-hoc signing failed!"
+  codesign --verify --deep --strict $BUILD_FOLDER/app/Norilight.app || fail "Ad-hoc signature verification failed!"
 fi
 
 echo Creating DMG

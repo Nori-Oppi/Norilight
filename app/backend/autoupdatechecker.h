@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 
+// Norilight: checks the rolling "nightly" GitHub pre-release and reports when
+// it was built from a different commit than the running build.
 class AutoUpdateChecker : public QObject
 {
     Q_OBJECT
@@ -18,12 +20,6 @@ private slots:
     void handleUpdateCheckRequestFinished(QNetworkReply* reply);
 
 private:
-    void parseStringToVersionQuad(QString& string, QVector<int>& version);
-
-    int compareVersion(QVector<int>& version1, QVector<int>& version2);
-
-    QString getPlatform();
-
-    QVector<int> m_CurrentVersionQuad;
+    QString m_BuildSha;
     QNetworkAccessManager* m_Nam;
 };
