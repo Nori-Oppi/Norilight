@@ -37,7 +37,6 @@ QtObject {
     readonly property color statusIdle: "#76767E"
 
     // Type scale (points)
-    readonly property real fontOverline: 8.5   // sidebar category headings
     readonly property real fontSmall: 9.5      // secondary lines on cards and rows
     readonly property real fontDetail: 10      // descriptions under settings
     readonly property real fontBody: 11.5      // card titles, list items, inline labels
@@ -47,6 +46,16 @@ QtObject {
 
     // Indent for settings that depend on the one above them
     readonly property int indent: 36
+
+    // Settings pages: rows of settings grouped on cards
+    readonly property color rowDivider: "#42424A"
+    readonly property int cardRadius: 8
+    readonly property int cardPadding: 16
+    readonly property int rowMinHeight: 52
+    readonly property int rowGap: 16          // between a row's text and its controls
+    readonly property int controlGap: 12      // between controls in one row
+    readonly property int cardGap: 20         // between cards on a page
+    readonly property int contentMaxWidth: 720
 
     // Icon for a settings profile, by the kind it was created as
     function profileIcon(kind) {

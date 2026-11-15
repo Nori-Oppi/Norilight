@@ -1,6 +1,9 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
+import QtQuick.Controls.Material 2.2
 import DisplayManager 1.0
+
+import "."
 
 ComboBox {
     id: selector
@@ -8,6 +11,21 @@ ComboBox {
     property string monitorLabel: ""
     signal selected(string key, string label)
     textRole: "text"
+
+    indicator: ComboIndicator {
+        control: selector
+    }
+
+    // Long choices end in "…" instead of being cut off mid-letter
+    contentItem: Label {
+        leftPadding: selector.Material.textFieldHorizontalPadding
+        rightPadding: 4
+        verticalAlignment: Text.AlignVCenter
+        text: selector.displayText
+        font: selector.font
+        color: selector.enabled ? Theme.textPrimary : Theme.textDisabled
+        elide: Text.ElideRight
+    }
 
     // Include a missing display so opening this control never clears a saved target.
     model: {

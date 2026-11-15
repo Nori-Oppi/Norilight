@@ -4,57 +4,100 @@ import QtQuick.Controls.Material 2.2
 
 import "."
 
-// Norilight: one block of settings with a real heading and a plain-language
-// description, instead of a framed GroupBox with a coloured title.
-GroupBox {
+// Norilight: one settings page: its title, then its SettingsCards. The page
+// is named in the sidebar too, so it has no description; a page that needs
+// explaining (Profiles) puts it behind an (i) button next to the title.
+Column {
     id: group
 
-    // Which sidebar section this block belongs to
+    // Which sidebar section this page belongs to
     property string section: ""
-    // One sentence telling the user what lives here
-    property string description: ""
-    // Second-level block inside a section (smaller heading, extra space above)
-    property bool subheading: false
+    property string title: ""
+    // Longer explanation behind an (i) button next to the title
+    property string info: ""
+    property bool expanded: false
+    // Room kept free on the right of the title for the profile button
+    property real titleReserve: 0
 
-    padding: 0
-    topPadding: header.height + (subheading ? 14 : 18)
-    bottomPadding: 8
+    default property alias content: body.data
 
-    label: Column {
-        id: header
-        x: 0
-        width: group.width
-        spacing: 6
-        topPadding: group.subheading ? 22 : 0
+    spacing: 0
 
-        Label {
-            width: parent.width
-            text: group.title
-            font.pointSize: group.subheading ? Theme.fontSubheading : Theme.fontHeading
-            font.weight: group.subheading ? Font.DemiBold : Font.Medium
-            font.letterSpacing: group.subheading ? 0 : -0.3
-            color: Theme.textHeading
-            wrapMode: Text.Wrap
-        }
+    Item {
+        width: parent.width
+        height: 44
 
-        Label {
-            width: Math.min(parent.width, 620)
-            visible: text !== ""
-            text: group.description
-            font.pointSize: Theme.fontDetail + 0.5
-            lineHeight: 1.15
-            color: Theme.textSecondary
-            wrapMode: Text.Wrap
-        }
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - group.titleReserve
+            spacing: 6
 
-        Item { width: 1; height: 6 }
+            Label {
+                id: titleLabel
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, parent.width - (titleInfoButton.visible ? titleInfoButton.width + parent.spacing : 0))
+                text: group.title
+                font.pointSize: Theme.fontHeading
+                font.weight: Font.Medium
+                font.letterSpacing: -0.3
+                color: Theme.textHeading
+                elide: Text.ElideRight
+            }
 
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: group.subheading ? Theme.divider : Theme.border
+            ToolButton {
+                id: titleInfoButton
+                anchors.verticalCenter: parent.verticalCenter
+                visible: group.info !== ""
+                width: 32
+                height: 32
+                padding: 0
+                topInset: 0
+                bottomInset: 0
+                leftInset: 0
+                rightInset: 0
+                display: AbstractButton.IconOnly
+                icon.source: "qrc:/res/info_outline.svg"
+                icon.width: 20
+                icon.height: 20
+                icon.color: group.expanded ? Material.accent : Theme.textTertiary
+                background: Rectangle {
+                    radius: width / 2
+                    color: titleInfoButton.hovered ? Theme.cardHover : "transparent"
+                    border.width: titleInfoButton.visualFocus ? 2 : 0
+                    border.color: Material.accent
+                }
+                onClicked: group.expanded = !group.expanded
+                Keys.onReturnPressed: group.expanded = !group.expanded
+                Keys.onEnterPressed: group.expanded = !group.expanded
+
+                Accessible.name: group.expanded ? qsTr("Hide details") : qsTr("Show details")
+                ToolTip.text: Accessible.name
+                ToolTip.delay: 600
+                ToolTip.visible: hovered
+            }
         }
     }
 
-    background: Item {}
+    Label {
+        width: Math.min(parent.width, 620)
+        visible: group.expanded && group.info !== ""
+        topPadding: 2
+        text: group.info
+        font.pointSize: Theme.fontDetail
+        lineHeight: 1.15
+        color: Theme.textSecondary
+        wrapMode: Text.Wrap
+    }
+
+
+    Item {
+        width: 1
+        height: 12
+    }
+
+    Column {
+        id: body
+        width: parent.width
+        spacing: Theme.cardGap
+    }
 }

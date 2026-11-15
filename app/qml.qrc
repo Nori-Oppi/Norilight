@@ -5,7 +5,10 @@
         <file>gui/AppView.qml</file>
         <file>gui/SettingsView.qml</file>
         <file>gui/SettingsGroup.qml</file>
-        <file>gui/SettingsCheck.qml</file>
+        <file>gui/SettingsCard.qml</file>
+        <file>gui/SettingsRow.qml</file>
+        <file>gui/SettingsSwitch.qml</file>
+        <file>gui/ComboIndicator.qml</file>
         <file>gui/WheelScroller.qml</file>
         <file>gui/DisplayProfilePicker.qml</file>
         <file>gui/StreamSegue.qml</file>

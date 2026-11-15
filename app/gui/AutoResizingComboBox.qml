@@ -1,11 +1,14 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
+import QtQuick.Controls.Material 2.2
 
 import SdlGamepadKeyNavigation 1.0
 import "."
 
 // https://stackoverflow.com/questions/45029968/how-do-i-set-the-combobox-width-to-fit-the-largest-item
 ComboBox {
+    id: resizingComboBox
+
     property int textWidth
     property int desiredWidth : leftPadding + textWidth + indicator.width + rightPadding
     property int maximumWidth : parent.width
@@ -15,7 +18,26 @@ ComboBox {
     // entries; they are never wider than the longest Latin one.
     property bool measureAllScripts: true
 
-    implicitWidth: desiredWidth < maximumWidth ? desiredWidth : maximumWidth
+    // Norilight: dropdowns on a settings card share a minimum width, so ones
+    // stacked above each other line up
+    property int minimumWidth: 0
+
+    implicitWidth: Math.max(minimumWidth, desiredWidth < maximumWidth ? desiredWidth : maximumWidth)
+
+    indicator: ComboIndicator {
+        control: resizingComboBox
+    }
+
+    // Long choices end in "…" instead of being cut off mid-letter
+    contentItem: Label {
+        leftPadding: resizingComboBox.Material.textFieldHorizontalPadding
+        rightPadding: 4
+        verticalAlignment: Text.AlignVCenter
+        text: resizingComboBox.displayText
+        font: resizingComboBox.font
+        color: resizingComboBox.enabled ? Theme.textPrimary : Theme.textDisabled
+        elide: Text.ElideRight
+    }
 
     TextMetrics {
         id: popupMetrics
