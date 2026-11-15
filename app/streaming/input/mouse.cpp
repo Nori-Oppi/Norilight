@@ -24,6 +24,44 @@ void SdlInputHandler::notifyMouseLeave()
             }
         }
     }
+
+    // Norilight: the cursor can leave the window without a last motion event
+    // outside the video, which would leave the host's cursor sitting in the
+    // stream next to this PC's own cursor. While a button is held, the drag
+    // continues and the cursor is parked when the button comes up instead.
+    if (m_AbsoluteMouseMode && isCaptureActive() && SDL_GetMouseState(nullptr, nullptr) == 0) {
+        parkHostCursor();
+    }
+}
+
+void SdlInputHandler::parkHostCursor()
+{
+    SDL_Rect src, dst;
+
+    src.x = src.y = 0;
+    src.w = m_StreamWidth;
+    src.h = m_StreamHeight;
+
+    dst.x = dst.y = 0;
+    SDL_GetWindowSize(m_Window, &dst.w, &dst.h);
+
+    StreamUtils::scaleVideoToDestinationSurface(&src, &dst);
+
+    // The host has no way to hide its cursor, so move it to the bottom right
+    // corner of the screen, where at most a single pixel of it is drawn.
+    LiSendMousePositionEvent((short)dst.w, (short)dst.h, dst.w, dst.h);
+
+    if (m_PendingMouseButtonsAllUpOnVideoRegionLeave) {
+        if (m_NeedsManualCaptureOnLeave) {
+            SDL_CaptureMouse(SDL_FALSE);
+        }
+        m_PendingMouseButtonsAllUpOnVideoRegionLeave = false;
+    }
+
+    if (m_MouseWasInVideoRegion) {
+        SDL_ShowCursor(SDL_ENABLE);
+        m_MouseWasInVideoRegion = false;
+    }
 }
 
 void SdlInputHandler::handleMouseButtonEvent(SDL_MouseButtonEvent* event)
@@ -88,6 +126,14 @@ void SdlInputHandler::handleMouseButtonEvent(SDL_MouseButtonEvent* event)
                                BUTTON_ACTION_PRESS :
                                BUTTON_ACTION_RELEASE,
                            button);
+
+    // Norilight: a drag that ended outside the video leaves the host's cursor
+    // at the edge of the stream, so tuck it away once the last button is up.
+    if (m_AbsoluteMouseMode && event->state == SDL_RELEASED &&
+            SDL_GetMouseState(nullptr, nullptr) == 0 &&
+            !isMouseInVideoRegion(event->x, event->y)) {
+        parkHostCursor();
+    }
 }
 
 void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
@@ -148,6 +194,7 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
         // b) it just left the video region (to ensure the mouse is clamped to the video boundary)
         // c) a mouse button is still down from before the cursor left the video region (to allow smooth dragging)
         Uint32 buttonState = SDL_GetMouseState(nullptr, nullptr);
+        bool allButtonsCameUpOutside = false;
         if (buttonState == 0) {
             if (m_PendingMouseButtonsAllUpOnVideoRegionLeave) {
                 if (m_NeedsManualCaptureOnLeave) {
@@ -155,10 +202,18 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
                     SDL_CaptureMouse(SDL_FALSE);
                 }
                 m_PendingMouseButtonsAllUpOnVideoRegionLeave = false;
+                allButtonsCameUpOutside = !mouseInVideoRegion;
             }
         }
-        if (mouseInVideoRegion || m_MouseWasInVideoRegion || m_PendingMouseButtonsAllUpOnVideoRegionLeave) {
+        if (mouseInVideoRegion ||
+                (buttonState != 0 && (m_MouseWasInVideoRegion || m_PendingMouseButtonsAllUpOnVideoRegionLeave))) {
             LiSendMousePositionEvent((short)x, (short)y, dst.w, dst.h);
+        }
+        else if (m_MouseWasInVideoRegion || allButtonsCameUpOutside) {
+            // Norilight: the cursor is outside the video with no drag in
+            // progress. This PC's cursor is visible there, so tuck the host's
+            // cursor away instead of leaving it at the edge of the stream.
+            parkHostCursor();
         }
 
         // Adjust the cursor visibility if applicable
