@@ -10,6 +10,7 @@ import StreamingPreferences 1.0
 import SystemProperties 1.0
 import SdlGamepadKeyNavigation 1.0
 import DisplayManager 1.0
+import ProfileManager 1.0
 import "."
 
 ApplicationWindow {
@@ -130,7 +131,10 @@ ApplicationWindow {
             // Perform our early initialization before constructing
             // the initial view and pushing it to the StackView
             doEarlyInit()
-            push(initialView)
+
+            // Norilight: settings live in profiles, so a normal launch starts
+            // with the wizard until the first profile exists
+            push(isGuiLaunch && ProfileManager.setupNeeded ? "qrc:/gui/ProfileWizard.qml" : initialView)
         }
 
         onCurrentItemChanged: {
@@ -240,6 +244,22 @@ ApplicationWindow {
         SdlGamepadKeyNavigation.notifyWindowFocus(visible && active)
     }
 
+    // Norilight: the settings page reads its values when it is built, so
+    // show a fresh one after switching to another profile
+    function reloadSettingsPage() {
+        var page = stackView.currentItem
+        if (page instanceof SettingsView) {
+            stackView.replace(page, "qrc:/gui/SettingsView.qml",
+                              { "currentSection": page.currentSection },
+                              StackView.Immediate)
+        }
+    }
+
+    Connections {
+        target: ProfileManager
+        onActiveProfileChanged: Qt.callLater(reloadSettingsPage)
+    }
+
     function navigateTo(url, objectType)
     {
         var existingItem = stackView.find(function(item, index) {
@@ -338,6 +358,19 @@ ApplicationWindow {
                 font.pointSize: 12
                 horizontalAlignment: Qt.AlignRight
                 verticalAlignment: Qt.AlignVCenter
+            }
+
+            // Norilight: the active profile, and a quick way to switch
+            ProfileSwitcher {
+                visible: isGuiLaunch && !ProfileManager.setupNeeded &&
+                         (stackView.currentItem instanceof PcView || stackView.currentItem instanceof AppView)
+                onToolbar: true
+                showName: toolBar.width > 560
+                Layout.alignment: Qt.AlignVCenter
+
+                Keys.onDownPressed: {
+                    stackView.currentItem.forceActiveFocus(Qt.TabFocus)
+                }
             }
 
             NavigableToolButton {
@@ -452,9 +485,17 @@ ApplicationWindow {
             NavigableToolButton {
                 id: settingsButton
 
+                // Settings need a profile to belong to
+                visible: !(stackView.currentItem instanceof ProfileWizard)
+
                 iconSource:  "qrc:/res/settings.svg"
 
-                onClicked: navigateTo("qrc:/gui/SettingsView.qml", SettingsView)
+                onClicked: {
+                    // Also reached from the Menu key, so check again here
+                    if (!(stackView.currentItem instanceof ProfileWizard)) {
+                        navigateTo("qrc:/gui/SettingsView.qml", SettingsView)
+                    }
+                }
 
                 Keys.onDownPressed: {
                     stackView.currentItem.forceActiveFocus(Qt.TabFocus)
@@ -765,6 +806,139 @@ ApplicationWindow {
             // start streaming, so fake it by wiping out the text each time.
             text = ""
         }
+    }
+
+    // Norilight: profile dialogs, opened from the profile button. They live
+    // here because the settings page is rebuilt when the profile changes.
+    NavigableDialog {
+        id: newProfileDialog
+
+        title: qsTr("New profile")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        width: Math.min(window.width - 40, 540)
+
+        onAboutToShow: {
+            newProfileEditor.reset()
+
+            // standardButton() was added in Qt 5.10
+            if (newProfileDialog.standardButton) {
+                var ok = newProfileDialog.standardButton(Dialog.Ok)
+                if (ok) {
+                    ok.text = qsTr("Create profile")
+                    ok.enabled = Qt.binding(function() { return newProfileEditor.valid })
+                }
+            }
+        }
+
+        onOpened: newProfileEditor.focusName()
+
+        onAccepted: {
+            if (newProfileEditor.valid) {
+                ProfileManager.createProfile(newProfileEditor.name, newProfileEditor.startFrom)
+            }
+        }
+
+        Flickable {
+            id: newProfileFlick
+            anchors.left: parent.left
+            anchors.right: parent.right
+            implicitHeight: Math.min(newProfileEditor.height, Math.max(120, window.height - 230))
+            height: implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            contentWidth: width
+            contentHeight: newProfileEditor.height
+
+            ScrollBar.vertical: ScrollBar {
+                policy: newProfileFlick.contentHeight > newProfileFlick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+            }
+
+            ProfileEditor {
+                id: newProfileEditor
+                width: newProfileFlick.width - 12
+                onAccepted: {
+                    if (valid) {
+                        newProfileDialog.accept()
+                    }
+                }
+            }
+        }
+    }
+
+    NavigableDialog {
+        id: renameProfileDialog
+
+        readonly property bool nameInUse: renameField.text.trim() !== "" &&
+                                          ProfileManager.nameTaken(renameField.text, ProfileManager.activeId)
+        readonly property bool valid: renameField.text.trim() !== "" && !nameInUse
+
+        title: qsTr("Rename profile")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        onAboutToShow: {
+            renameField.text = ProfileManager.activeName
+
+            if (renameProfileDialog.standardButton) {
+                var ok = renameProfileDialog.standardButton(Dialog.Ok)
+                if (ok) {
+                    ok.text = qsTr("Rename")
+                    ok.enabled = Qt.binding(function() { return renameProfileDialog.valid })
+                }
+            }
+        }
+
+        onOpened: {
+            renameField.forceActiveFocus()
+            renameField.selectAll()
+        }
+
+        onAccepted: {
+            if (valid) {
+                ProfileManager.rename(ProfileManager.activeId, renameField.text)
+            }
+        }
+
+        ColumnLayout {
+            Label {
+                text: qsTr("Profile name")
+            }
+
+            TextField {
+                id: renameField
+                Layout.fillWidth: true
+                Layout.minimumWidth: 300
+                maximumLength: 40
+                selectByMouse: true
+
+                Keys.onReturnPressed: {
+                    if (renameProfileDialog.valid) {
+                        renameProfileDialog.accept()
+                    }
+                }
+
+                Keys.onEnterPressed: {
+                    if (renameProfileDialog.valid) {
+                        renameProfileDialog.accept()
+                    }
+                }
+            }
+
+            Label {
+                visible: renameProfileDialog.nameInUse
+                text: qsTr("You already have a profile with this name.")
+                font.pointSize: Theme.fontDetail
+                color: Theme.statusError
+            }
+        }
+    }
+
+    NavigableMessageDialog {
+        id: removeProfileDialog
+        standardButtons: Dialog.Yes | Dialog.No
+        text: qsTr("Delete the profile \"%1\"? Its settings can't be brought back.").arg(ProfileManager.activeName)
+        acceptText: qsTr("Delete")
+        rejectText: qsTr("Cancel")
+        onAccepted: ProfileManager.remove(ProfileManager.activeId)
     }
 
     NavigableDialog {

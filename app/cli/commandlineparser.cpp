@@ -38,6 +38,9 @@ public:
         setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
         addHelpOption();
         addVersionOption();
+
+        // Norilight: handled in main() before the settings are loaded
+        addOption(QCommandLineOption("profile", "Use the settings of this profile.", "name"));
     }
 
     void handleHelpAndVersionOptions()
