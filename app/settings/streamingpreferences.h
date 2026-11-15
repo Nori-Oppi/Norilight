@@ -4,6 +4,9 @@
 #include <QRect>
 #include <QQmlEngine>
 
+class QSettings;
+class QScreen;
+
 class StreamingPreferences : public QObject
 {
     Q_OBJECT
@@ -17,6 +20,12 @@ public:
     Q_INVOKABLE void save();
 
     void reload();
+
+    // Norilight: reads every setting except the language from the given
+    // settings (a profile's group, or another app's settings to import)
+    void loadFrom(QSettings& settings);
+    void saveTo(QSettings& settings) const;
+    void resolveDisplaySettings(QScreen* currentScreen);
 
     enum AudioConfig
     {
@@ -122,6 +131,8 @@ public:
     Q_PROPERTY(int width MEMBER width NOTIFY displayModeChanged)
     Q_PROPERTY(int height MEMBER height NOTIFY displayModeChanged)
     Q_PROPERTY(int fps MEMBER fps NOTIFY displayModeChanged)
+    Q_PROPERTY(bool matchMonitorResolution MEMBER matchMonitorResolution NOTIFY displayModeChanged)
+    Q_PROPERTY(bool matchMonitorRefreshRate MEMBER matchMonitorRefreshRate NOTIFY displayModeChanged)
     Q_PROPERTY(int bitrateKbps MEMBER bitrateKbps NOTIFY bitrateChanged)
     Q_PROPERTY(bool unlockBitrate MEMBER unlockBitrate NOTIFY unlockBitrateChanged)
     Q_PROPERTY(bool autoAdjustBitrate MEMBER autoAdjustBitrate NOTIFY autoAdjustBitrateChanged)
@@ -215,10 +226,11 @@ public:
     bool forceFullRange; // ask the host for full-range colour
     bool alignVideoTop; // pin letterboxed video to the top edge
     int videoScaleMode; // 0 fit, 1 fill (crop), 2 stretch
-    // Norilight: monitor to open the stream on (DisplayManager::monitorKey).
-    // Set only by the stream command line for display manager profiles;
-    // never saved.
+    // Each profile owns its monitor and all display settings.
     QString targetMonitor;
+    QString targetMonitorLabel;
+    bool matchMonitorResolution;
+    bool matchMonitorRefreshRate;
     bool streamAlwaysOnTop;      // keep the stream window above other windows
     bool rememberWindowGeometry; // reopen the stream window where it was last closed
     int mouseSensitivity;        // percent, applies to game (relative) mouse mode

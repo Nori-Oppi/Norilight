@@ -3,12 +3,11 @@ import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Material 2.2
 
+import ProfileManager 1.0
 import DisplayManager 1.0
 import "."
 
-// Norilight: choose a display manager profile to stream an app with. The
-// stream opens in its own window on the profile's monitor, and the main
-// window stays open as the hub.
+// Launch a complete profile in a separate window, leaving the hub open.
 NavigableDialog {
     id: picker
 
@@ -16,15 +15,21 @@ NavigableDialog {
     property string hostUuid: ""
     property string hostName: ""
 
-    title: qsTr("Stream %1 on…").arg(appName)
+    title: qsTr("Stream %1 with a profile").arg(appName)
     standardButtons: Dialog.Cancel
     width: Math.min(520, (parent ? parent.width : 560) - 32)
 
     function profileSummary(p) {
-        var res = p.width > 0 ? p.width + "×" + p.height : qsTr("monitor resolution")
-        var fps = p.fps > 0 ? qsTr("%1 FPS").arg(p.fps) : qsTr("monitor refresh rate")
-        var modes = [qsTr("fullscreen"), qsTr("borderless"), qsTr("windowed")]
-        return (p.monitorLabel || qsTr("Unknown monitor")) + " · " + res + " · " + fps + " · " + modes[p.windowMode || 0]
+        var res = p.matchMonitorResolution ? qsTr("monitor resolution") : p.width + "\u00d7" + p.height
+        var fps = p.matchMonitorRefreshRate ? qsTr("monitor refresh rate") : qsTr("%1 FPS").arg(p.fps)
+        var monitor = p.monitorKey ? (DisplayManager.monitorName(p.monitorKey) || p.monitorLabel || qsTr("Saved monitor")) : qsTr("Current monitor")
+        return monitor + " \u00b7 " + res + " \u00b7 " + fps
+    }
+
+    function connected(p) {
+        // Reading the monitor list makes this update when a display is unplugged.
+        var monitors = DisplayManager.monitors
+        return !p.monitorKey || DisplayManager.isMonitorConnected(p.monitorKey)
     }
 
     // Give keyboard and gamepad users somewhere to start
@@ -36,9 +41,10 @@ NavigableDialog {
                 return
             }
         }
-        newProfileButton.forceActiveFocus(Qt.TabFocusReason)
+        manageProfilesButton.forceActiveFocus(Qt.TabFocusReason)
     }
 
+    onAboutToShow: DisplayManager.setCurrentWindow(window)
     onOpened: focusFirst()
 
     ColumnLayout {
@@ -48,53 +54,74 @@ NavigableDialog {
         Label {
             Layout.fillWidth: true
             Layout.bottomMargin: 6
-            visible: DisplayManager.profiles.length === 0
-            text: qsTr("You don't have any monitor profiles yet. A profile picks the monitor the stream opens on, and its resolution and window settings.")
+            visible: ProfileManager.profiles.length === 0
+            text: qsTr("Create a profile in Settings to choose its streaming settings and target monitor.")
             wrapMode: Text.Wrap
             color: Theme.textSecondary
         }
 
-        Repeater {
-            id: profileRepeater
-            model: DisplayManager.profiles
+        Flickable {
+            id: profileFlick
+            Layout.fillWidth: true
+            implicitHeight: Math.min(profileRows.implicitHeight, Math.max(100, window.height - 240))
+            contentWidth: width
+            contentHeight: profileRows.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar {}
 
-            delegate: ItemDelegate {
-                id: row
-                Layout.fillWidth: true
-                enabled: modelData.connected
-                highlighted: activeFocus
-                focusPolicy: Qt.StrongFocus
-                padding: 10
+            Column {
+                id: profileRows
+                width: parent.width
+                Repeater {
+                    id: profileRepeater
+                    model: ProfileManager.profiles
 
-                function launch() {
-                    DisplayManager.launch(modelData.id, picker.hostUuid, picker.hostName, picker.appName)
-                    picker.close()
+                    delegate: ItemDelegate {
+                        id: row
+                        width: parent.width
+                        enabled: picker.connected(modelData)
+                        highlighted: activeFocus
+                        focusPolicy: Qt.StrongFocus
+                        padding: 10
+                        onActiveFocusChanged: {
+                            if (activeFocus) {
+                                profileFlick.contentY = Math.max(0, Math.min(y, profileFlick.contentHeight - profileFlick.height))
+                            }
+                        }
+
+                        function launch() {
+                            DisplayManager.launch(modelData.id, picker.hostUuid, picker.hostName, picker.appName)
+                            picker.close()
+                        }
+
+                        onClicked: launch()
+                        Keys.onReturnPressed: launch()
+                        Keys.onEnterPressed: launch()
+                        Keys.onDownPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+                        Keys.onUpPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason)
+
+                        contentItem: Column {
+                            spacing: 2
+                            Label {
+                                width: parent.width
+                                text: modelData.name
+                                font.pointSize: Theme.fontLabel
+                                color: row.enabled ? Theme.textPrimary : Theme.textDisabled
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                width: parent.width
+                                text: picker.connected(modelData) ? picker.profileSummary(modelData)
+                                                          : qsTr("%1 isn't connected").arg(modelData.monitorLabel || qsTr("This monitor"))
+                                font.pointSize: Theme.fontSmall
+                                color: row.enabled ? Theme.textSecondary : Theme.textDisabledSecondary
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
                 }
 
-                onClicked: launch()
-                Keys.onReturnPressed: launch()
-                Keys.onEnterPressed: launch()
-                Keys.onDownPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
-                Keys.onUpPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason)
-
-                contentItem: Column {
-                    spacing: 2
-                    Label {
-                        width: parent.width
-                        text: modelData.name
-                        font.pointSize: Theme.fontLabel
-                        color: row.enabled ? Theme.textPrimary : Theme.textDisabled
-                        elide: Text.ElideRight
-                    }
-                    Label {
-                        width: parent.width
-                        text: modelData.connected ? picker.profileSummary(modelData)
-                                                  : qsTr("%1 isn't connected").arg(modelData.monitorLabel || qsTr("This monitor"))
-                        font.pointSize: Theme.fontSmall
-                        color: row.enabled ? Theme.textSecondary : Theme.textDisabledSecondary
-                        elide: Text.ElideRight
-                    }
-                }
             }
         }
 
@@ -104,20 +131,8 @@ NavigableDialog {
             spacing: 4
 
             Button {
-                id: newProfileButton
-                flat: DisplayManager.profiles.length > 0
-                highlighted: DisplayManager.profiles.length === 0
-                text: qsTr("New profile…")
-                onClicked: newProfileDialog.openNew("")
-                Keys.onReturnPressed: clicked()
-                Keys.onEnterPressed: clicked()
-                Keys.onUpPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason)
-                Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
-            }
-
-            Button {
+                id: manageProfilesButton
                 flat: true
-                visible: DisplayManager.profiles.length > 0
                 text: qsTr("Manage profiles")
                 onClicked: {
                     picker.close()
@@ -125,22 +140,10 @@ NavigableDialog {
                 }
                 Keys.onReturnPressed: clicked()
                 Keys.onEnterPressed: clicked()
-                Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason)
             }
 
             Item { Layout.fillWidth: true }
         }
     }
 
-    DisplayProfileDialog {
-        id: newProfileDialog
-
-        // NavigableDialog hands focus back to the page when it closes; keep it
-        // in the picker instead, which is still open underneath.
-        onClosed: {
-            if (picker.visible) {
-                picker.focusFirst()
-            }
-        }
-    }
 }

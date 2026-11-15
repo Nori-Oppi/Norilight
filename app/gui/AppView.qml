@@ -283,7 +283,7 @@ CenteredGridView {
             appContextMenu.open()
         }
 
-        // Norilight: pick a monitor profile to open this app on
+        // Norilight: pick a settings profile to open this app on
         function openProfilePicker() {
             profilePicker.appName = model.name
             profilePicker.hostUuid = appModel.getComputerUuid()
@@ -339,12 +339,12 @@ CenteredGridView {
                     onTriggered: doQuitGame()
                     visible: model.running
                 }
-                // Norilight: open the stream on a display manager profile's monitor
+                // Norilight: launch a complete profile in a separate window
                 NavigableMenuItem {
                     text: qsTr("Stream on a Monitor…")
                     onTriggered: openProfilePicker()
 
-                    ToolTip.text: qsTr("Open this app in its own stream window on one of your monitor profiles. Norilight's main window stays open so you can watch and control the stream from it.")
+                    ToolTip.text: qsTr("Open this app in its own stream window using a profile's settings and target monitor. Norilight's main window stays open so you can watch and control the stream from it.")
                     ToolTip.delay: 1000
                     ToolTip.timeout: 5000
                     ToolTip.visible: hovered

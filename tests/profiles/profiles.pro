@@ -1,0 +1,9 @@
+QT += core gui qml quick quickcontrols2 testlib
+CONFIG += console testcase c++17
+CONFIG -= app_bundle
+TARGET = ProfilesTest
+TEMPLATE = app
+INCLUDEPATH += ../../app ../../libs/windows/include/x64/SDL2
+SOURCES += ProfilesTest.cpp ../../app/settings/profilemanager.cpp ../../app/settings/displaymanager.cpp ../../app/settings/streamingpreferences.cpp ../../app/wm.cpp
+HEADERS += ../../app/settings/profilemanager.h ../../app/settings/displaymanager.h ../../app/settings/streamingpreferences.h
+win32: LIBS += -L$$PWD/../../libs/windows/lib/x64 -lSDL2

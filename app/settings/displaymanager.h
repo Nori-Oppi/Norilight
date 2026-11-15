@@ -7,20 +7,15 @@
 
 class QProcess;
 class QScreen;
+class QWindow;
 
-// Norilight: the display manager.
-//
-// Holds per-monitor stream profiles (resolution, frame rate, window mode and
-// picture options tied to one physical monitor) and launches each profile as
-// its own Norilight stream process ("Norilight stream <host> <app> --monitor
-// ..."). The main window stays open and acts as a hub that lists the running
-// sessions and can stop or relaunch them, so several streams can run at once.
+// Launches complete settings profiles in separate stream processes and tracks
+// their sessions. All profile data belongs to ProfileManager.
 class DisplayManager : public QObject
 {
     Q_OBJECT
 
     Q_PROPERTY(QVariantList monitors READ monitors NOTIFY monitorsChanged)
-    Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QVariantList sessions READ sessions NOTIFY sessionsChanged)
     Q_PROPERTY(int runningCount READ runningCount NOTIFY sessionsChanged)
 
@@ -35,15 +30,12 @@ public:
     static QScreen* findScreen(const QString& key);
 
     QVariantList monitors() const;
-    QVariantList profiles() const;
     QVariantList sessions() const;
     int runningCount() const;
 
-    // Inserts the profile, or updates the one with the same "id". Returns its id.
-    Q_INVOKABLE QString saveProfile(const QVariantMap& profile);
-    Q_INVOKABLE void removeProfile(const QString& id);
-    Q_INVOKABLE QVariantMap profile(const QString& id) const;
     Q_INVOKABLE bool isMonitorConnected(const QString& key) const;
+    Q_INVOKABLE QString monitorName(const QString& key) const;
+    Q_INVOKABLE void setCurrentWindow(QWindow* window);
 
     // Starts a stream of appName on hostUuid using the given profile.
     // hostName is only used for display in the hub. Returns the session id,
@@ -59,7 +51,6 @@ public:
 
 signals:
     void monitorsChanged();
-    void profilesChanged();
     void sessionsChanged();
     void launchFailed(QString message);
 
@@ -80,15 +71,13 @@ private:
         qint64 startedAt = 0;
     };
 
-    void loadProfiles();
-    void storeProfiles();
-    int indexOfProfile(const QString& id) const;
     int indexOfSession(const QString& id) const;
     QStringList buildArguments(const QVariantMap& profile, QScreen* screen,
                                const QString& hostUuid, const QString& appName) const;
     static QString monitorLabel(QScreen* screen);
     void watchScreen(QScreen* screen);
 
-    QVector<QVariantMap> m_Profiles;
+    QString m_CurrentMonitor;
+    friend class ProfilesTest;
     QVector<HubSession> m_Sessions;
 };

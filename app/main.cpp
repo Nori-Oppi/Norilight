@@ -54,6 +54,7 @@
 #include "streaming/session.h"
 #include "settings/streamingpreferences.h"
 #include "settings/displaymanager.h"
+#include "settings/profilemanager.h"
 
 #include <QScreen>
 #include <QWindow>
@@ -451,6 +452,23 @@ int main(int argc, char *argv[])
     else {
         // Initialize paths for standard installation
         Path::initialize(false);
+    }
+
+    ProfileManager::migrateMonitorProfiles();
+
+    // Norilight: "--profile <name>" picks the profile whose settings this run
+    // uses. It has to be known before the settings are first loaded.
+    for (int i = 1; i < argc; i++) {
+        QString arg = QString::fromLocal8Bit(argv[i]);
+        if (arg.startsWith("--")) {
+            arg.remove(0, 1);
+        }
+        if (arg == "-profile" && i + 1 < argc) {
+            ProfileManager::setLaunchProfile(QString::fromLocal8Bit(argv[i + 1]));
+        }
+        else if (arg.startsWith("-profile=")) {
+            ProfileManager::setLaunchProfile(arg.mid(9));
+        }
     }
 
     // Override the default QML cache directory with the one we chose
@@ -976,6 +994,11 @@ int main(int argc, char *argv[])
                                              [](QQmlEngine*, QJSEngine*) -> QObject* {
                                                  return new DisplayManager();
                                              });
+    qmlRegisterSingletonType<ProfileManager>("ProfileManager", 1, 0,
+                                             "ProfileManager",
+                                             [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
+                                                 return new ProfileManager(StreamingPreferences::get(qmlEngine));
+                                             });
     qmlRegisterSingletonType<StreamingPreferences>("StreamingPreferences", 1, 0,
                                                    "StreamingPreferences",
                                                    [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
@@ -1012,6 +1035,8 @@ int main(int argc, char *argv[])
     switch (commandLineParserResult) {
     case GlobalCommandLineParser::NormalStartRequested:
         initialView = "qrc:/gui/PcView.qml";
+        // Norilight: opening the app on a profile makes it the active one
+        ProfileManager::rememberLaunchProfile();
         break;
     case GlobalCommandLineParser::StreamRequested:
         {

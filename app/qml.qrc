@@ -6,7 +6,6 @@
         <file>gui/SettingsView.qml</file>
         <file>gui/SettingsGroup.qml</file>
         <file>gui/SettingsCheck.qml</file>
-        <file>gui/DisplayProfileDialog.qml</file>
         <file>gui/DisplayProfilePicker.qml</file>
         <file>gui/StreamSegue.qml</file>
         <file>gui/GamepadMapper.qml</file>
@@ -24,6 +23,11 @@
         <file>gui/CenteredGridView.qml</file>
         <file>gui/CliPair.qml</file>
         <file>gui/Theme.qml</file>
+        <file>gui/ProfileWizard.qml</file>
+        <file>gui/ProfileEditor.qml</file>
+        <file>gui/ProfileSwitcher.qml</file>
+        <file>gui/ProfileSettings.qml</file>
+        <file>gui/MonitorSelector.qml</file>
         <file>gui/qmldir</file>
     </qresource>
 </RCC>

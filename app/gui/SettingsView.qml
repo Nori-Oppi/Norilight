@@ -8,6 +8,7 @@ import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
 import DisplayManager 1.0
+import ProfileManager 1.0
 import QtQuick.Controls.Material 2.2
 import "."
 
@@ -162,9 +163,9 @@ Item {
         ListElement {
             key: "profiles"
             category: QT_TR_NOOP("Stream")
-            name: QT_TR_NOOP("Monitor profiles")
-            summary: QT_TR_NOOP("Streams on specific monitors")
-            keywords: "display manager monitor monitors profile profiles screen multiple sessions streams hub second"
+            name: QT_TR_NOOP("Profiles")
+            summary: QT_TR_NOOP("Streaming settings and target monitor")
+            keywords: "display manager monitor monitors profile profiles screen multiple sessions streams hub second gaming work desktop create rename delete preset presets settings"
         }
         ListElement {
             key: "behaviour"
@@ -489,6 +490,19 @@ Item {
             spacing: 0
 
 
+            Button {
+                visible: settingsPage.currentSection !== "profiles"
+                flat: true
+                text: qsTr("Editing profile: %1").arg(ProfileManager.activeName)
+                onClicked: {
+                    searchField.text = ""
+                    settingsPage.showSection("profiles")
+                }
+                ToolTip.text: qsTr("Manage profiles")
+                ToolTip.visible: hovered
+                ToolTip.delay: 600
+            }
+
             SettingsGroup {
                 id: basicSettingsGroupBox
                 section: "video"
@@ -517,6 +531,19 @@ Item {
                         text: qsTr("Higher values look sharper and smoother, but can cause lag or stutter if your PC or network can't keep up.")
                         font.pointSize: Theme.fontDetail
                         wrapMode: Text.Wrap
+                    }
+
+                    SettingsCheck {
+                        width: parent.width
+                        text: qsTr("Match the target monitor's resolution")
+                        checked: StreamingPreferences.matchMonitorResolution
+                        onToggled: StreamingPreferences.matchMonitorResolution = checked
+                    }
+                    SettingsCheck {
+                        width: parent.width
+                        text: qsTr("Match the target monitor's refresh rate")
+                        checked: StreamingPreferences.matchMonitorRefreshRate
+                        onToggled: StreamingPreferences.matchMonitorRefreshRate = checked
                     }
 
                     Row {
@@ -633,6 +660,7 @@ Item {
                             }
 
                             id: resolutionComboBox
+                            enabled: !StreamingPreferences.matchMonitorResolution
                             maximumWidth: parent.width / 2
                             textRole: "text"
                             model: ListModel {
@@ -1045,6 +1073,7 @@ Item {
                             }
 
                             id: fpsComboBox
+                            enabled: !StreamingPreferences.matchMonitorRefreshRate
                             maximumWidth: parent.width / 2
                             textRole: "text"
                             // ::onActivated must be used, as it only listens for when the index is changed by a human
@@ -1203,7 +1232,7 @@ Item {
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Display")
-                description: qsTr("How every stream is shown on this PC by default. Monitor profiles can override these for a specific monitor.")
+                description: qsTr("How every stream is shown on this PC by default. Each profile has its own display settings and target monitor.")
                 font.pointSize: Theme.fontLabel
 
                 Column {
@@ -1402,204 +1431,10 @@ Item {
                 }
             }
 
-            SettingsGroup {
-                id: monitorProfilesGroupBox
-                section: "profiles"
-                visible: settingsPage.currentSection === section
-                width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Monitor profiles")
-                description: qsTr("A profile opens a stream on one monitor with its own resolution, frame rate and window settings, even several at once. Start one with the monitor button on an app, or \"Stream on a Monitor\" in its menu. Each stream gets its own window, and Norilight's main window stays open to show and control them.")
-
-                function profileSummary(p, withMonitor) {
-                    var res = p.width > 0 ? p.width + "×" + p.height : qsTr("monitor resolution")
-                    var fps = p.fps > 0 ? qsTr("%1 FPS").arg(p.fps) : qsTr("monitor refresh rate")
-                    var modes = [qsTr("fullscreen"), qsTr("borderless"), qsTr("windowed")]
-                    var fits = [qsTr("fit"), qsTr("fill"), qsTr("stretch")]
-                    var parts = [res, fps, modes[p.windowMode || 0], fits[p.videoScaleMode || 0]]
-                    // Rows under a connected monitor's heading don't need its
-                    // name; rows for unplugged monitors do
-                    if (withMonitor) {
-                        parts.unshift(p.monitorLabel || qsTr("Unknown monitor"))
-                    }
-                    return parts.join(" · ")
-                }
-
-                function profilesFor(key) {
-                    var list = []
-                    var all = DisplayManager.profiles
-                    for (var i = 0; i < all.length; i++) {
-                        if (all[i].monitorKey === key) {
-                            list.push(all[i])
-                        }
-                    }
-                    return list
-                }
-
-                function disconnectedProfiles() {
-                    var list = []
-                    var all = DisplayManager.profiles
-                    for (var i = 0; i < all.length; i++) {
-                        if (!all[i].connected) {
-                            list.push(all[i])
-                        }
-                    }
-                    return list
-                }
-
-                Component {
-                    id: profileRowComponent
-
-                    Rectangle {
-                        property var profile: ({})
-                        property bool showMonitor: false
-
-                        height: 56
-                        radius: 6
-                        color: Theme.card
-                        border.color: Theme.border
-
-                        Column {
-                            x: 14
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 28 - profileButtons.width
-                            spacing: 2
-
-                            Label {
-                                width: parent.width
-                                text: profile.name || ""
-                                font.pointSize: Theme.fontBody
-                                elide: Text.ElideRight
-                            }
-                            Label {
-                                width: parent.width
-                                text: monitorProfilesGroupBox.profileSummary(profile, showMonitor)
-                                font.pointSize: Theme.fontSmall
-                                color: Theme.textSecondary
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        Row {
-                            id: profileButtons
-                            anchors.right: parent.right
-                            anchors.rightMargin: 6
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Button {
-                                flat: true
-                                visible: !!profile.lastAppName
-                                enabled: !!profile.connected
-                                // Long app names would push the other buttons out
-                                width: Math.min(implicitWidth, 200)
-                                text: qsTr("Stream %1 again").arg(profile.lastAppName)
-                                onClicked: DisplayManager.launchLast(profile.id)
-
-                                ToolTip.text: qsTr("Stream %1 on %2 again").arg(profile.lastAppName).arg(profile.lastHostName)
-                                ToolTip.delay: 600
-                                ToolTip.visible: hovered
-                            }
-                            Button {
-                                flat: true
-                                text: qsTr("Edit")
-                                onClicked: profileDialog.openEdit(profile.id)
-                            }
-                            Button {
-                                flat: true
-                                text: qsTr("Delete")
-                                onClicked: {
-                                    deleteProfileDialog.profileId = profile.id
-                                    deleteProfileDialog.profileName = profile.name
-                                    deleteProfileDialog.open()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Column {
-                    anchors.fill: parent
-                    spacing: 6
-
-                    Repeater {
-                        model: DisplayManager.monitors
-
-                        delegate: Column {
-                            readonly property var monitor: modelData
-                            readonly property var monitorProfiles: monitorProfilesGroupBox.profilesFor(modelData.key)
-
-                            width: parent.width
-                            spacing: 6
-                            topPadding: index === 0 ? 0 : 10
-
-                            RowLayout {
-                                width: parent.width
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: qsTr("Monitor %1: %2").arg(monitor.number).arg(monitor.label) +
-                                          (monitor.primary ? "  ·  " + qsTr("primary") : "")
-                                    font.pointSize: Theme.fontBody
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
-                                Label {
-                                    text: qsTr("%1×%2, %3 Hz").arg(monitor.width).arg(monitor.height).arg(monitor.refreshRate)
-                                    font.pointSize: Theme.fontSmall
-                                    color: Theme.textSecondary
-                                }
-                                Button {
-                                    flat: true
-                                    text: qsTr("Add profile")
-                                    onClicked: profileDialog.openNew(monitor.key)
-                                }
-                            }
-
-                            Label {
-                                width: parent.width
-                                visible: monitorProfiles.length === 0
-                                text: qsTr("No profiles for this monitor yet.")
-                                font.pointSize: Theme.fontSmall
-                                color: Theme.textSecondary
-                            }
-
-                            Repeater {
-                                model: monitorProfiles
-                                delegate: Loader {
-                                    width: parent.width
-                                    height: 56
-                                    sourceComponent: profileRowComponent
-                                    onLoaded: {
-                                        item.width = Qt.binding(function() { return width })
-                                        item.profile = Qt.binding(function() { return modelData })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Label {
-                        width: parent.width
-                        topPadding: 14
-                        visible: monitorProfilesGroupBox.disconnectedProfiles().length > 0
-                        text: qsTr("Monitors that aren't connected")
-                        font.pointSize: Theme.fontBody
-                        font.weight: Font.DemiBold
-                    }
-
-                    Repeater {
-                        model: monitorProfilesGroupBox.disconnectedProfiles()
-                        delegate: Loader {
-                            width: parent.width
-                            height: 56
-                            sourceComponent: profileRowComponent
-                            onLoaded: {
-                                item.width = Qt.binding(function() { return width })
-                                item.profile = Qt.binding(function() { return modelData })
-                                item.showMonitor = true
-                            }
-                        }
-                    }
-                }
+            ProfileSettings {
+                width: parent.width
+                visible: settingsPage.currentSection === "profiles"
+                onEditSettings: settingsPage.showSection("video")
             }
 
             SettingsGroup {
@@ -3103,18 +2938,4 @@ Item {
         }
     }
 
-    DisplayProfileDialog {
-        id: profileDialog
-    }
-
-    NavigableMessageDialog {
-        id: deleteProfileDialog
-        property string profileId: ""
-        property string profileName: ""
-        standardButtons: Dialog.Yes | Dialog.No
-        text: qsTr("Delete the monitor profile \"%1\"?").arg(profileName)
-        acceptText: qsTr("Delete")
-        rejectText: qsTr("Cancel")
-        onAccepted: DisplayManager.removeProfile(profileId)
-    }
 }

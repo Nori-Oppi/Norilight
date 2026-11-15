@@ -38,6 +38,9 @@ public:
         setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
         addHelpOption();
         addVersionOption();
+
+        // Norilight: handled in main() before the settings are loaded
+        addOption(QCommandLineOption("profile", "Use the settings of this profile.", "name"));
     }
 
     void handleHelpAndVersionOptions()
@@ -387,6 +390,7 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     QStringList resoOptions = parser.optionNames().filter(resolutionRexExp);
     bool displaySet = !resoOptions.isEmpty();
     if (displaySet) {
+        preferences->matchMonitorResolution = false;
         QString name = resoOptions.last();
         if (name == "720") {
             preferences->width  = 1280;
@@ -409,6 +413,7 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
 
     // Resolve --fps option
     if (parser.isSet("fps")) {
+        preferences->matchMonitorRefreshRate = false;
         preferences->fps = parser.getIntOption("fps");
         if (!inRange(preferences->fps, 10, 480)) {
             fprintf(stderr, "Warning: FPS is out of the supported range (10 - 480 FPS). Performance may suffer!\n");
@@ -417,6 +422,7 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
 
     // Resolve --bitrate option
     if (parser.isSet("bitrate")) {
+        preferences->autoAdjustBitrate = false;
         preferences->bitrateKbps = parser.getIntOption("bitrate");
         if (!inRange(preferences->bitrateKbps, 500, 500000)) {
             fprintf(stderr, "Warning: Bitrate is out of the supported range (500 - 500000 Kbps). Performance may suffer!\n");

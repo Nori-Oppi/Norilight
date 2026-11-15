@@ -612,6 +612,7 @@ Session::~Session()
 bool Session::initialize(QQuickWindow* qtWindow)
 {
     m_QtWindow = qtWindow;
+    m_Preferences->resolveDisplaySettings(qtWindow ? qtWindow->screen() : nullptr);
 
 #ifdef Q_OS_DARWIN
     if (qEnvironmentVariableIntValue("I_WANT_BUGGY_FULLSCREEN") == 0) {

@@ -1,5 +1,7 @@
 #include "streamingpreferences.h"
 #include "utils.h"
+#include "profilemanager.h"
+#include "displaymanager.h"
 
 #include <QSettings>
 #include <QTranslator>
@@ -7,6 +9,8 @@
 #include <QLocale>
 #include <QReadWriteLock>
 #include <QtMath>
+#include <QGuiApplication>
+#include <QScreen>
 
 #include <QtDebug>
 
@@ -129,6 +133,21 @@ void StreamingPreferences::reload()
 {
     QSettings settings;
 
+    // Norilight: the language is shared by all profiles
+    language = static_cast<Language>(settings.value(SER_LANGUAGE,
+                                                    static_cast<int>(Language::LANG_AUTO)).toInt());
+
+    // Everything else belongs to the active profile
+    QString profileGroup = ProfileManager::settingsGroup();
+    if (!profileGroup.isEmpty()) {
+        settings.beginGroup(profileGroup);
+    }
+
+    loadFrom(settings);
+}
+
+void StreamingPreferences::loadFrom(QSettings& settings)
+{
     int defaultVer = settings.value(SER_DEFAULTVER, 0).toInt();
 
 #ifdef Q_OS_DARWIN
@@ -148,6 +167,10 @@ void StreamingPreferences::reload()
     width = settings.value(SER_WIDTH, 1920).toInt();
     height = settings.value(SER_HEIGHT, 1080).toInt();
     fps = settings.value(SER_FPS, 60).toInt();
+    targetMonitor = settings.value("targetmonitor").toString();
+    targetMonitorLabel = settings.value("targetmonitorlabel").toString();
+    matchMonitorResolution = settings.value("matchmonitorresolution", false).toBool();
+    matchMonitorRefreshRate = settings.value("matchmonitorrefreshrate", false).toBool();
     enableYUV444 = settings.value(SER_YUV444, false).toBool();
     bitrateKbps = settings.value(SER_BITRATE, getDefaultBitrate(width, height, fps, enableYUV444)).toInt();
     unlockBitrate = settings.value(SER_UNLOCK_BITRATE, false).toBool();
@@ -215,9 +238,6 @@ void StreamingPreferences::reload()
     uiDisplayMode = static_cast<UIDisplayMode>(settings.value(SER_UIDISPLAYMODE,
                                                static_cast<int>(settings.value(SER_STARTWINDOWED, true).toBool() ? UIDisplayMode::UI_WINDOWED
                                                                                                                  : UIDisplayMode::UI_MAXIMIZED)).toInt());
-    language = static_cast<Language>(settings.value(SER_LANGUAGE,
-                                                    static_cast<int>(Language::LANG_AUTO)).toInt());
-
 
     // Perform default settings updates as required based on last default version
     if (defaultVer < 1) {
@@ -369,6 +389,24 @@ void StreamingPreferences::save()
 {
     QSettings settings;
 
+    // Norilight: the language is shared by all profiles; everything else is
+    // saved into the active profile
+    settings.setValue(SER_LANGUAGE, static_cast<int>(language));
+
+    QString profileGroup = ProfileManager::settingsGroup();
+    if (!profileGroup.isEmpty()) {
+        settings.beginGroup(profileGroup);
+    }
+
+    saveTo(settings);
+}
+
+void StreamingPreferences::saveTo(QSettings& settings) const
+{
+    settings.setValue("targetmonitor", targetMonitor);
+    settings.setValue("targetmonitorlabel", targetMonitorLabel);
+    settings.setValue("matchmonitorresolution", matchMonitorResolution);
+    settings.setValue("matchmonitorrefreshrate", matchMonitorRefreshRate);
     settings.setValue(SER_WIDTH, width);
     settings.setValue(SER_HEIGHT, height);
     settings.setValue(SER_FPS, fps);
@@ -422,7 +460,6 @@ void StreamingPreferences::save()
     settings.setValue(SER_RENDERER, static_cast<int>(rendererSelection));
     settings.setValue(SER_WINDOWMODE, static_cast<int>(windowMode));
     settings.setValue(SER_UIDISPLAYMODE, static_cast<int>(uiDisplayMode));
-    settings.setValue(SER_LANGUAGE, static_cast<int>(language));
     settings.setValue(SER_DEFAULTVER, CURRENT_DEFAULT_VER);
     settings.setValue(SER_SWAPMOUSEBUTTONS, swapMouseButtons);
     settings.setValue(SER_MUTEONFOCUSLOSS, muteOnFocusLoss);
@@ -431,6 +468,27 @@ void StreamingPreferences::save()
     settings.setValue(SER_SWAPFACEBUTTONS, swapFaceButtons);
     settings.setValue(SER_CAPTURESYSKEYS, captureSysKeysMode);
     settings.setValue(SER_KEEPAWAKE, keepAwake);
+}
+
+void StreamingPreferences::resolveDisplaySettings(QScreen* currentScreen)
+{
+    QScreen* screen = DisplayManager::findScreen(targetMonitor);
+    if (!screen) {
+        screen = currentScreen ? currentScreen : QGuiApplication::primaryScreen();
+    }
+    if (!screen) {
+        return;
+    }
+    if (matchMonitorResolution) {
+        width = qMax(2, qRound(screen->geometry().width() * screen->devicePixelRatio()) & ~1);
+        height = qMax(2, qRound(screen->geometry().height() * screen->devicePixelRatio()) & ~1);
+    }
+    if (matchMonitorRefreshRate) {
+        fps = qBound(10, qRound(screen->refreshRate()), 480);
+    }
+    if ((matchMonitorResolution || matchMonitorRefreshRate) && autoAdjustBitrate) {
+        bitrateKbps = getDefaultBitrate(width, height, fps, enableYUV444);
+    }
 }
 
 int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool yuv444)

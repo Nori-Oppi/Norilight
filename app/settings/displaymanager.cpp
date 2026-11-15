@@ -1,33 +1,21 @@
 #include "displaymanager.h"
+#include "profilemanager.h"
+#include "streamingpreferences.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QProcess>
 #include <QScreen>
+#include <QWindow>
 #include <QSettings>
 #include <QTimer>
 #include <QUuid>
 #include <QtMath>
 
-#define SER_DISPLAYPROFILES "displayprofiles"
-
-// Profile fields as stored in QSettings and handed to QML
-static const char* const kProfileKeys[] = {
-    "id", "name", "monitorKey", "monitorLabel",
-    "width", "height", "fps", "windowMode", "vsync", "framePacing",
-    "videoScaleMode", "bitrateKbps",
-    "lastHostUuid", "lastHostName", "lastAppName",
-};
-
 DisplayManager::DisplayManager(QObject* parent)
     : QObject(parent)
 {
-    loadProfiles();
-
-    // A profile's "connected" flag follows its monitor
-    connect(this, &DisplayManager::monitorsChanged, this, &DisplayManager::profilesChanged);
-
     if (auto* app = qobject_cast<QGuiApplication*>(QCoreApplication::instance())) {
         connect(app, &QGuiApplication::screenAdded, this, [this](QScreen* screen) {
             watchScreen(screen);
@@ -141,114 +129,20 @@ QVariantList DisplayManager::monitors() const
     return list;
 }
 
-void DisplayManager::loadProfiles()
-{
-    QSettings settings;
-    int count = settings.beginReadArray(SER_DISPLAYPROFILES);
-    for (int i = 0; i < count; i++) {
-        settings.setArrayIndex(i);
-        QVariantMap p;
-        for (const char* key : kProfileKeys) {
-            p[key] = settings.value(key);
-        }
-        if (!p["id"].toString().isEmpty()) {
-            m_Profiles.append(p);
-        }
-    }
-    settings.endArray();
-}
-
-void DisplayManager::storeProfiles()
-{
-    QSettings settings;
-    settings.remove(SER_DISPLAYPROFILES);
-    settings.beginWriteArray(SER_DISPLAYPROFILES, m_Profiles.size());
-    for (int i = 0; i < m_Profiles.size(); i++) {
-        settings.setArrayIndex(i);
-        for (const char* key : kProfileKeys) {
-            settings.setValue(key, m_Profiles[i].value(key));
-        }
-    }
-    settings.endArray();
-}
-
-QVariantList DisplayManager::profiles() const
-{
-    QVariantList list;
-    for (const QVariantMap& p : m_Profiles) {
-        QVariantMap copy = p;
-        copy["connected"] = findScreen(p["monitorKey"].toString()) != nullptr;
-        list.append(copy);
-    }
-    return list;
-}
-
-int DisplayManager::indexOfProfile(const QString& id) const
-{
-    for (int i = 0; i < m_Profiles.size(); i++) {
-        if (m_Profiles[i]["id"].toString() == id) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-QString DisplayManager::saveProfile(const QVariantMap& profile)
-{
-    QVariantMap p;
-    for (const char* key : kProfileKeys) {
-        if (profile.contains(key)) {
-            p[key] = profile.value(key);
-        }
-    }
-
-    // Cache the monitor's name so the profile still reads well while unplugged
-    if (QScreen* screen = findScreen(p["monitorKey"].toString())) {
-        p["monitorLabel"] = monitorLabel(screen);
-    }
-
-    QString id = p["id"].toString();
-    int index = id.isEmpty() ? -1 : indexOfProfile(id);
-    if (index < 0) {
-        if (id.isEmpty()) {
-            id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-            p["id"] = id;
-        }
-        m_Profiles.append(p);
-    }
-    else {
-        // Keep fields the caller didn't send (like the last launched app)
-        QVariantMap merged = m_Profiles[index];
-        for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
-            merged[it.key()] = it.value();
-        }
-        m_Profiles[index] = merged;
-    }
-
-    storeProfiles();
-    emit profilesChanged();
-    return id;
-}
-
-void DisplayManager::removeProfile(const QString& id)
-{
-    int index = indexOfProfile(id);
-    if (index >= 0) {
-        m_Profiles.removeAt(index);
-        storeProfiles();
-        emit profilesChanged();
-    }
-}
-
-QVariantMap DisplayManager::profile(const QString& id) const
-{
-    int index = indexOfProfile(id);
-    return index >= 0 ? m_Profiles[index] : QVariantMap();
-}
-
 bool DisplayManager::isMonitorConnected(const QString& key) const
 {
     return findScreen(key) != nullptr;
+}
+
+QString DisplayManager::monitorName(const QString& key) const
+{
+    QScreen* screen = findScreen(key);
+    return screen ? monitorLabel(screen) : QString();
+}
+
+void DisplayManager::setCurrentWindow(QWindow* window)
+{
+    m_CurrentMonitor = window ? monitorKey(window->screen()) : QString();
 }
 
 QStringList DisplayManager::buildArguments(const QVariantMap& profile, QScreen* screen,
@@ -256,40 +150,10 @@ QStringList DisplayManager::buildArguments(const QVariantMap& profile, QScreen* 
 {
     QStringList args;
     args << "stream" << hostUuid << appName;
+    args << "--profile" << profile["id"].toString();
+    // Pin a Current monitor launch to the hub's current display. The child's
+    // --monitor override stays process-local and never rewrites the profile.
     args << "--monitor" << monitorKey(screen);
-
-    // 0 means "match the monitor"
-    int width = profile["width"].toInt();
-    int height = profile["height"].toInt();
-    if (width <= 0 || height <= 0) {
-        qreal dpr = screen->devicePixelRatio();
-        width = qRound(screen->geometry().width() * dpr) & ~1;
-        height = qRound(screen->geometry().height() * dpr) & ~1;
-    }
-    args << "--resolution" << QStringLiteral("%1x%2").arg(width).arg(height);
-
-    int fps = profile["fps"].toInt();
-    if (fps <= 0) {
-        fps = qRound(screen->refreshRate());
-    }
-    args << "--fps" << QString::number(qBound(10, fps, 480));
-
-    static const char* const windowModes[] = { "fullscreen", "borderless", "windowed" };
-    int windowMode = qBound(0, profile["windowMode"].toInt(), 2);
-    args << "--display-mode" << windowModes[windowMode];
-
-    args << (profile["vsync"].toBool() ? "--vsync" : "--no-vsync");
-    args << (profile["framePacing"].toBool() ? "--frame-pacing" : "--no-frame-pacing");
-
-    static const char* const scaleModes[] = { "fit", "fill", "stretch" };
-    args << "--picture-fit" << scaleModes[qBound(0, profile["videoScaleMode"].toInt(), 2)];
-
-    // Without --bitrate the stream command picks the recommended bitrate for
-    // the resolution and frame rate above
-    int bitrate = profile["bitrateKbps"].toInt();
-    if (bitrate > 0) {
-        args << "--bitrate" << QString::number(qBound(500, bitrate, 500000));
-    }
 
     return args;
 }
@@ -297,25 +161,28 @@ QStringList DisplayManager::buildArguments(const QVariantMap& profile, QScreen* 
 QString DisplayManager::launch(const QString& profileId, const QString& hostUuid,
                                const QString& hostName, const QString& appName)
 {
-    int profileIndex = indexOfProfile(profileId);
-    if (profileIndex < 0 || hostUuid.isEmpty() || appName.isEmpty()) {
+    StreamingPreferences::get()->save();
+    const QVariantMap profile = ProfileManager::savedProfile(profileId);
+    if (profile.isEmpty() || hostUuid.isEmpty() || appName.isEmpty()) {
         return QString();
     }
 
-    QVariantMap& profile = m_Profiles[profileIndex];
-    QScreen* screen = findScreen(profile["monitorKey"].toString());
+    const QString target = profile["monitorKey"].toString();
+    QScreen* screen = findScreen(target.isEmpty() ? m_CurrentMonitor : target);
+    if (target.isEmpty() && screen == nullptr) {
+        screen = QGuiApplication::primaryScreen();
+    }
     if (screen == nullptr) {
         emit launchFailed(tr("The monitor for \"%1\" isn't connected.").arg(profile["name"].toString()));
         return QString();
     }
 
-    // Remember what this profile streamed last, for one-click relaunch
-    profile["lastHostUuid"] = hostUuid;
-    profile["lastHostName"] = hostName;
-    profile["lastAppName"] = appName;
-    profile["monitorLabel"] = monitorLabel(screen);
-    storeProfiles();
-    emit profilesChanged();
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("norilightprofiles/%1").arg(profileId));
+    settings.setValue("lastHostUuid", hostUuid);
+    settings.setValue("lastHostName", hostName);
+    settings.setValue("lastAppName", appName);
+    settings.sync();
 
     HubSession s;
     s.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -370,6 +237,7 @@ QString DisplayManager::launch(const QString& profileId, const QString& hostUuid
     m_Sessions.append(s);
     emit sessionsChanged();
 
+    StreamingPreferences::get()->save();
     process->start(QCoreApplication::applicationFilePath(),
                    buildArguments(profile, screen, hostUuid, appName));
 
@@ -378,7 +246,7 @@ QString DisplayManager::launch(const QString& profileId, const QString& hostUuid
 
 QString DisplayManager::launchLast(const QString& profileId)
 {
-    QVariantMap p = profile(profileId);
+    QVariantMap p = ProfileManager::savedProfile(profileId);
     return launch(profileId, p["lastHostUuid"].toString(),
                   p["lastHostName"].toString(), p["lastAppName"].toString());
 }
