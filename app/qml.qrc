@@ -24,6 +24,9 @@
         <file>gui/CenteredGridView.qml</file>
         <file>gui/CliPair.qml</file>
         <file>gui/Theme.qml</file>
+        <file>gui/ProfileWizard.qml</file>
+        <file>gui/ProfileEditor.qml</file>
+        <file>gui/ProfileSwitcher.qml</file>
         <file>gui/qmldir</file>
     </qresource>
 </RCC>

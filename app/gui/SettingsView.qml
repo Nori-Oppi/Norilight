@@ -8,6 +8,7 @@ import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
 import DisplayManager 1.0
+import ProfileManager 1.0
 import QtQuick.Controls.Material 2.2
 import "."
 
@@ -478,6 +479,18 @@ Item {
                     autoScrollAnimation.start()
                 }
             }
+        }
+
+        // Norilight: the profile these settings belong to, with a menu to
+        // switch to another one. It sits beside the page heading and scrolls
+        // away with it.
+        ProfileSwitcher {
+            id: profileSwitcher
+            z: 1
+            x: settingsFlick.width - width - 28
+            y: 26
+            // Icon only when the heading needs the room
+            showName: settingsFlick.width >= 600
         }
 
         Column {
