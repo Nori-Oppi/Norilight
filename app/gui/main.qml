@@ -282,6 +282,15 @@ ApplicationWindow {
         anchors.topMargin: 5
         anchors.bottomMargin: 5
 
+        background: Rectangle {
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: Theme.blushStart }
+                GradientStop { position: 0.5; color: Theme.blushMiddle }
+                GradientStop { position: 1; color: Theme.blushEnd }
+            }
+        }
+
         Label {
             id: titleLabel
             visible: toolBar.width > 700

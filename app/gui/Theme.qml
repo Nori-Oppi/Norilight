@@ -4,6 +4,11 @@ import QtQuick 2.0
 // Norilight: shared colours and type sizes for the UI. Use these instead of
 // hardcoded values so pages, dialogs and the hub stay consistent.
 QtObject {
+    // Muted rose and blush stops keep white toolbar labels readable.
+    readonly property color blushStart: "#AD4F70"
+    readonly property color blushMiddle: "#BC647F"
+    readonly property color blushEnd: "#AE5C70"
+
     // Surfaces, darkest to lightest
     readonly property color sidebar: "#28282D"
     readonly property color background: "#2F2F34"
