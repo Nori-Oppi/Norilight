@@ -32,14 +32,17 @@ if !ERRORLEVEL! NEQ 0 (
 )
 where /q cl.exe || (echo MSVC compiler not found & exit /b 1)
 
-rem jom runs build steps in parallel. Without it, fall back to nmake and
-rem compile several files at once inside each cl.exe call instead.
+rem Compile several files at once inside each cl.exe call. This is needed with
+rem jom too: it runs separate build steps in parallel, but each batch of
+rem sources still goes to a single cl.exe call.
+set CL=/MP
+
+rem Prefer jom, which is parallel where nmake is serial
 where /q jom.exe
 if !ERRORLEVEL! EQU 0 (
     set MAKE_CMD=jom.exe
 ) else (
     set MAKE_CMD=nmake.exe /nologo
-    set CL=/MP
 )
 
 if not exist "%BUILD_FOLDER%" mkdir "%BUILD_FOLDER%"
