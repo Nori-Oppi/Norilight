@@ -247,6 +247,34 @@ jobs:
 
       # --------------------------------------------------------------------
 
+      # TEMPORARY: find out why makehybrid images fail signature verification
+      - name: Experiment - makehybrid DMG (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: |
+          B=build/build-Release
+          S=$B/dmg-staging
+          T="${RUNNER_TEMP}/dmgtest"; mkdir -p "$T/m1" "$T/m2" "$T/s2"
+          echo "== xattrs in staging"; xattr -lr $S | sed -E 's/^.*: (com\.[A-Za-z.]+).*$/\1/' | sort | uniq -c | head
+          echo "== X1: makehybrid from ditto staging"
+          hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/x1.dmg" $S >/dev/null
+          hdiutil attach "$T/x1.dmg" -readonly -nobrowse -mountpoint "$T/m1" >/dev/null
+          xattr -lr "$T/m1" 2>&1 | cut -c1-200 | sed -E 's#^.*/(Contents/[^:]*): #\1: #' | head -12
+          xattr -lr "$T/m1" 2>&1 | sed -E 's/^.*: (com\.[A-Za-z.]+).*$/\1/' | sort | uniq -c | head
+          ls -l@ "$T/m1/Norilight.app/Contents/Frameworks/" | grep -A2 libavcodec | head -8
+          ls -l@ $S/Norilight.app/Contents/Frameworks/ | grep -A2 libavcodec | head -8
+          codesign --verify --deep --strict "$T/m1/Norilight.app" && echo "X1 signature OK"
+          hdiutil detach "$T/m1" >/dev/null
+          echo "== X2: makehybrid from staging without extended attributes"
+          ditto --norsrc --noextattr --noqtn $B/app/Norilight.app "$T/s2/Norilight.app"
+          ln -s /Applications "$T/s2/Applications"
+          codesign --verify --deep --strict "$T/s2/Norilight.app" && echo "X2 staging signature OK"
+          hdiutil makehybrid -hfs -hfs-volume-name Norilight -o "$T/x2.dmg" "$T/s2" >/dev/null
+          hdiutil attach "$T/x2.dmg" -readonly -nobrowse -mountpoint "$T/m2" >/dev/null
+          codesign --verify --deep --strict "$T/m2/Norilight.app" && echo "X2 signature OK"
+          codesign --verify --deep --strict -vvv "$T/m2/Norilight.app" 2>&1 | grep -v "^--" | tail -5
+          hdiutil detach "$T/m2" >/dev/null
+
       - name: Upload build
         uses: actions/upload-artifact@v6
         with:

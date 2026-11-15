@@ -101,11 +101,13 @@ if [ "$PLAIN_DMG" == "1" ]; then
   mkdir $DMG_STAGING
   ditto $BUILD_FOLDER/app/Norilight.app $DMG_STAGING/Norilight.app || fail "Copying the app bundle failed!"
   ln -s /Applications $DMG_STAGING/Applications
-  # Build the image straight from the folder and then compress it. This is
-  # about ten times faster than "hdiutil create -srcfolder", which mounts a
-  # scratch image and copies the files into it.
-  hdiutil makehybrid -hfs -hfs-volume-name Norilight -o $BUILD_FOLDER/Norilight-raw.dmg $DMG_STAGING || fail "hdiutil makehybrid failed!"
-  hdiutil convert $BUILD_FOLDER/Norilight-raw.dmg -format ULFO -o $INSTALLER_FOLDER/Norilight.dmg || fail "hdiutil convert failed!"
+  # APFS images are created several times faster than HFS+ ones here.
+  # hdiutil occasionally fails with "Resource busy" on CI machines; retry a few times.
+  for attempt in 1 2 3; do
+    hdiutil create -volname Norilight -srcfolder $DMG_STAGING -fs APFS -format ULFO -ov $INSTALLER_FOLDER/Norilight.dmg && break
+    [ $attempt -lt 3 ] || fail "hdiutil failed!"
+    sleep 5
+  done
 
   echo Verifying DMG
   DMG_MOUNT=$BUILD_FOLDER/dmg-mount
