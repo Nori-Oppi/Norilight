@@ -4,7 +4,7 @@
 
 <h1 align="center">Norilight</h1>
 
-<p align="center">A Moonlight client for gaming, desktop work, and a few more monitors. With a seal.</p>
+<p align="center">The cutest Moonlight client ε(　꜆´ω`)꜆ for desktop users and gamers alike.</p>
 
 Norilight is a fork of [Moonlight PC](https://github.com/moonlight-stream/moonlight-qt)
 that makes switching between gaming and remote desktop work easier. Save each setup
