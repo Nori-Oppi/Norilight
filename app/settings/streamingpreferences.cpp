@@ -52,6 +52,8 @@
 #define SER_MOUSESENSITIVITY "norilightmousesensitivity"
 #define SER_SCROLLSPEED "norilightscrollspeed"
 #define SER_SHOWLOCALCURSOR "norilightshowlocalcursor"
+#define SER_SCREENSHOTSONCLIENT "norilightscreenshotsonclient"
+#define SER_FORWARDUNICODEINPUT "norilightforwardunicodeinput"
 #define SER_ABSTOUCHMODE "abstouchmode"
 #define SER_STARTWINDOWED "startwindowed"
 #define SER_FRAMEPACING "framepacing"
@@ -178,6 +180,8 @@ void StreamingPreferences::reload()
     mouseSensitivity = qBound(10, settings.value(SER_MOUSESENSITIVITY, 100).toInt(), 400);
     scrollSpeed = qBound(10, settings.value(SER_SCROLLSPEED, 100).toInt(), 400);
     showLocalCursor = settings.value(SER_SHOWLOCALCURSOR, false).toBool();
+    screenshotsOnClient = settings.value(SER_SCREENSHOTSONCLIENT, true).toBool();
+    forwardUnicodeInput = settings.value(SER_FORWARDUNICODEINPUT, true).toBool();
     absoluteTouchMode = settings.value(SER_ABSTOUCHMODE, true).toBool();
     framePacing = settings.value(SER_FRAMEPACING, false).toBool();
     connectionWarnings = settings.value(SER_CONNWARNINGS, true).toBool();
@@ -399,6 +403,8 @@ void StreamingPreferences::save()
     settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);
     settings.setValue(SER_SCROLLSPEED, scrollSpeed);
     settings.setValue(SER_SHOWLOCALCURSOR, showLocalCursor);
+    settings.setValue(SER_SCREENSHOTSONCLIENT, screenshotsOnClient);
+    settings.setValue(SER_FORWARDUNICODEINPUT, forwardUnicodeInput);
     settings.setValue(SER_ABSTOUCHMODE, absoluteTouchMode);
     settings.setValue(SER_FRAMEPACING, framePacing);
     settings.setValue(SER_CONNWARNINGS, connectionWarnings);
