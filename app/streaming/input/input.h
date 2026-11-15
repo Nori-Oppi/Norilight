@@ -156,6 +156,7 @@ public:
 
     // Norilight: forward Unicode-typed characters (PowerToys Quick Accent) to the host
     static void setUnicodeInputForwarding(bool enabled);
+    static void setLocalScreenshotForwarding(bool enabled);
 
     // Norilight: Apollo server commands offered by Ctrl+Alt+Shift+R
     void setServerCommands(const QStringList& commands, bool allowed);

@@ -70,6 +70,7 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
 
     // Norilight: let Quick Accent's characters (and its Space) reach the host
     SdlInputHandler::setUnicodeInputForwarding(prefs.forwardUnicodeInput && !prefs.viewOnly);
+    SdlInputHandler::setLocalScreenshotForwarding(prefs.screenshotsOnClient);
 
     // Allow gamepad input when the app doesn't have focus if requested
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, prefs.backgroundGamepad ? "1" : "0");
@@ -242,6 +243,7 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
 SdlInputHandler::~SdlInputHandler()
 {
     SdlInputHandler::setUnicodeInputForwarding(false);
+    SdlInputHandler::setLocalScreenshotForwarding(false);
 
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         if (m_GamepadState[i].mouseEmulationTimer != 0) {

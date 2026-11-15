@@ -232,6 +232,7 @@ HEADERS += \
     settings/displaymanager.h \
     settings/profilemanager.h \
     streaming/input/input.h \
+    streaming/input/localscreenshot.h \
     streaming/session.h \
     streaming/audio/renderers/renderer.h \
     streaming/audio/renderers/sdl.h \

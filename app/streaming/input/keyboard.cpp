@@ -3,11 +3,11 @@
 #include <Limelight.h>
 #include "SDL_compat.h"
 
-#include <QDesktopServices>
-#include <QUrl>
-
 #ifdef Q_OS_WIN32
 #include <windows.h>
+
+#include "localscreenshot.h"
+
 #endif
 
 #define VK_0 0x30
@@ -584,9 +584,7 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
             bool guiHeld = (event->keysym.mod & KMOD_GUI) && isSystemKeyCaptureActive();
             bool isPrintScreen = event->keysym.scancode == SDL_SCANCODE_PRINTSCREEN;
 #ifdef Q_OS_WIN32
-            // Win+Shift+S: with system keys captured, this PC never sees the
-            // Windows key, so open the snipping overlay here ourselves.
-            // (PrtScn itself still reaches this PC's own screenshot handler.)
+            // Captured Windows shortcuts never reach the local shell.
             bool isSnipShortcut = guiHeld &&
                                   (event->keysym.mod & KMOD_SHIFT) &&
                                   event->keysym.scancode == SDL_SCANCODE_S;
@@ -595,18 +593,24 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
 #endif
 
             if (isPrintScreen || isSnipShortcut) {
-                m_SwallowedKeys.insert(keyCode);
-
-                if (isSnipShortcut) {
-                    QDesktopServices::openUrl(QUrl("ms-screenclip:"));
-                }
-
                 // The host already has the Windows key down. Tap Ctrl so that
                 // releasing it doesn't open the Start menu on the host.
                 if (guiHeld && !m_ViewOnly) {
                     LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_DOWN, modifiers, 0);
                     LiSendKeyboardEvent2((short)(0xA2 | 0x8000), KEY_ACTION_UP, modifiers, 0);
                 }
+
+#ifdef Q_OS_WIN32
+                // Release SDL's grab before replaying the original shortcut to
+                // Windows. ShareX (or the user's other hotkey handler) decides
+                // what to capture; Norilight does not choose a screenshot app.
+                raiseAllKeys();
+                setCaptureActive(false);
+                replayLocalScreenshotShortcut(event);
+#endif
+                // raiseAllKeys() clears this set, so record the swallowed key
+                // afterwards to suppress its release if focus stays with us.
+                m_SwallowedKeys.insert(keyCode);
                 return;
             }
         }
@@ -720,6 +724,25 @@ void SdlInputHandler::setUnicodeInputForwarding(bool enabled)
     s_PacketPending = false;
     s_HighSurrogate = 0;
     SDL_SetWindowsMessageHook(enabled ? unicodeInputMessageHook : nullptr, nullptr);
+#else
+    Q_UNUSED(enabled);
+#endif
+}
+
+void SdlInputHandler::setLocalScreenshotForwarding(bool enabled)
+{
+#ifdef Q_OS_WIN32
+    if (enabled && !screenshotFilterInstalled) {
+        SDL_GetEventFilter(&previousScreenshotFilter, &previousScreenshotFilterData);
+        SDL_SetEventFilter(filterLocalScreenshotReplay, nullptr);
+        screenshotFilterInstalled = true;
+    }
+    else if (!enabled && screenshotFilterInstalled) {
+        SDL_SetEventFilter(previousScreenshotFilter, previousScreenshotFilterData);
+        screenshotFilterInstalled = false;
+        previousScreenshotFilter = nullptr;
+        previousScreenshotFilterData = nullptr;
+    }
 #else
     Q_UNUSED(enabled);
 #endif
