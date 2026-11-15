@@ -9,8 +9,9 @@ name: Nightly
 
 on:
   schedule:
-    # 03:00 UTC every day
-    - cron: '0 3 * * *'
+    # 20:00 Amsterdam time every day, including daylight saving time.
+    - cron: '0 20 * * *'
+      timezone: 'Europe/Amsterdam'
   workflow_dispatch:
 
 permissions:
@@ -148,4 +149,4 @@ jobs:
 
           These builds are untested and unsigned.
           - **Windows:** unzip and run Norilight.exe.
-          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`."
+          - **macOS:** open the DMG and drag Norilight to Applications. The first time, right-click the app and choose Open, or run \`xattr -dr com.apple.quarantine /Applications/Norilight.app\`. Allow the Local Network prompt; if your PC isn't found, turn Norilight on under System Settings → Privacy & Security → Local Network."
