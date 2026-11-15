@@ -253,7 +253,7 @@ jobs:
           ccache --show-stats
           # Check both universal slices and load the deployed libraries/plugins
           # without letting the Qt installation supply missing plugins.
-          lipo -verify_arch x86_64 arm64 build/build-Release/app/Norilight.app/Contents/MacOS/Norilight
+          lipo build/build-Release/app/Norilight.app/Contents/MacOS/Norilight -verify_arch x86_64 arm64
           env -u QT_PLUGIN_PATH -u QML2_IMPORT_PATH -u QML_IMPORT_PATH python3 -c 'import subprocess; subprocess.run(["build/build-Release/app/Norilight.app/Contents/MacOS/Norilight", "--version"], check=True, timeout=30)'
           mkdir -p out
           cp build/installer-Release/*.dmg out/
