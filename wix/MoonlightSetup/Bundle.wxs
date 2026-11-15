@@ -48,7 +48,7 @@
     <BootstrapperApplication>
       <bal:WixStandardBootstrapperApplication ShowVersion="yes"
                                               LicenseFile="license.rtf"
-                                              LogoFile="..\..\app\moonlight_wix.png"
+                                              LogoFile="..\..\app\norilight_wix.png"
                                               LaunchTarget="[InstallFolder]\Moonlight.exe"
                                               ThemeFile="RtfTheme.xml"
                                               Theme="rtfLicense" />

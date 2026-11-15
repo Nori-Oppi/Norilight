@@ -8,6 +8,8 @@ import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
 import DisplayManager 1.0
+import QtQuick.Controls.Material 2.2
+import "."
 
 Item {
     id: settingsPage
@@ -19,11 +21,13 @@ Item {
     property string currentSection: "video"
     property string searchText: ""
 
+    // Search the translated name and summary, plus the English originals and
+    // keywords so English terms keep working in every language
     function sectionMatches(name, summary, keywords) {
         if (searchText === "") {
             return true
         }
-        var haystack = (name + " " + summary + " " + keywords).toLowerCase()
+        var haystack = (qsTr(name) + " " + qsTr(summary) + " " + name + " " + summary + " " + keywords).toLowerCase()
         var words = searchText.toLowerCase().split(/\s+/)
         for (var i = 0; i < words.length; i++) {
             if (words[i] !== "" && haystack.indexOf(words[i]) < 0) {
@@ -113,9 +117,11 @@ Item {
         // It is required to shift focus between controls on the settings page.
         SdlGamepadKeyNavigation.setUiNavMode(true)
 
-        // Highlight the first item if a gamepad is connected
+        // Highlight the open page in the sidebar if a gamepad is connected.
+        // The page may not be the first one (for example when opened from the
+        // monitor profile picker), so don't assume which controls are visible.
         if (SdlGamepadKeyNavigation.getConnectedGamepads() > 0) {
-            resolutionComboBox.forceActiveFocus(Qt.TabFocus)
+            focusCurrentSection()
         }
     }
 
@@ -134,91 +140,100 @@ Item {
 
     // Norilight: each entry is one short page, grouped under a heading in the
     // sidebar. Pages are kept small enough to fit on screen without scrolling.
+    // Names are marked with QT_TR_NOOP and translated where they're shown, so
+    // the sidebar follows a language change without being rebuilt.
     ListModel {
         id: sectionModel
 
         ListElement {
             key: "video"
-            category: qsTr("Stream")
-            name: qsTr("Video quality")
-            summary: qsTr("Resolution, frame rate, bitrate, HDR")
-            keywords: "fps hz resolution 720p 1080p 1440p 4k bitrate mbps sharp quality hdr"
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Video quality")
+            summary: QT_TR_NOOP("Resolution, frame rate, bitrate, HDR")
+            keywords: "fps hz resolution 720p 1080p 1440p 4k bitrate mbps sharp quality hdr very high unlock"
         }
         ListElement {
-            key: "window"
-            category: qsTr("Stream")
-            name: qsTr("Display manager")
-            summary: qsTr("Default display, monitor profiles")
-            keywords: "display manager monitor monitors profile profiles screen multiple sessions streams hub second picture fit fill stretch crop black bars letterbox aspect top align display mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter"
+            key: "display"
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Display")
+            summary: QT_TR_NOOP("Window mode, V-Sync, picture fit")
+            keywords: "display screen picture fit fill stretch crop black bars letterbox aspect top align mode fullscreen borderless windowed vsync v-sync tearing frame pacing stutter"
+        }
+        ListElement {
+            key: "profiles"
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Monitor profiles")
+            summary: QT_TR_NOOP("Streams on specific monitors")
+            keywords: "display manager monitor monitors profile profiles screen multiple sessions streams hub second"
         }
         ListElement {
             key: "behaviour"
-            category: qsTr("Stream")
-            name: qsTr("Window behaviour")
-            summary: qsTr("Always on top, position, watch only")
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Window behaviour")
+            summary: QT_TR_NOOP("Always on top, position, watch only")
             keywords: "window on top remember position size sleep awake screensaver watch only view observe monitor input"
         }
         ListElement {
             key: "audio"
-            category: qsTr("Stream")
-            name: qsTr("Audio")
-            summary: qsTr("Speakers and muting")
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Audio")
+            summary: QT_TR_NOOP("Speakers and muting")
             keywords: "sound surround 5.1 7.1 stereo mute speakers volume"
         }
         ListElement {
+            key: "advanced"
+            category: QT_TR_NOOP("Stream")
+            name: QT_TR_NOOP("Video decoding")
+            summary: QT_TR_NOOP("Decoder, codec, colour")
+            keywords: "advanced decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 renderer yuv 4:4:4 444 colour color full range"
+        }
+        ListElement {
             key: "input"
-            category: qsTr("Input")
-            name: qsTr("Mouse")
-            summary: qsTr("Cursor, buttons, speed")
-            keywords: "mouse cursor remote desktop free drag leave capture lock swap buttons sensitivity speed"
+            category: QT_TR_NOOP("Input")
+            name: QT_TR_NOOP("Mouse")
+            summary: QT_TR_NOOP("Cursor, buttons, speed, scrolling")
+            keywords: "mouse cursor remote desktop free drag leave capture lock swap left handed buttons sensitivity speed scroll wheel reverse natural"
         }
         ListElement {
             key: "keyboard"
-            category: qsTr("Input")
-            name: qsTr("Keyboard & touch")
-            summary: qsTr("Shortcuts, scrolling, touchscreen")
-            keywords: "keyboard shortcuts alt tab windows key scroll wheel reverse natural speed touch touchscreen trackpad"
+            category: QT_TR_NOOP("Input")
+            name: QT_TR_NOOP("Keyboard & touch")
+            summary: QT_TR_NOOP("System keys, screenshots, touchscreen")
+            keywords: "keyboard shortcuts alt tab windows key system keys screenshot screenshots print screen prtscn snipping powertoys quick accent accents unicode touch touchscreen"
         }
         ListElement {
             key: "gamepad"
-            category: qsTr("Input")
-            name: qsTr("Controllers")
-            summary: qsTr("Gamepads and button layout")
-            keywords: "gamepad controller joystick xbox playstation dualsense nintendo buttons start mouse background scroll stick deadzone drift gyro motion sensors touchpad"
+            category: QT_TR_NOOP("Input")
+            name: QT_TR_NOOP("Controllers")
+            summary: QT_TR_NOOP("Gamepads and button layout")
+            keywords: "gamepad controller joystick xbox playstation dualsense nintendo swap buttons layout start mouse background scroll stick deadzone drift gyro motion sensors touchpad"
+        }
+        ListElement {
+            key: "shortcuts"
+            category: QT_TR_NOOP("Input")
+            name: QT_TR_NOOP("Shortcuts")
+            summary: QT_TR_NOOP("Key combinations during a stream")
+            keywords: "shortcut shortcuts hotkey hotkeys keys combination ctrl alt shift quit disconnect fullscreen minimize paste stats overlay mouse mode"
         }
         ListElement {
             key: "host"
-            category: qsTr("Host")
-            name: qsTr("Host PC")
-            summary: qsTr("What happens on the host")
-            keywords: "host game optimize quit close sunshine geforce"
-        }
-        ListElement {
-            key: "apollo"
-            category: qsTr("Host")
-            name: qsTr("Apollo host")
-            summary: qsTr("Virtual display, clipboard, commands")
-            keywords: "apollo sunshine virtual display sudovda scale factor resolution clipboard copy paste sync history server commands run host"
+            category: QT_TR_NOOP("Host")
+            name: QT_TR_NOOP("Host PC")
+            summary: QT_TR_NOOP("Game settings, Apollo extras")
+            keywords: "host game optimize quit close sunshine geforce apollo virtual display sudovda scale factor clipboard copy paste sync history server commands run"
         }
         ListElement {
             key: "app"
-            category: qsTr("Norilight")
-            name: qsTr("App")
-            summary: qsTr("Language, warnings, Discord")
+            category: QT_TR_NOOP("General")
+            name: QT_TR_NOOP("App")
+            summary: QT_TR_NOOP("Language, warnings, Discord")
             keywords: "language translation gui main window maximized warnings notices discord presence"
         }
         ListElement {
-            key: "advanced"
-            category: qsTr("Norilight")
-            name: qsTr("Video decoding")
-            summary: qsTr("Decoder, codec, colour")
-            keywords: "advanced decoder decoding hardware software gpu cpu codec h.264 h264 hevc h.265 av1 renderer yuv 4:4:4 444 colour color full range bitrate limit unlock"
-        }
-        ListElement {
             key: "network"
-            category: qsTr("Norilight")
-            name: qsTr("Network & diagnostics")
-            summary: qsTr("Host discovery, stats overlay")
+            category: QT_TR_NOOP("General")
+            name: QT_TR_NOOP("Network & diagnostics")
+            summary: QT_TR_NOOP("Host discovery, stats overlay")
             keywords: "advanced mdns network discover blocked firewall performance stats overlay compact lite summary latency"
         }
     }
@@ -231,7 +246,7 @@ Item {
             bottom: parent.bottom
             left: parent.left
         }
-        color: "#29292E"
+        color: Theme.sidebar
 
         Rectangle {
             anchors {
@@ -240,7 +255,7 @@ Item {
                 right: parent.right
             }
             width: 1
-            color: "#3B3B42"
+            color: Theme.divider
         }
 
         // Search stays pinned at the top; the grouped page list sits below it
@@ -250,14 +265,42 @@ Item {
             y: 16
             width: parent.width - 33
             placeholderText: qsTr("Search settings")
-            font.pointSize: 11
+            font.pointSize: Theme.fontBody
             selectByMouse: true
+            // Room for the clear button
+            rightPadding: text !== "" ? clearSearchButton.width + 4 : leftPadding
             onTextChanged: {
                 settingsPage.searchText = text.trim()
                 settingsPage.followSearch()
             }
-            Keys.onEscapePressed: text = ""
+            // Escape clears the search; on an empty field it goes back as usual
+            Keys.onEscapePressed: {
+                if (text !== "") {
+                    text = ""
+                }
+                else {
+                    event.accepted = false
+                }
+            }
             Keys.onDownPressed: settingsPage.focusCurrentSection()
+
+            ToolButton {
+                id: clearSearchButton
+                visible: searchField.text !== ""
+                focusPolicy: Qt.NoFocus
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 32
+                height: 32
+                icon.source: "qrc:/res/close.svg"
+                icon.width: 16
+                icon.height: 16
+                onClicked: searchField.text = ""
+
+                ToolTip.text: qsTr("Clear search")
+                ToolTip.delay: 600
+                ToolTip.visible: hovered
+            }
         }
 
         Flickable {
@@ -301,11 +344,11 @@ Item {
                             topPadding: index === 0 ? 4 : 16
                             bottomPadding: 6
                             visible: settingsPage.firstVisibleInCategory(index)
-                            text: model.category.toUpperCase()
-                            font.pointSize: 8.5
+                            text: qsTr(model.category).toUpperCase()
+                            font.pointSize: Theme.fontOverline
                             font.weight: Font.DemiBold
                             font.letterSpacing: 0.8
-                            color: "#7E7E88"
+                            color: Theme.textTertiary
                             elide: Text.ElideRight
                         }
 
@@ -320,7 +363,7 @@ Item {
                             hoverEnabled: true
                             focusPolicy: Qt.TabFocus
 
-                            ToolTip.text: model.summary
+                            ToolTip.text: qsTr(model.summary)
                             ToolTip.visible: hovered
                             ToolTip.delay: 600
 
@@ -331,7 +374,7 @@ Item {
                             Keys.onDownPressed: settingsPage.stepSection(index, 1)
 
                             background: Rectangle {
-                                color: navItem.selected ? "#37373E" : (navItem.hovered || navItem.visualFocus ? "#303036" : "transparent")
+                                color: navItem.selected ? Theme.navSelected : (navItem.hovered || navItem.visualFocus ? Theme.navHover : "transparent")
 
                                 Behavior on color {
                                     ColorAnimation { duration: 90 }
@@ -343,7 +386,7 @@ Item {
                                     radius: 1.5
                                     height: parent.height - 16
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: "#9FA8DA"
+                                    color: Material.accent
                                     visible: navItem.selected
                                 }
                             }
@@ -353,10 +396,10 @@ Item {
                                     x: 24
                                     width: parent.width - 40
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: model.name
-                                    font.pointSize: 11.5
+                                    text: qsTr(model.name)
+                                    font.pointSize: Theme.fontBody
                                     font.weight: navItem.selected ? Font.DemiBold : Font.Normal
-                                    color: navItem.selected ? "#FFFFFF" : "#D6D6DB"
+                                    color: navItem.selected ? Theme.textHeading : Theme.textPrimary
                                     elide: Text.ElideRight
                                 }
                             }
@@ -370,8 +413,8 @@ Item {
                     topPadding: 8
                     visible: settingsPage.searchText !== "" && settingsPage.matchCount() === 0
                     text: qsTr("No settings match \"%1\".").arg(settingsPage.searchText)
-                    font.pointSize: 10
-                    color: "#9D9DA6"
+                    font.pointSize: Theme.fontDetail
+                    color: Theme.textSecondary
                     wrapMode: Text.Wrap
                 }
             }
@@ -440,7 +483,7 @@ Item {
         Column {
             id: settingsColumn
             x: 44
-            width: Math.min(settingsFlick.width - 88, 760)
+            width: Math.max(0, Math.min(settingsFlick.width - 88, 760))
             topPadding: 30
             bottomPadding: 48
             spacing: 0
@@ -453,7 +496,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Video quality")
                 description: qsTr("How sharp and smooth the stream looks. Higher settings need a faster PC and network.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -463,16 +506,16 @@ Item {
                         width: parent.width
                         id: resFPStitle
                         text: qsTr("Resolution and frame rate")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         id: resFPSdesc
-                        color: "#9D9DA6"
+                        color: Theme.textSecondary
                         text: qsTr("Higher values look sharper and smoother, but can cause lag or stutter if your PC or network can't keep up.")
-                        font.pointSize: 9
+                        font.pointSize: Theme.fontDetail
                         wrapMode: Text.Wrap
                     }
 
@@ -504,7 +547,7 @@ Item {
                                 if (indexToAdd >= 0) {
                                     resolutionListModel.insert(indexToAdd,
                                                                {
-                                                                   "text": friendlyNamePrefix+" ("+rect.width+"x"+rect.height+")",
+                                                                   "text": friendlyNamePrefix+" ("+rect.width+"×"+rect.height+")",
                                                                    "video_width": ""+rect.width,
                                                                    "video_height": ""+rect.height,
                                                                    "is_custom": false
@@ -566,7 +609,7 @@ Item {
                                 if (!index_set) {
                                     // We did not find a match. This must be a custom resolution.
                                     resolutionListModel.append({
-                                                                   "text": qsTr("Custom")+" ("+StreamingPreferences.width+"x"+StreamingPreferences.height+")",
+                                                                   "text": qsTr("Custom")+" ("+StreamingPreferences.width+"×"+StreamingPreferences.height+")",
                                                                    "video_width": ""+StreamingPreferences.width,
                                                                    "video_height": ""+StreamingPreferences.height,
                                                                    "is_custom": true
@@ -707,7 +750,7 @@ Item {
                                         if (resolutionListModel.get(i).is_custom) {
                                             resolutionListModel.setProperty(i, "video_width", width)
                                             resolutionListModel.setProperty(i, "video_height", height)
-                                            resolutionListModel.setProperty(i, "text", "Custom ("+width+"x"+height+")")
+                                            resolutionListModel.setProperty(i, "text", qsTr("Custom")+" ("+width+"×"+height+")")
 
                                             // Now update the bitrate using the custom resolution
                                             resolutionComboBox.currentIndex = i
@@ -1019,17 +1062,17 @@ Item {
                     Label {
                         width: parent.width
                         id: bitrateTitle
-                        text: qsTr("Video bitrate:")
-                        font.pointSize: 12
+                        text: qsTr("Video bitrate")
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         id: bitrateDesc
-                        color: "#9D9DA6"
+                        color: Theme.textSecondary
                         text: qsTr("How much data the stream uses each second. Lower it on slow Wi-Fi; raise it for a sharper picture.")
-                        font.pointSize: 9
+                        font.pointSize: Theme.fontDetail
                         wrapMode: Text.Wrap
                     }
 
@@ -1047,20 +1090,14 @@ Item {
                             to: StreamingPreferences.unlockBitrate ? 500000 : 150000
 
                             snapMode: "SnapOnRelease"
-                            width: Math.min(bitrateDesc.implicitWidth, parent.width - bitrateField.width - bitrateUnit.width - 3 * parent.spacing - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0))
+                            width: Math.max(120, Math.min(420, parent.width - bitrateField.width - bitrateUnit.width - 3 * parent.spacing - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0)))
 
                             onValueChanged: {
-                                bitrateTitle.text = qsTr("Video bitrate: %1 Mbps").arg(value / 1000.0)
                                 StreamingPreferences.bitrateKbps = value
                             }
 
                             onMoved: {
                                 StreamingPreferences.autoAdjustBitrate = false
-                            }
-
-                            Component.onCompleted: {
-                                // Refresh the text after translations change
-                                languageChanged.connect(valueChanged)
                             }
                         }
 
@@ -1072,13 +1109,10 @@ Item {
                             horizontalAlignment: TextInput.AlignRight
                             selectByMouse: true
                             inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator {
-                                bottom: 0.5
-                                top: 500
-                                decimals: 1
-                                notation: DoubleValidator.StandardNotation
-                                locale: "C"
-                            }
+                            // No validator: one would reject out-of-range values
+                            // like 600 without ever finishing the edit, leaving
+                            // them in the field. commit() clamps instead.
+                            maximumLength: 6
                             text: (slider.value / 1000.0).toString()
 
                             ToolTip.delay: 600
@@ -1087,7 +1121,8 @@ Item {
                             ToolTip.text: qsTr("Type an exact bitrate from 0.5 to 500 Mbps. Above 150 Mbps turns on very high bitrates.")
 
                             function commit() {
-                                var mbps = parseFloat(text)
+                                // Accept a comma as the decimal mark too
+                                var mbps = parseFloat(text.replace(",", "."))
                                 if (!isNaN(mbps)) {
                                     var kbps = Math.round(Math.min(Math.max(mbps, 0.5), 500) * 1000)
                                     if (kbps > 150000 && !StreamingPreferences.unlockBitrate) {
@@ -1107,14 +1142,15 @@ Item {
                             id: bitrateUnit
                             anchors.verticalCenter: slider.verticalCenter
                             text: qsTr("Mbps")
-                            font.pointSize: 11
-                            color: "#9D9DA6"
+                            font.pointSize: Theme.fontBody
+                            color: Theme.textSecondary
                         }
 
                         Button {
                             id: resetBitrateButton
                             text: qsTr("Reset to recommended (%1 Mbps)").arg(StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444) / 1000.0)
                             visible: StreamingPreferences.bitrateKbps !== StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444)
+                            flat: true
                             onClicked: {
                                 var defaultBitrate = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444)
                                 StreamingPreferences.bitrateKbps = defaultBitrate
@@ -1124,12 +1160,30 @@ Item {
                         }
                     }
 
+                    // Norilight: next to the slider it affects. Typing a bitrate
+                    // above 150 Mbps in the field turns this on as well.
+                    SettingsCheck {
+                        id: unlockBitrate
+                        width: parent.width
+                        text: qsTr("Allow very high bitrates (experimental)")
+                        detail: qsTr("Raises the limit from 150 to 500 Mbps. Only for wired Ethernet with a Sunshine host.")
+
+                        checked: StreamingPreferences.unlockBitrate
+                        onCheckedChanged: {
+                            StreamingPreferences.unlockBitrate = checked
+                            StreamingPreferences.bitrateKbps = Math.min(StreamingPreferences.bitrateKbps, slider.to)
+                            slider.value = StreamingPreferences.bitrateKbps
+                        }
+                    }
+
                     SettingsCheck {
                         id: enableHdr
                         width: parent.width
                         text: qsTr("Stream in HDR")
-                        detail: qsTr("Brighter highlights and richer colour. Needs an HDR display on this PC and a supported host.")
-                        font.pointSize: 12
+                        detail: enabled ?
+                                    qsTr("Brighter highlights and richer colour. Needs an HDR display on this PC and a supported host. Some games also need an HDR monitor on the host.")
+                                  :
+                                    qsTr("HDR streaming is not supported on this PC.")
 
                         enabled: SystemProperties.supportsHdr
                         checked: enabled && StreamingPreferences.enableHdr
@@ -1138,14 +1192,6 @@ Item {
                         }
 
                         // Updating StreamingPreferences.videoCodecConfig is handled above
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: enabled ?
-                                          qsTr("The stream will be HDR-capable, but some games may require an HDR monitor on your host PC to enable HDR mode.")
-                                        :
-                                          qsTr("HDR streaming is not supported on this PC.")
                     }
 
                 }
@@ -1153,12 +1199,12 @@ Item {
 
             SettingsGroup {
                 id: windowSettingsGroupBox
-                section: "window"
+                section: "display"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Display manager")
-                description: qsTr("The display settings every stream uses by default. Below, make profiles for specific monitors to open streams there, even several at once.")
-                font.pointSize: 12
+                title: qsTr("Display")
+                description: qsTr("How every stream is shown on this PC by default. Monitor profiles can override these for a specific monitor.")
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1168,15 +1214,15 @@ Item {
                         width: parent.width
                         id: windowModeTitle
                         text: qsTr("Window mode")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                         visible: SystemProperties.hasDesktopEnvironment
                     }
                     Label {
                         width: parent.width
                         text: qsTr("Fullscreen gives the best performance. Borderless windowed fills the screen but switches apps instantly. Windowed lets you work beside the stream.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
                         wrapMode: Text.Wrap
                         visible: SystemProperties.hasDesktopEnvironment
                     }
@@ -1252,11 +1298,6 @@ Item {
                         onActivated: {
                             StreamingPreferences.windowMode = model.get(currentIndex).val
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Fullscreen generally provides the best performance, but borderless windowed may work better with features like macOS Spaces, Alt+Tab, screenshot tools, on-screen overlays, etc.")
                     }
 
                     Column {
@@ -1269,7 +1310,7 @@ Item {
                             hoverEnabled: true
                             text: qsTr("V-Sync: sync frames to your display")
                             detail: qsTr("Removes screen tearing. Turn it off for slightly lower input lag.")
-                            font.pointSize:  12
+                            font.pointSize: Theme.fontLabel
                             checked: StreamingPreferences.enableVsync
                             onCheckedChanged: {
                                 StreamingPreferences.enableVsync = checked
@@ -1282,10 +1323,14 @@ Item {
                             hoverEnabled: true
                             text: qsTr("Frame pacing: smooth out uneven frames")
                             detail: qsTr("Holds back frames that arrive early to reduce micro-stutter. Needs V-Sync.")
-                            font.pointSize:  12
+                            font.pointSize: Theme.fontLabel
                             enabled: StreamingPreferences.enableVsync
                             checked: StreamingPreferences.enableVsync && StreamingPreferences.framePacing
-                            onCheckedChanged: {
+                            // Save only what the user clicks: when V-Sync turns
+                            // off the box shows unchecked, but the saved choice
+                            // is kept for when V-Sync comes back on. Streams
+                            // ignore frame pacing without V-Sync.
+                            onToggled: {
                                 StreamingPreferences.framePacing = checked
                             }
                         }
@@ -1295,15 +1340,15 @@ Item {
                         width: parent.width
                         topPadding: 10
                         text: qsTr("Picture fit")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         text: qsTr("What happens when the stream's shape doesn't match the window or screen.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
                         wrapMode: Text.Wrap
                     }
 
@@ -1346,7 +1391,7 @@ Item {
                         width: parent.width
                         text: qsTr("Pin the picture to the top of the window")
                         detail: qsTr("Black bars or cropping go at the bottom instead of being split between top and bottom. Not used with Stretch.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         enabled: StreamingPreferences.videoScaleMode !== 2
                         checked: StreamingPreferences.alignVideoTop
                         onCheckedChanged: {
@@ -1359,20 +1404,24 @@ Item {
 
             SettingsGroup {
                 id: monitorProfilesGroupBox
-                section: "window"
+                section: "profiles"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Monitor profiles")
-                description: qsTr("A profile opens a stream on one monitor with its own resolution, frame rate and window settings. Start one from an app's menu with \"Stream on a Monitor\". Each stream gets its own window, and Norilight's main window stays open to show and control them.")
-                subheading: true
-                font.pointSize: 12
+                description: qsTr("A profile opens a stream on one monitor with its own resolution, frame rate and window settings, even several at once. Start one with the monitor button on an app, or \"Stream on a Monitor\" in its menu. Each stream gets its own window, and Norilight's main window stays open to show and control them.")
 
-                function profileSummary(p) {
-                    var res = p.width > 0 ? p.width + "x" + p.height : qsTr("Monitor resolution")
+                function profileSummary(p, withMonitor) {
+                    var res = p.width > 0 ? p.width + "×" + p.height : qsTr("monitor resolution")
                     var fps = p.fps > 0 ? qsTr("%1 FPS").arg(p.fps) : qsTr("monitor refresh rate")
-                    var modes = [qsTr("Fullscreen"), qsTr("Borderless"), qsTr("Windowed")]
-                    var fits = [qsTr("Fit"), qsTr("Fill"), qsTr("Stretch")]
-                    return res + " · " + fps + " · " + modes[p.windowMode || 0] + " · " + fits[p.videoScaleMode || 0]
+                    var modes = [qsTr("fullscreen"), qsTr("borderless"), qsTr("windowed")]
+                    var fits = [qsTr("fit"), qsTr("fill"), qsTr("stretch")]
+                    var parts = [res, fps, modes[p.windowMode || 0], fits[p.videoScaleMode || 0]]
+                    // Rows under a connected monitor's heading don't need its
+                    // name; rows for unplugged monitors do
+                    if (withMonitor) {
+                        parts.unshift(p.monitorLabel || qsTr("Unknown monitor"))
+                    }
+                    return parts.join(" · ")
                 }
 
                 function profilesFor(key) {
@@ -1402,10 +1451,12 @@ Item {
 
                     Rectangle {
                         property var profile: ({})
+                        property bool showMonitor: false
 
                         height: 56
                         radius: 6
-                        color: "#303036"
+                        color: Theme.card
+                        border.color: Theme.border
 
                         Column {
                             x: 14
@@ -1416,15 +1467,14 @@ Item {
                             Label {
                                 width: parent.width
                                 text: profile.name || ""
-                                font.pointSize: 11
+                                font.pointSize: Theme.fontBody
                                 elide: Text.ElideRight
                             }
                             Label {
                                 width: parent.width
-                                text: monitorProfilesGroupBox.profileSummary(profile) +
-                                      (profile.lastAppName ? " · " + qsTr("last: %1").arg(profile.lastAppName) : "")
-                                font.pointSize: 9
-                                color: "#9D9DA6"
+                                text: monitorProfilesGroupBox.profileSummary(profile, showMonitor)
+                                font.pointSize: Theme.fontSmall
+                                color: Theme.textSecondary
                                 elide: Text.ElideRight
                             }
                         }
@@ -1439,7 +1489,9 @@ Item {
                                 flat: true
                                 visible: !!profile.lastAppName
                                 enabled: !!profile.connected
-                                text: qsTr("Stream")
+                                // Long app names would push the other buttons out
+                                width: Math.min(implicitWidth, 200)
+                                text: qsTr("Stream %1 again").arg(profile.lastAppName)
                                 onClicked: DisplayManager.launchLast(profile.id)
 
                                 ToolTip.text: qsTr("Stream %1 on %2 again").arg(profile.lastAppName).arg(profile.lastHostName)
@@ -1485,15 +1537,15 @@ Item {
                                 Label {
                                     Layout.fillWidth: true
                                     text: qsTr("Monitor %1: %2").arg(monitor.number).arg(monitor.label) +
-                                          (monitor.primary ? "  ·  " + qsTr("main") : "")
-                                    font.pointSize: 11.5
+                                          (monitor.primary ? "  ·  " + qsTr("primary") : "")
+                                    font.pointSize: Theme.fontBody
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
                                 Label {
-                                    text: qsTr("%1x%2, %3 Hz").arg(monitor.width).arg(monitor.height).arg(monitor.refreshRate)
-                                    font.pointSize: 9.5
-                                    color: "#9D9DA6"
+                                    text: qsTr("%1×%2, %3 Hz").arg(monitor.width).arg(monitor.height).arg(monitor.refreshRate)
+                                    font.pointSize: Theme.fontSmall
+                                    color: Theme.textSecondary
                                 }
                                 Button {
                                     flat: true
@@ -1506,8 +1558,8 @@ Item {
                                 width: parent.width
                                 visible: monitorProfiles.length === 0
                                 text: qsTr("No profiles for this monitor yet.")
-                                font.pointSize: 9.5
-                                color: "#7E7E88"
+                                font.pointSize: Theme.fontSmall
+                                color: Theme.textSecondary
                             }
 
                             Repeater {
@@ -1530,7 +1582,7 @@ Item {
                         topPadding: 14
                         visible: monitorProfilesGroupBox.disconnectedProfiles().length > 0
                         text: qsTr("Monitors that aren't connected")
-                        font.pointSize: 11.5
+                        font.pointSize: Theme.fontBody
                         font.weight: Font.DemiBold
                     }
 
@@ -1543,6 +1595,7 @@ Item {
                             onLoaded: {
                                 item.width = Qt.binding(function() { return width })
                                 item.profile = Qt.binding(function() { return modelData })
+                                item.showMonitor = true
                             }
                         }
                     }
@@ -1556,7 +1609,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Window behaviour")
                 description: qsTr("Where the stream window sits, and what it does while you stream.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1567,7 +1620,7 @@ Item {
                         width: parent.width
                         text: qsTr("Keep the stream window on top of other windows")
                         detail: qsTr("Handy for watching the host while you work in other apps. Has no effect in fullscreen.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         visible: SystemProperties.hasDesktopEnvironment
                         checked: StreamingPreferences.streamAlwaysOnTop
                         onCheckedChanged: {
@@ -1580,7 +1633,7 @@ Item {
                         width: parent.width
                         text: qsTr("Reopen the stream window where you left it")
                         detail: qsTr("Remembers the size and position of the windowed stream between sessions.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         visible: SystemProperties.hasDesktopEnvironment
                         checked: StreamingPreferences.rememberWindowGeometry
                         onCheckedChanged: {
@@ -1593,7 +1646,7 @@ Item {
                         width: parent.width
                         text: qsTr("Watch only: don't send any input to the host")
                         detail: qsTr("Your mouse, keyboard, touch and controllers stay on this PC, so you can keep an eye on the host without touching it. Norilight's shortcuts like Ctrl+Alt+Shift+Q still work.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.viewOnly
                         onCheckedChanged: {
                             StreamingPreferences.viewOnly = checked
@@ -1605,7 +1658,7 @@ Item {
                         width: parent.width
                         text: qsTr("Keep this PC's screen awake while streaming")
                         detail: qsTr("Blocks the screensaver and display sleep during a stream.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.keepAwake
                         onCheckedChanged: {
                             StreamingPreferences.keepAwake = checked
@@ -1622,7 +1675,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Audio")
                 description: qsTr("Where the host's sound plays and when it is muted.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1632,7 +1685,7 @@ Item {
                         width: parent.width
                         id: resAudioTitle
                         text: qsTr("Speaker setup")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
@@ -1680,7 +1733,7 @@ Item {
                         width: parent.width
                         text: qsTr("Mute the host PC's speakers while streaming")
                         detail: qsTr("Sound only plays here, not on the host. Restart a running game for this to apply.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: !StreamingPreferences.playAudioOnHost
                         onCheckedChanged: {
                             StreamingPreferences.playAudioOnHost = !checked
@@ -1692,7 +1745,7 @@ Item {
                         width: parent.width
                         text: qsTr("Mute the stream when Norilight isn't the active window")
                         detail: qsTr("Silences the stream when you Alt+Tab away or click another window.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         visible: SystemProperties.hasDesktopEnvironment
                         checked: StreamingPreferences.muteOnFocusLoss
                         onCheckedChanged: {
@@ -1709,7 +1762,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Host PC")
                 description: qsTr("What Norilight asks the PC you stream from to do.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1720,7 +1773,7 @@ Item {
                         width: parent.width
                         text: qsTr("Let the host adjust game settings for the stream")
                         detail: qsTr("GeForce Experience changes each game's graphics settings to suit the stream resolution.")
-                        font.pointSize:  12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.gameOptimizations
                         onCheckedChanged: {
                             StreamingPreferences.gameOptimizations = checked
@@ -1732,28 +1785,24 @@ Item {
                         width: parent.width
                         text: qsTr("Close the game on the host when you end the stream")
                         detail: qsTr("The game or app is closed for you. Unsaved progress is lost.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.quitAppAfter
                         onCheckedChanged: {
                             StreamingPreferences.quitAppAfter = checked
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("This will close the app or game you are streaming when you end your stream. You will lose any unsaved progress!")
                     }
                 }
             }
 
             SettingsGroup {
                 id: apolloSettingsGroupBox
-                section: "apollo"
+                section: "host"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Apollo host")
+                title: qsTr("Apollo hosts")
                 description: qsTr("Extras for hosts running Apollo, a fork of Sunshine. Other hosts ignore these settings.")
-                font.pointSize: 12
+                subheading: true
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1764,7 +1813,7 @@ Item {
                         width: parent.width
                         text: qsTr("Stream from a virtual display")
                         detail: qsTr("The host creates a screen that matches this PC's resolution and frame rate for the stream, instead of using its real monitor. Needs the SudoVDA driver on the host.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.useVirtualDisplay
                         onCheckedChanged: {
                             StreamingPreferences.useVirtualDisplay = checked
@@ -1776,17 +1825,17 @@ Item {
                         x: 36
                         topPadding: 6
                         text: qsTr("Virtual display scale: %1%").arg(Math.round(virtualDisplayScaleSlider.value))
-                        font.pointSize: 11
-                        color: virtualDisplayCheck.checked ? "#ECECEE" : "#76767E"
+                        font.pointSize: Theme.fontBody
+                        color: virtualDisplayCheck.checked ? Theme.textPrimary : Theme.textDisabled
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width - 36
                         x: 36
-                        text: qsTr("Makes the host's virtual screen bigger or smaller than the stream. At 150%, a 1920x1080 stream is drawn on a 2880x1620 screen, so text gets smaller and sharper.")
-                        font.pointSize: 10
-                        color: virtualDisplayCheck.checked ? "#9D9DA6" : "#62626A"
+                        text: qsTr("Makes the host's virtual screen bigger or smaller than the stream. At 150%, a 1920×1080 stream is drawn on a 2880×1620 screen, so text gets smaller and sharper.")
+                        font.pointSize: Theme.fontDetail
+                        color: virtualDisplayCheck.checked ? Theme.textSecondary : Theme.textDisabledSecondary
                         wrapMode: Text.Wrap
                     }
 
@@ -1822,7 +1871,7 @@ Item {
                         width: parent.width
                         text: qsTr("Sync the clipboard with the host")
                         detail: qsTr("Text you copy here is sent to the host when the stream starts or you switch back to it. The host's clipboard comes back when you switch away or end the stream.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.clipboardSync
                         onCheckedChanged: {
                             StreamingPreferences.clipboardSync = checked
@@ -1835,7 +1884,7 @@ Item {
                         x: 36
                         text: qsTr("Show a notice each time it syncs")
                         detail: qsTr("A short message on the stream says whether text was sent or received.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         enabled: clipboardSyncCheck.checked
                         checked: StreamingPreferences.clipboardSyncNotify
                         onCheckedChanged: {
@@ -1849,7 +1898,7 @@ Item {
                         x: 36
                         text: qsTr("Keep text from the host out of clipboard history")
                         detail: qsTr("Windows won't save it in Win+V history or sync it to your other devices.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         enabled: clipboardSyncCheck.checked
                         checked: StreamingPreferences.hideSyncedClipboard
                         onCheckedChanged: {
@@ -1861,15 +1910,15 @@ Item {
                         width: parent.width
                         topPadding: 14
                         text: qsTr("Host commands")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         text: qsTr("During a stream, press Ctrl+Alt+Shift+R to list the commands set up on your Apollo host, then press a number to run one. Esc closes the list.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
                         wrapMode: Text.Wrap
                     }
                 }
@@ -1882,7 +1931,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("App")
                 description: qsTr("Norilight's own window, language and notices.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -1892,7 +1941,7 @@ Item {
                         width: parent.width
                         id: languageTitle
                         text: qsTr("Language")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
@@ -2052,7 +2101,7 @@ Item {
                             if (StreamingPreferences.language !== new_language) {
                                 StreamingPreferences.language = languageListModel.get(currentIndex).val
                                 if (!StreamingPreferences.retranslate()) {
-                                    ToolTip.show(qsTr("You must restart Moonlight for this change to take effect"), 5000)
+                                    ToolTip.show(qsTr("You must restart Norilight for this change to take effect"), 5000)
                                 }
                                 else {
                                     // Force the back operation to pop any AppView pages that exist.
@@ -2070,7 +2119,7 @@ Item {
                         width: parent.width
                         id: uiDisplayModeTitle
                         text: qsTr("How Norilight's main window opens")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                         visible: SystemProperties.hasDesktopEnvironment
                     }
@@ -2125,7 +2174,7 @@ Item {
                         width: parent.width
                         text: qsTr("Warn me when the connection is struggling")
                         detail: qsTr("Shows a notice over the stream when the network can't keep up.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.connectionWarnings
                         onCheckedChanged: {
                             StreamingPreferences.connectionWarnings = checked
@@ -2137,7 +2186,7 @@ Item {
                         width: parent.width
                         text: qsTr("Warn me about risky settings before a stream starts")
                         detail: qsTr("For example, options your host or this PC may not support.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.configurationWarnings
                         onCheckedChanged: {
                             StreamingPreferences.configurationWarnings = checked
@@ -2150,7 +2199,7 @@ Item {
                         width: parent.width
                         text: qsTr("Show what I'm streaming in my Discord status")
                         detail: qsTr("Your Discord profile shows the name of the game you're streaming.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.richPresence
                         onCheckedChanged: {
                             StreamingPreferences.richPresence = checked
@@ -2167,8 +2216,8 @@ Item {
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Mouse")
-                description: qsTr("How your mouse and cursor control the host.")
-                font.pointSize: 12
+                description: qsTr("How your mouse, cursor and scroll wheel control the host.")
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -2183,18 +2232,14 @@ Item {
                                     qsTr("Already on: free cursor below includes it.") :
                                     qsTr("Best for desktop work. Most games need this off. Toggle while streaming with Ctrl+Alt+Shift+M.")
                         enabled: !StreamingPreferences.freeCursorMode
-                        font.pointSize:  12
-                        checked: StreamingPreferences.absoluteMouseMode
-                        onCheckedChanged: {
+                        font.pointSize: Theme.fontLabel
+                        // Free cursor includes this mode, so show it as on then.
+                        // Only a click saves it, so turning free cursor off
+                        // goes back to the user's own choice.
+                        checked: StreamingPreferences.absoluteMouseMode || StreamingPreferences.freeCursorMode
+                        onToggled: {
                             StreamingPreferences.absoluteMouseMode = checked
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 10000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("This enables seamless mouse control without capturing the client's mouse cursor. It is ideal for remote desktop usage but will not work in most games.") + " " +
-                                      qsTr("You can toggle this while streaming using Ctrl+Alt+Shift+M.") + "\n\n" +
-                                      qsTr("NOTE: Due to a bug in GeForce Experience, this option may not work properly if your host PC has multiple monitors.")
                     }
 
                     SettingsCheck {
@@ -2203,7 +2248,7 @@ Item {
                         width: parent.width
                         text: qsTr("Free cursor: let the mouse leave the stream window")
                         detail: qsTr("The cursor is never locked inside the stream, even in fullscreen, so you can move or drag onto other windows and monitors. Turns on remote desktop mouse.")
-                        font.pointSize:  12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.freeCursorMode
                         onCheckedChanged: {
                             StreamingPreferences.freeCursorMode = checked
@@ -2214,8 +2259,9 @@ Item {
                         id: showLocalCursorCheck
                         width: parent.width
                         text: qsTr("Show this PC's cursor over the stream")
-                        detail: qsTr("Draws your own cursor on top of the host's so it never lags behind. Remote desktop mouse only. Toggle while streaming with Ctrl+Alt+Shift+C.")
-                        font.pointSize: 12
+                        detail: qsTr("Draws your own cursor on top of the host's so it never lags behind. Needs remote desktop mouse. Toggle while streaming with Ctrl+Alt+Shift+C.")
+                        font.pointSize: Theme.fontLabel
+                        enabled: StreamingPreferences.absoluteMouseMode || StreamingPreferences.freeCursorMode
                         checked: StreamingPreferences.showLocalCursor
                         onCheckedChanged: {
                             StreamingPreferences.showLocalCursor = checked
@@ -2228,7 +2274,7 @@ Item {
                         width: parent.width
                         text: qsTr("Swap left and right mouse buttons")
                         detail: qsTr("For left-handed mouse setups.")
-                        font.pointSize:  12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.swapMouseButtons
                         onCheckedChanged: {
                             StreamingPreferences.swapMouseButtons = checked
@@ -2239,15 +2285,15 @@ Item {
                         width: parent.width
                         topPadding: 12
                         text: qsTr("Mouse speed in game mode: %1%").arg(Math.round(mouseSensitivitySlider.value))
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         text: qsTr("Scales mouse movement while the cursor is captured for a game. 100% matches your mouse exactly.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
                         wrapMode: Text.Wrap
                     }
 
@@ -2276,6 +2322,60 @@ Item {
                         }
                     }
 
+                    SettingsCheck {
+                        id: reverseScrollButtonsCheck
+                        hoverEnabled: true
+                        width: parent.width
+                        text: qsTr("Reverse scroll direction")
+                        detail: qsTr("Scrolling down moves the page up, like natural scrolling on a touchpad.")
+                        font.pointSize: Theme.fontLabel
+                        checked: StreamingPreferences.reverseScrollDirection
+                        onCheckedChanged: {
+                            StreamingPreferences.reverseScrollDirection = checked
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 12
+                        text: qsTr("Scroll speed: %1%").arg(Math.round(scrollSpeedSlider.value))
+                        font.pointSize: Theme.fontLabel
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("How far each scroll wheel step moves on the host.")
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Slider {
+                            id: scrollSpeedSlider
+                            width: Math.min(360, parent.parent.width - 160)
+                            from: 10
+                            to: 400
+                            stepSize: 5
+                            snapMode: Slider.SnapOnRelease
+                            value: StreamingPreferences.scrollSpeed
+                            onMoved: StreamingPreferences.scrollSpeed = Math.round(value)
+                        }
+
+                        Button {
+                            text: qsTr("Reset to 100%")
+                            flat: true
+                            visible: Math.round(scrollSpeedSlider.value) !== 100
+                            onClicked: {
+                                StreamingPreferences.scrollSpeed = 100
+                                scrollSpeedSlider.value = 100
+                            }
+                        }
+                    }
+
                 }
             }
 
@@ -2284,9 +2384,9 @@ Item {
                 section: "keyboard"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Keyboard, scrolling & touch")
-                description: qsTr("Shortcuts, the scroll wheel and touchscreens.")
-                font.pointSize: 12
+                title: qsTr("Keyboard & touch")
+                description: qsTr("System keys, screenshots and touchscreens.")
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -2302,7 +2402,7 @@ Item {
                             hoverEnabled: true
                             text: qsTr("Send shortcuts like Alt+Tab and the Windows key to the host")
                             detail: qsTr("When off, this PC handles them. Ctrl+Alt+Del always stays on this PC.")
-                            font.pointSize: 12
+                            font.pointSize: Theme.fontLabel
                             enabled: SystemProperties.hasDesktopEnvironment
                             checked: StreamingPreferences.captureSysKeysMode !== StreamingPreferences.CSK_OFF || !SystemProperties.hasDesktopEnvironment
                         }
@@ -2334,11 +2434,11 @@ Item {
                             model: ListModel {
                                 id: captureSysKeysModeListModel
                                 ListElement {
-                                    text: qsTr("only in fullscreen")
+                                    text: qsTr("Only in fullscreen")
                                     val: StreamingPreferences.CSK_FULLSCREEN
                                 }
                                 ListElement {
-                                    text: qsTr("always")
+                                    text: qsTr("Always, also in a window")
                                     val: StreamingPreferences.CSK_ALWAYS
                                 }
                             }
@@ -2365,59 +2465,31 @@ Item {
                     }
 
                     SettingsCheck {
-                        id: reverseScrollButtonsCheck
+                        id: screenshotsOnClientCheck
                         hoverEnabled: true
                         width: parent.width
-                        text: qsTr("Reverse scroll direction")
-                        detail: qsTr("Scrolling down moves the page up, like natural scrolling on a touchpad.")
-                        font.pointSize: 12
-                        checked: StreamingPreferences.reverseScrollDirection
+                        text: qsTr("Take screenshots on this PC only")
+                        detail: qsTr("PrtScn and Win+Shift+S take a screenshot here and aren't sent to the host, so you don't get one on both PCs.")
+                        font.pointSize: Theme.fontLabel
+                        checked: StreamingPreferences.screenshotsOnClient
                         onCheckedChanged: {
-                            StreamingPreferences.reverseScrollDirection = checked
+                            StreamingPreferences.screenshotsOnClient = checked
                         }
                     }
 
-                    Label {
+                    SettingsCheck {
+                        id: forwardUnicodeInputCheck
+                        hoverEnabled: true
                         width: parent.width
-                        topPadding: 12
-                        text: qsTr("Scroll speed: %1%").arg(Math.round(scrollSpeedSlider.value))
-                        font.pointSize: 12
-                        wrapMode: Text.Wrap
-                    }
-
-                    Label {
-                        width: parent.width
-                        text: qsTr("How far each scroll wheel step moves on the host.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
-                        wrapMode: Text.Wrap
-                    }
-
-                    Row {
-                        spacing: 8
-
-                        Slider {
-                            id: scrollSpeedSlider
-                            width: Math.min(360, parent.parent.width - 160)
-                            from: 10
-                            to: 400
-                            stepSize: 5
-                            snapMode: Slider.SnapOnRelease
-                            value: StreamingPreferences.scrollSpeed
-                            onMoved: StreamingPreferences.scrollSpeed = Math.round(value)
-                        }
-
-                        Button {
-                            text: qsTr("Reset to 100%")
-                            flat: true
-                            visible: Math.round(scrollSpeedSlider.value) !== 100
-                            onClicked: {
-                                StreamingPreferences.scrollSpeed = 100
-                                scrollSpeedSlider.value = 100
-                            }
+                        visible: Qt.platform.os === "windows"
+                        text: qsTr("Work with PowerToys Quick Accent")
+                        detail: qsTr("Sends characters that Quick Accent types on this PC to the host, including the Space it holds back while a letter is down. Without this, Space doesn't work until you stop typing, and picked accents are lost.")
+                        font.pointSize: Theme.fontLabel
+                        checked: StreamingPreferences.forwardUnicodeInput
+                        onCheckedChanged: {
+                            StreamingPreferences.forwardUnicodeInput = checked
                         }
                     }
-
 
                     SettingsCheck {
                         id: absoluteTouchCheck
@@ -2425,7 +2497,7 @@ Item {
                         width: parent.width
                         text: qsTr("Touchscreen works like a trackpad")
                         detail: qsTr("Drag to move the cursor and tap to click. When off, the cursor jumps to wherever you touch.")
-                        font.pointSize:  12
+                        font.pointSize: Theme.fontLabel
                         checked: !StreamingPreferences.absoluteTouchMode
                         onCheckedChanged: {
                             StreamingPreferences.absoluteTouchMode = !checked
@@ -2442,7 +2514,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Controllers")
                 description: qsTr("Gamepads connected to this PC.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -2453,7 +2525,7 @@ Item {
                         width: parent.width
                         text: qsTr("Nintendo-style layout: swap A/B and X/Y")
                         detail: qsTr("Matches the button positions on Nintendo controllers.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.swapFaceButtons
                         onCheckedChanged: {
                             StreamingPreferences.swapFaceButtons = checked
@@ -2465,17 +2537,11 @@ Item {
                         width: parent.width
                         text: qsTr("Always report one controller to the host")
                         detail: qsTr("For games that only detect controllers connected before they start, even if none is plugged in here.")
-                        font.pointSize:  12
+                        font.pointSize: Theme.fontLabel
                         checked: !StreamingPreferences.multiController
                         onCheckedChanged: {
                             StreamingPreferences.multiController = !checked
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Forces a single gamepad to always stay connected to the host, even if no gamepads are actually connected to this PC.") + " " +
-                                      qsTr("Only enable this option when streaming a game that doesn't support gamepads being connected after startup.")
                     }
 
                     SettingsCheck {
@@ -2484,7 +2550,7 @@ Item {
                         width: parent.width
                         text: qsTr("Hold Start to use a controller as a mouse")
                         detail: qsTr("Long-press Start to switch: the stick moves the cursor, A clicks, B right-clicks. Long-press again to switch back.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.gamepadMouse
                         onCheckedChanged: {
                             StreamingPreferences.gamepadMouse = checked
@@ -2495,8 +2561,8 @@ Item {
                         width: parent.width - 36
                         x: 36
                         text: qsTr("While a controller is a mouse, scroll with")
-                        font.pointSize: 11
-                        color: gamepadMouseCheck.checked ? "#ECECEE" : "#76767E"
+                        font.pointSize: Theme.fontBody
+                        color: gamepadMouseCheck.checked ? Theme.textPrimary : Theme.textDisabled
                         wrapMode: Text.Wrap
                     }
 
@@ -2541,7 +2607,7 @@ Item {
                         width: parent.width
                         text: qsTr("Keep controllers working when Norilight is in the background")
                         detail: qsTr("Controller input still reaches the host while another window is active.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         visible: SystemProperties.hasDesktopEnvironment
                         checked: StreamingPreferences.backgroundGamepad
                         onCheckedChanged: {
@@ -2554,7 +2620,7 @@ Item {
                         width: parent.width
                         text: qsTr("Let games use controller motion sensors")
                         detail: qsTr("Passes gyro and accelerometer data to the host for motion aiming. Turn off if motion causes drift or stutter.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.gamepadMotionSensors
                         onCheckedChanged: {
                             StreamingPreferences.gamepadMotionSensors = checked
@@ -2566,7 +2632,7 @@ Item {
                         width: parent.width
                         text: qsTr("Controller touchpad moves the mouse")
                         detail: qsTr("On PlayStation-style controllers, slide on the touchpad to move the host cursor and press it to click, instead of passing the touchpad to games.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.gamepadTouchpadAsMouse
                         onCheckedChanged: {
                             StreamingPreferences.gamepadTouchpadAsMouse = checked
@@ -2577,15 +2643,15 @@ Item {
                         width: parent.width
                         topPadding: 12
                         text: qsTr("Stick deadzone: %1%").arg(Math.round(deadzoneSlider.value))
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
                     Label {
                         width: parent.width
                         text: qsTr("How far a stick must move before it counts. Raise it if a worn stick drifts on its own; 0% passes the stick through untouched.")
-                        font.pointSize: 10
-                        color: "#9D9DA6"
+                        font.pointSize: Theme.fontDetail
+                        color: Theme.textSecondary
                         wrapMode: Text.Wrap
                     }
 
@@ -2616,6 +2682,126 @@ Item {
                 }
             }
 
+            // Norilight: every shortcut in one place, instead of only in the
+            // descriptions of the settings they relate to
+            SettingsGroup {
+                id: shortcutsGroupBox
+                section: "shortcuts"
+                visible: settingsPage.currentSection === section
+                width: (parent.width - (parent.leftPadding + parent.rightPadding))
+                title: qsTr("Shortcuts")
+                description: qsTr("Key combinations you can use while a stream window is active.")
+
+                readonly property var keyboardShortcuts: [
+                    { keys: "Ctrl+Alt+Shift+Q", action: qsTr("End the stream") },
+                    { keys: "Ctrl+Alt+Shift+E", action: qsTr("End the stream and close Norilight") },
+                    { keys: "Ctrl+Alt+Shift+Z", action: qsTr("Release the mouse and keyboard to this PC, or capture them again"), desktop: true },
+                    { keys: "Ctrl+Alt+Shift+X", action: qsTr("Switch between fullscreen and a window"), desktop: true },
+                    { keys: "Ctrl+Alt+Shift+D", action: qsTr("Minimize the stream window"), desktop: true },
+                    { keys: "Ctrl+Alt+Shift+M", action: qsTr("Turn remote desktop mouse on or off") },
+                    { keys: "Ctrl+Alt+Shift+C", action: qsTr("Show or hide this PC's cursor (remote desktop mouse)") },
+                    { keys: "Ctrl+Alt+Shift+L", action: qsTr("Keep the cursor inside the stream window, or let it out") },
+                    { keys: "Ctrl+Alt+Shift+K", action: qsTr("Send system keys like Alt+Tab to the host, or keep them here"), desktop: true },
+                    { keys: "Ctrl+Alt+Shift+V", action: qsTr("Type the text on this PC's clipboard into the host") },
+                    { keys: "Ctrl+Alt+Shift+S", action: qsTr("Show or hide performance stats") },
+                    { keys: "Ctrl+Alt+Shift+R", action: qsTr("List the commands set up on an Apollo host") }
+                ]
+
+                readonly property var controllerShortcuts: [
+                    { keys: "Start+Select+L1+R1", action: qsTr("End the stream") },
+                    { keys: "Select+L1+R1+X", action: qsTr("Show or hide performance stats") },
+                    { keys: qsTr("Hold Start"), action: qsTr("Use the controller as a mouse, when turned on under Controllers") }
+                ]
+
+                Component {
+                    id: shortcutRowComponent
+
+                    RowLayout {
+                        property var entry: ({})
+
+                        spacing: 16
+
+                        // The key combination, drawn as a key cap
+                        Label {
+                            Layout.preferredWidth: 150
+                            Layout.alignment: Qt.AlignTop
+                            text: entry.keys || ""
+                            font.pointSize: Theme.fontDetail
+                            font.weight: Font.DemiBold
+                            color: Theme.textPrimary
+                            leftPadding: 8
+                            rightPadding: 8
+                            topPadding: 3
+                            bottomPadding: 3
+                            elide: Text.ElideRight
+                            background: Rectangle {
+                                // Hug the text rather than the whole column
+                                width: Math.min(parent.implicitWidth, parent.width)
+                                radius: 4
+                                color: Theme.card
+                                border.color: Theme.border
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            text: entry.action || ""
+                            font.pointSize: Theme.fontDetail + 0.5
+                            color: Theme.textPrimary
+                            wrapMode: Text.Wrap
+                        }
+                    }
+                }
+
+                Column {
+                    anchors.fill: parent
+                    spacing: 8
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("Keyboard")
+                        font.pointSize: Theme.fontLabel
+                        font.weight: Font.DemiBold
+                    }
+
+                    Repeater {
+                        model: shortcutsGroupBox.keyboardShortcuts
+                        delegate: Loader {
+                            width: parent.width
+                            // Some shortcuts only exist with a desktop environment
+                            active: !modelData.desktop || SystemProperties.hasDesktopEnvironment
+                            visible: active
+                            sourceComponent: shortcutRowComponent
+                            onLoaded: {
+                                item.width = Qt.binding(function() { return width })
+                                item.entry = modelData
+                            }
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        topPadding: 14
+                        text: qsTr("Controller")
+                        font.pointSize: Theme.fontLabel
+                        font.weight: Font.DemiBold
+                    }
+
+                    Repeater {
+                        model: shortcutsGroupBox.controllerShortcuts
+                        delegate: Loader {
+                            width: parent.width
+                            sourceComponent: shortcutRowComponent
+                            onLoaded: {
+                                item.width = Qt.binding(function() { return width })
+                                item.entry = modelData
+                            }
+                        }
+                    }
+                }
+            }
+
             SettingsGroup {
                 id: advancedSettingsGroupBox
                 section: "advanced"
@@ -2623,7 +2809,7 @@ Item {
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
                 title: qsTr("Video decoding")
                 description: qsTr("How the stream is compressed and decoded. The automatic choices suit almost everyone.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -2633,7 +2819,7 @@ Item {
                         width: parent.width
                         id: resVDSTitle
                         text: qsTr("Decode video using")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
@@ -2681,7 +2867,7 @@ Item {
                         width: parent.width
                         id: resVCCTitle
                         text: qsTr("Compression format (codec)")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                     }
 
@@ -2738,7 +2924,7 @@ Item {
                         width: parent.width
                         id: rendererTitle
                         text: qsTr("Renderer")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         wrapMode: Text.Wrap
                         visible: SystemProperties.isDarwin
                     }
@@ -2795,7 +2981,7 @@ Item {
                         width: parent.width
                         text: qsTr("Full colour detail (YUV 4:4:4)")
                         detail: qsTr("Crisper coloured text and thin lines, great for desktop work. Uses more bandwidth; not for fast games.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
 
                         checked: StreamingPreferences.enableYUV444
                         onCheckedChanged: {
@@ -2811,14 +2997,6 @@ Item {
                                 }
                             }
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: enabled ?
-                                          qsTr("Good for streaming desktop and text-heavy games, but not recommended for fast-paced games.")
-                                        :
-                                          qsTr("YUV 4:4:4 is not supported on this PC.")
                     }
 
                     SettingsCheck {
@@ -2826,25 +3004,10 @@ Item {
                         width: parent.width
                         text: qsTr("Full-range colour (experimental)")
                         detail: qsTr("Asks the host for the full 0-255 brightness range instead of the TV range. Can crush shadows and highlights if your display or decoder doesn't expect it.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.forceFullRange
                         onCheckedChanged: {
                             StreamingPreferences.forceFullRange = checked
-                        }
-                    }
-
-                    SettingsCheck {
-                        id: unlockBitrate
-                        width: parent.width
-                        text: qsTr("Allow very high bitrates (experimental)")
-                        detail: qsTr("Raises the bitrate slider's limit. Only for wired Ethernet with a Sunshine host.")
-                        font.pointSize: 12
-
-                        checked: StreamingPreferences.unlockBitrate
-                        onCheckedChanged: {
-                            StreamingPreferences.unlockBitrate = checked
-                            StreamingPreferences.bitrateKbps = Math.min(StreamingPreferences.bitrateKbps, slider.to)
-                            slider.value = StreamingPreferences.bitrateKbps
                         }
                     }
 
@@ -2856,9 +3019,9 @@ Item {
                 section: "network"
                 visible: settingsPage.currentSection === section
                 width: (parent.width - (parent.leftPadding + parent.rightPadding))
-                title: qsTr("Network and diagnostics")
+                title: qsTr("Network & diagnostics")
                 description: qsTr("Finding hosts, troubleshooting connections, and stream statistics.")
-                font.pointSize: 12
+                font.pointSize: Theme.fontLabel
 
                 Column {
                     anchors.fill: parent
@@ -2869,7 +3032,7 @@ Item {
                         width: parent.width
                         text: qsTr("Find host PCs on my network automatically")
                         detail: qsTr("Discovers PCs with mDNS. Turn off if you only add PCs by IP address.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.enableMdns
                         onCheckedChanged: {
                             // This is called on init, so only do the work if we've
@@ -2891,7 +3054,7 @@ Item {
                         width: parent.width
                         text: qsTr("Check for blocked connections when a stream fails")
                         detail: qsTr("Tests whether a firewall or router is blocking the stream and tells you.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.detectNetworkBlocking
                         onCheckedChanged: {
                             StreamingPreferences.detectNetworkBlocking = checked
@@ -2903,7 +3066,7 @@ Item {
                         width: parent.width
                         text: qsTr("Show a latency summary when a stream ends")
                         detail: qsTr("Average network latency, decode and render times, and dropped frames for the whole session.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.postStreamSummary
                         onCheckedChanged: {
                             StreamingPreferences.postStreamSummary = checked
@@ -2914,19 +3077,12 @@ Item {
                         id: showPerformanceOverlay
                         width: parent.width
                         text: qsTr("Show performance stats over the stream")
-                        detail: qsTr("Frame rate, latency and decode time. Toggle while streaming with Ctrl+Alt+Shift+S.")
-                        font.pointSize: 12
+                        detail: qsTr("Frame rate, latency and decode time. Toggle while streaming with Ctrl+Alt+Shift+S, or Select+L1+R1+X on a controller. Not available on Steam Link or Raspberry Pi.")
+                        font.pointSize: Theme.fontLabel
                         checked: StreamingPreferences.showPerformanceOverlay
                         onCheckedChanged: {
                             StreamingPreferences.showPerformanceOverlay = checked
                         }
-
-                        ToolTip.delay: 1000
-                        ToolTip.timeout: 5000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Display real-time stream performance information while streaming.") + "\n\n" +
-                                      qsTr("You can toggle it at any time while streaming using Ctrl+Alt+Shift+S or Select+L1+R1+X.") + "\n\n" +
-                                      qsTr("The performance overlay is not supported on Steam Link or Raspberry Pi.")
                     }
 
                     SettingsCheck {
@@ -2935,7 +3091,7 @@ Item {
                         x: 36
                         text: qsTr("Compact stats")
                         detail: qsTr("Just resolution, frame rate, bitrate, latency, decode and render time, and packet loss on two short lines.")
-                        font.pointSize: 12
+                        font.pointSize: Theme.fontLabel
                         enabled: showPerformanceOverlay.checked
                         checked: StreamingPreferences.liteStats
                         onCheckedChanged: {
@@ -2957,6 +3113,8 @@ Item {
         property string profileName: ""
         standardButtons: Dialog.Yes | Dialog.No
         text: qsTr("Delete the monitor profile \"%1\"?").arg(profileName)
+        acceptText: qsTr("Delete")
+        rejectText: qsTr("Cancel")
         onAccepted: DisplayManager.removeProfile(profileId)
     }
 }

@@ -1,10 +1,11 @@
 import QtQuick 2.9
-import QtQuick.Controls 2.2
+import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Material 2.2
 
 import DisplayManager 1.0
 import StreamingPreferences 1.0
+import "."
 
 // Norilight: create or edit a display manager profile. Call openNew(monitorKey)
 // or openEdit(profileId).
@@ -17,22 +18,23 @@ NavigableDialog {
 
     title: profileId === "" ? qsTr("New monitor profile") : qsTr("Edit monitor profile")
     standardButtons: Dialog.Save | Dialog.Cancel
-    width: Math.min(560, (parent ? parent.width : 600) - 32)
+    width: Math.min(560, (Overlay.overlay ? Overlay.overlay.width : 600) - 32)
 
     readonly property var resolutions: [
         { text: qsTr("Match the monitor"), w: 0, h: 0 },
-        { text: "720p (1280x720)", w: 1280, h: 720 },
-        { text: "1080p (1920x1080)", w: 1920, h: 1080 },
-        { text: "1440p (2560x1440)", w: 2560, h: 1440 },
-        { text: "4K (3840x2160)", w: 3840, h: 2160 },
+        { text: "720p (1280×720)", w: 1280, h: 720 },
+        { text: "1080p (1920×1080)", w: 1920, h: 1080 },
+        { text: "1440p (2560×1440)", w: 2560, h: 1440 },
+        { text: "4K (3840×2160)", w: 3840, h: 2160 },
         { text: qsTr("Custom"), w: -1, h: -1 }
     ]
-    readonly property var frameRates: [0, 30, 60, 90, 120, 144, 165, 240]
+    // 0 matches the monitor, -1 is the custom entry
+    readonly property var frameRates: [0, 30, 60, 90, 120, 144, 165, 240, -1]
 
     function monitorText(m) {
-        return qsTr("Monitor %1: %2 (%3x%4, %5 Hz)").arg(m.number).arg(m.label)
+        return qsTr("Monitor %1: %2 (%3×%4, %5 Hz)").arg(m.number).arg(m.label)
                    .arg(m.width).arg(m.height).arg(m.refreshRate)
-               + (m.primary ? " · " + qsTr("main") : "")
+               + (m.primary ? " · " + qsTr("primary") : "")
     }
 
     function rebuildMonitorModel() {
@@ -75,7 +77,8 @@ NavigableDialog {
 
         var fps = p.fps || 0
         var fpsIndex = frameRates.indexOf(fps)
-        fpsBox.currentIndex = fpsIndex >= 0 ? fpsIndex : 0
+        fpsBox.currentIndex = fpsIndex >= 0 ? fpsIndex : frameRates.length - 1
+        customFps.text = fps > 0 ? fps : ""
 
         windowModeBox.currentIndex = p.windowMode !== undefined ? p.windowMode : 0
         fitBox.currentIndex = p.videoScaleMode || 0
@@ -112,27 +115,44 @@ NavigableDialog {
         return missingMonitorLabel
     }
 
+    // Accept a comma as the decimal mark too, whatever the system locale is
+    function parseMbps(text) {
+        return parseFloat(text.replace(",", "."))
+    }
+
     readonly property bool customResolution: resolutionBox.currentIndex === resolutions.length - 1
-    readonly property bool inputValid: {
+    readonly property bool customFrameRate: fpsBox.currentIndex === frameRates.length - 1
+
+    // Why the profile can't be saved yet, or "" when it can
+    readonly property string validationMessage: {
+        if (monitorBox.count === 0) {
+            return qsTr("Connect a monitor to make a profile for it.")
+        }
         if (customResolution) {
             var w = parseInt(customWidth.text), h = parseInt(customHeight.text)
             if (!(w >= 256 && w <= 8192 && h >= 256 && h <= 8192)) {
-                return false
+                return qsTr("Enter a width and height from 256 to 8192.")
+            }
+        }
+        if (customFrameRate) {
+            var fps = parseInt(customFps.text)
+            if (!(fps >= 10 && fps <= 1000)) {
+                return qsTr("Enter a frame rate from 10 to 1000 FPS.")
             }
         }
         if (!autoBitrateCheck.checked) {
-            var mbps = parseFloat(bitrateField.text)
+            var mbps = parseMbps(bitrateField.text)
             if (!(mbps >= 0.5 && mbps <= 500)) {
-                return false
+                return qsTr("Enter a bitrate from 0.5 to 500 Mbps.")
             }
         }
-        return monitorBox.count > 0
+        return ""
     }
 
     onOpened: {
         var save = standardButton(Dialog.Save)
         if (save) {
-            save.enabled = Qt.binding(function() { return dialog.inputValid })
+            save.enabled = Qt.binding(function() { return dialog.validationMessage === "" })
         }
         nameField.forceActiveFocus()
     }
@@ -152,12 +172,12 @@ NavigableDialog {
             monitorKey: monitorBox.model[monitorBox.currentIndex].key,
             width: w,
             height: h,
-            fps: frameRates[fpsBox.currentIndex],
+            fps: customFrameRate ? parseInt(customFps.text) : frameRates[fpsBox.currentIndex],
             windowMode: windowModeBox.currentIndex,
             videoScaleMode: fitBox.currentIndex,
             vsync: vsyncCheck.checked,
             framePacing: vsyncCheck.checked && pacingCheck.checked,
-            bitrateKbps: autoBitrateCheck.checked ? 0 : Math.round(parseFloat(bitrateField.text) * 1000)
+            bitrateKbps: autoBitrateCheck.checked ? 0 : Math.round(parseMbps(bitrateField.text) * 1000)
         })
     }
 
@@ -181,12 +201,12 @@ NavigableDialog {
         TextField {
             id: nameField
             Layout.fillWidth: true
-            placeholderText: qsTr("For example: Left monitor, desktop")
+            placeholderText: qsTr("For example: Left monitor")
             selectByMouse: true
         }
 
         Label { text: qsTr("Monitor") }
-        ComboBox {
+        AutoResizingComboBox {
             id: monitorBox
             Layout.fillWidth: true
             textRole: "text"
@@ -197,7 +217,7 @@ NavigableDialog {
             Layout.fillWidth: true
             spacing: 8
 
-            ComboBox {
+            AutoResizingComboBox {
                 id: resolutionBox
                 Layout.fillWidth: true
                 textRole: "text"
@@ -212,7 +232,7 @@ NavigableDialog {
                 validator: IntValidator { bottom: 0; top: 8192 }
                 selectByMouse: true
             }
-            Label { text: "x"; visible: dialog.customResolution }
+            Label { text: "×"; visible: dialog.customResolution }
             TextField {
                 id: customHeight
                 visible: dialog.customResolution
@@ -225,29 +245,45 @@ NavigableDialog {
         }
 
         Label { text: qsTr("Frame rate") }
-        ComboBox {
-            id: fpsBox
+        RowLayout {
             Layout.fillWidth: true
-            model: dialog.frameRates.map(function(f) {
-                return f === 0 ? qsTr("Match the monitor's refresh rate") : qsTr("%1 FPS").arg(f)
-            })
+            spacing: 8
+
+            AutoResizingComboBox {
+                id: fpsBox
+                Layout.fillWidth: true
+                model: dialog.frameRates.map(function(f) {
+                    return f === 0 ? qsTr("Match the monitor's refresh rate")
+                         : f < 0 ? qsTr("Custom")
+                         : qsTr("%1 FPS").arg(f)
+                })
+            }
+            TextField {
+                id: customFps
+                visible: dialog.customFrameRate
+                Layout.preferredWidth: 72
+                placeholderText: qsTr("FPS")
+                inputMethodHints: Qt.ImhDigitsOnly
+                validator: IntValidator { bottom: 0; top: 1000 }
+                selectByMouse: true
+            }
         }
 
-        Label { text: qsTr("Window") }
-        ComboBox {
+        Label { text: qsTr("Window mode") }
+        AutoResizingComboBox {
             id: windowModeBox
             Layout.fillWidth: true
             model: [qsTr("Fullscreen"), qsTr("Borderless windowed"), qsTr("Windowed")]
         }
 
         Label { text: qsTr("Picture fit") }
-        ComboBox {
+        AutoResizingComboBox {
             id: fitBox
             Layout.fillWidth: true
             model: [qsTr("Fit (black bars if needed)"), qsTr("Fill (crop the edges)"), qsTr("Stretch")]
         }
 
-        Label { text: qsTr("Smoothness") }
+        Label { text: qsTr("Frame timing") }
         RowLayout {
             Layout.fillWidth: true
             CheckBox {
@@ -266,7 +302,7 @@ NavigableDialog {
             Layout.fillWidth: true
             CheckBox {
                 id: autoBitrateCheck
-                text: qsTr("Recommended")
+                text: qsTr("Automatic")
             }
             TextField {
                 id: bitrateField
@@ -274,13 +310,31 @@ NavigableDialog {
                 Layout.preferredWidth: 80
                 placeholderText: "20"
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
-                validator: DoubleValidator { bottom: 0.5; top: 500; decimals: 1; notation: DoubleValidator.StandardNotation }
+                validator: DoubleValidator {
+                    bottom: 0.5
+                    top: 500
+                    decimals: 1
+                    notation: DoubleValidator.StandardNotation
+                    locale: "C"
+                }
                 selectByMouse: true
             }
             Label {
                 visible: !autoBitrateCheck.checked
                 text: qsTr("Mbps")
             }
+        }
+
+        // Explains why Save is greyed out
+        Label {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            visible: dialog.validationMessage !== ""
+            text: dialog.validationMessage
+            color: Theme.statusError
+            font.pointSize: Theme.fontDetail
+            wrapMode: Text.Wrap
         }
     }
 }
