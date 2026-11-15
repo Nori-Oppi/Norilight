@@ -585,7 +585,9 @@ DEFINES += VERSION_STR=\\\"$$cat(version.txt)\\\"
 
 # Norilight: nightly builds record their commit so the app can tell when a
 # newer nightly is out. Local builds leave it empty and skip the check.
+# It goes into a generated header rather than DEFINES: a define would change
+# every compile command on every commit and defeat the compiler cache in CI.
 NORILIGHT_BUILD_SHA = $$(NORILIGHT_BUILD_SHA)
-!isEmpty(NORILIGHT_BUILD_SHA) {
-    DEFINES += NORILIGHT_BUILD_SHA=\\\"$$NORILIGHT_BUILD_SHA\\\"
-}
+BUILDINFO_LINES = "$${LITERAL_HASH}define NORILIGHT_BUILD_SHA \"$$NORILIGHT_BUILD_SHA\""
+!write_file($$OUT_PWD/buildinfo.h, BUILDINFO_LINES): error("Failed to write buildinfo.h")
+INCLUDEPATH += $$OUT_PWD

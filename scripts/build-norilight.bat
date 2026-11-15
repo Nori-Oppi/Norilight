@@ -32,15 +32,22 @@ if !ERRORLEVEL! NEQ 0 (
 )
 where /q cl.exe || (echo MSVC compiler not found & exit /b 1)
 
-rem Compile several files at once inside each cl.exe call
-set CL=/MP
+rem jom runs build steps in parallel. Without it, fall back to nmake and
+rem compile several files at once inside each cl.exe call instead.
+where /q jom.exe
+if !ERRORLEVEL! EQU 0 (
+    set MAKE_CMD=jom.exe
+) else (
+    set MAKE_CMD=nmake.exe /nologo
+    set CL=/MP
+)
 
 if not exist "%BUILD_FOLDER%" mkdir "%BUILD_FOLDER%"
 pushd "%BUILD_FOLDER%"
 echo === Configuring
 qmake.exe "%SOURCE_ROOT%\moonlight-qt.pro" || goto Error
 echo === Compiling (%BUILD_CONFIG%)
-nmake /nologo %BUILD_CONFIG% || goto Error
+!MAKE_CMD! %BUILD_CONFIG% || goto Error
 popd
 
 echo === Deploying to %DEPLOY_FOLDER%

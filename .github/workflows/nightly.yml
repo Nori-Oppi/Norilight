@@ -56,8 +56,10 @@ jobs:
         include:
           - os: windows-2025
             name: Windows-x64
+            qt_dir: msvc2022_64
           - os: macos-26
             name: macOS
+            qt_dir: macos
 
     runs-on: ${{ matrix.os }}
     env:
@@ -72,12 +74,34 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      # Qt is cached directly: on a hit the install action is skipped entirely,
+      # which avoids a minute of Python package setup that it runs even when
+      # its own cache hits.
+      - name: Restore Qt
+        id: qt-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.workspace }}/Qt
+          key: qt-${{ matrix.os }}-${{ env.QT_VERSION }}
+
       - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         uses: jurplel/install-qt-action@v4
         with:
-          cache: true
+          cache: false
+          set-env: false
+          dir: ${{ runner.workspace }}
           version: ${{ env.QT_VERSION }}
           aqtsource: ${{ env.AQT_SOURCE }}
+
+      - name: Set Qt environment
+        shell: pwsh
+        run: |
+          # Resolve-Path fails the step if Qt is not where it is expected
+          $qt = (Resolve-Path (Join-Path $env:RUNNER_WORKSPACE "Qt/$env:QT_VERSION/${{ matrix.qt_dir }}")).Path
+          if (!(Get-Command (Join-Path $qt 'bin/qmake') -ErrorAction SilentlyContinue)) { throw "qmake not found in $qt" }
+          "QT_ROOT_DIR=$qt" >> $env:GITHUB_ENV
+          (Join-Path $qt 'bin') >> $env:GITHUB_PATH
 
       # Windows ------------------------------------------------------------
 
@@ -85,6 +109,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./setup-deps.ps1
+
+      # jom builds in parallel where nmake is serial. The build script falls
+      # back to nmake if the download fails.
+      - name: Install jom (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          curl.exe -s -L -f --retry 2 -o "$env:RUNNER_TEMP\jom.zip" https://download.qt.io/official_releases/jom/jom.zip
+          if ($LASTEXITCODE -ne 0) { throw "jom download failed ($LASTEXITCODE)" }
+          Expand-Archive -Path "$env:RUNNER_TEMP\jom.zip" -DestinationPath "$env:RUNNER_TEMP\jom" -Force
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:RUNNER_TEMP\jom"
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
@@ -135,14 +171,39 @@ jobs:
 
       # macOS --------------------------------------------------------------
 
-      - name: Install create-dmg (macOS)
+      - name: Install ccache (macOS)
         if: runner.os == 'macOS'
-        run: npm install --global create-dmg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        run: |
+          brew install ccache
+          echo "CCACHE_DIR=${RUNNER_TEMP}/ccache" >> "${GITHUB_ENV}"
+          echo "CCACHE_MAXSIZE=400M" >> "${GITHUB_ENV}"
+
+      # Each commit saves its own compiler cache and starts from the newest earlier one.
+      - name: Restore compiler cache (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-${{ env.QT_VERSION }}-
 
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
+        env:
+          # Nightlies trade link-time optimisation and the styled DMG window for speed
+          USE_CCACHE: 1
+          DISABLE_LTO: 1
+          PLAIN_DMG: 1
         run: |
+          ccache --zero-stats
           bash scripts/generate-dmg.sh Release
+          ccache --show-stats
+          mkdir -p out
+          cp build/installer-Release/*.dmg out/
           mkdir -p out
           cp build/installer-Release/*.dmg out/
 
@@ -158,6 +219,8 @@ jobs:
 
   publish:
     needs: [check, build]
+    # Runs from other branches (to test this workflow) build but never replace the release
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write

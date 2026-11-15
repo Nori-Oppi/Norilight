@@ -1,4 +1,5 @@
 # This script requires create-dmg to be installed from https://github.com/sindresorhus/create-dmg
+# (not needed when PLAIN_DMG=1 is set)
 BUILD_CONFIG=$1
 
 fail()
@@ -41,14 +42,20 @@ mkdir $BUILD_ROOT
 mkdir $BUILD_FOLDER
 mkdir $INSTALLER_FOLDER
 
-# Enable LTO for official builds
-export CFLAGS=-flto=thin
-export CXXFLAGS=-flto=thin
-export LDFLAGS=-flto=thin
+# Enable LTO for official builds. Nightlies set DISABLE_LTO=1 to build faster.
+if [ "$DISABLE_LTO" != "1" ]; then
+  export CFLAGS=-flto=thin
+  export CXXFLAGS=-flto=thin
+  export LDFLAGS=-flto=thin
+fi
+
+# USE_CCACHE=1 routes the compiler through ccache (which must be installed)
+QMAKE_EXTRA_ARGS=
+if [ "$USE_CCACHE" == "1" ]; then QMAKE_EXTRA_ARGS="CONFIG+=ccache"; fi
 
 echo Configuring the project
 pushd $BUILD_FOLDER
-qmake $SOURCE_ROOT/moonlight-qt.pro QMAKE_APPLE_DEVICE_ARCHS="x86_64 arm64" || fail "Qmake failed!"
+qmake $SOURCE_ROOT/moonlight-qt.pro QMAKE_APPLE_DEVICE_ARCHS="x86_64 arm64" $QMAKE_EXTRA_ARGS || fail "Qmake failed!"
 popd
 
 echo Compiling Norilight in $BUILD_CONFIG configuration
@@ -86,7 +93,21 @@ else
 fi
 
 echo Creating DMG
-if [ "$SIGNING_IDENTITY" != "" ]; then
+if [ "$PLAIN_DMG" == "1" ]; then
+  # Plain DMG straight from hdiutil: no create-dmg needed and no styled window,
+  # just the app next to an Applications shortcut. BUILD_FOLDER was created
+  # fresh above, so the staging folder does not exist yet.
+  DMG_STAGING=$BUILD_FOLDER/dmg-staging
+  mkdir $DMG_STAGING
+  ditto $BUILD_FOLDER/app/Norilight.app $DMG_STAGING/Norilight.app || fail "Copying the app bundle failed!"
+  ln -s /Applications $DMG_STAGING/Applications
+  # hdiutil occasionally fails with "Resource busy" on CI machines; retry a few times.
+  for attempt in 1 2 3; do
+    hdiutil create -volname Norilight -srcfolder $DMG_STAGING -fs HFS+ -format ULFO -ov $INSTALLER_FOLDER/Norilight.dmg && break
+    [ $attempt -lt 3 ] || fail "hdiutil failed!"
+    sleep 5
+  done
+elif [ "$SIGNING_IDENTITY" != "" ]; then
   create-dmg $BUILD_FOLDER/app/Norilight.app $INSTALLER_FOLDER --identity="$SIGNING_IDENTITY" --no-version-in-filename || fail "create-dmg failed!"
 else
   create-dmg $BUILD_FOLDER/app/Norilight.app $INSTALLER_FOLDER --no-version-in-filename
