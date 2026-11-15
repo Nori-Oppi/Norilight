@@ -9,8 +9,9 @@ name: Nightly
 
 on:
   schedule:
-    # 20:00 Amsterdam time every day, including daylight saving time.
-    - cron: '0 20 * * *'
+    # 20:17 Amsterdam time every day, including daylight saving time. Off the hour
+    # because GitHub delays or drops scheduled runs most often at :00.
+    - cron: '17 20 * * *'
       timezone: 'Europe/Amsterdam'
   workflow_dispatch:
 
