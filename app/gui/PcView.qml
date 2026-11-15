@@ -63,7 +63,7 @@ CenteredGridView {
             errorDialog.text = qsTr("Unable to connect to the specified PC.")
 
             if (detectedPortBlocking) {
-                errorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking Moonlight. Streaming over the Internet may not work while connected to this network.")
+                errorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking Norilight. Streaming over the Internet may not work while connected to this network.")
             }
             else {
                 errorDialog.helpText = qsTr("Click the Help button for possible solutions.")
@@ -94,7 +94,9 @@ CenteredGridView {
         }
 
         Label {
-            height: searchSpinner.height
+            // Give the text a width so it wraps in a narrow window
+            width: Math.min(implicitWidth, pcGrid.width - (searchSpinner.visible ? searchSpinner.width + 5 : 0) - 40)
+            height: Math.max(searchSpinner.height, implicitHeight)
             elide: Label.ElideRight
             text: StreamingPreferences.enableMdns ? qsTr("Searching for compatible hosts on your local network...")
                                                   : qsTr("Automatic PC discovery is disabled. Add your PC manually.")
@@ -123,7 +125,7 @@ CenteredGridView {
         }
 
         Image {
-            // TODO: Tooltip
+            // Explained by the delegate's tooltip
             id: stateIcon
             anchors.horizontalCenter: pcIcon.horizontalCenter
             anchors.verticalCenter: pcIcon.verticalCenter
@@ -160,11 +162,16 @@ CenteredGridView {
             elide: Text.ElideRight
         }
 
-        // Display a tooltip with the full name if it's truncated
-        ToolTip.text: model.name
+        // Display a tooltip with the full name if it's truncated, and say what
+        // the warning or lock icon on the PC means
+        readonly property string statusText: model.statusUnknown ? ""
+                                           : !model.online ? qsTr("Offline")
+                                           : !model.paired ? qsTr("Not paired yet. Select it to pair.")
+                                           : ""
+        ToolTip.text: statusText !== "" ? model.name + "\n" + statusText : model.name
         ToolTip.delay: 1000
         ToolTip.timeout: 5000
-        ToolTip.visible: (hovered || highlighted) && pcNameText.truncated
+        ToolTip.visible: (hovered || highlighted) && (pcNameText.truncated || statusText !== "")
 
         Loader {
             id: pcContextMenuLoader
@@ -228,7 +235,7 @@ CenteredGridView {
         onClicked: {
             if (model.online) {
                 if (!model.serverSupported) {
-                    errorDialog.text = qsTr("The version of GeForce Experience on %1 is not supported by this build of Moonlight. You must update Moonlight to stream from %1.").arg(model.name)
+                    errorDialog.text = qsTr("The version of GeForce Experience on %1 is not supported by this build of Norilight. You must update Norilight to stream from %1.").arg(model.name)
                     errorDialog.helpText = ""
                     errorDialog.open()
                 }
@@ -297,6 +304,7 @@ CenteredGridView {
     NavigableMessageDialog {
         id: pairDialog
         closePolicy: Popup.CloseOnEscape
+        imageSrc: "qrc:/res/baseline-lock-24px.svg"
 
         // don't allow edits to the rest of the window while open
         property string pin : "0000"
@@ -315,6 +323,8 @@ CenteredGridView {
         property string pcName : ""
         text: qsTr("Are you sure you want to remove '%1'?").arg(pcName)
         standardButtons: Dialog.Yes | Dialog.No
+        acceptText: qsTr("Remove")
+        rejectText: qsTr("Cancel")
 
         onAccepted: {
             computerModel.deleteComputer(pcIndex)
@@ -327,22 +337,22 @@ CenteredGridView {
         standardButtons: Dialog.Ok
 
         onAboutToShow: {
-            testConnectionDialog.text = qsTr("Moonlight is testing your network connection to determine if any required ports are blocked.") + "\n\n" + qsTr("This may take a few seconds…")
+            testConnectionDialog.text = qsTr("Norilight is testing your network connection to determine if any required ports are blocked.") + "\n\n" + qsTr("This may take a few seconds…")
             showSpinner = true
         }
 
         function connectionTestComplete(result, blockedPorts)
         {
             if (result === -1) {
-                text = qsTr("The network test could not be performed because none of Moonlight's connection testing servers were reachable from this PC. Check your Internet connection or try again later.")
+                text = qsTr("The network test could not be performed because none of Norilight's connection testing servers were reachable from this PC. Check your Internet connection or try again later.")
                 imageSrc = "qrc:/res/baseline-warning-24px.svg"
             }
             else if (result === 0) {
-                text = qsTr("This network does not appear to be blocking Moonlight. If you still have trouble connecting, check your PC's firewall settings.") + "\n\n" + qsTr("If you are trying to stream over the Internet, install the Moonlight Internet Hosting Tool on your gaming PC and run the included Internet Streaming Tester to check your gaming PC's Internet connection.")
+                text = qsTr("This network does not appear to be blocking Norilight. If you still have trouble connecting, check your PC's firewall settings.") + "\n\n" + qsTr("If you are trying to stream over the Internet, install the Moonlight Internet Hosting Tool on your gaming PC and run the included Internet Streaming Tester to check your gaming PC's Internet connection.")
                 imageSrc = "qrc:/res/baseline-check_circle_outline-24px.svg"
             }
             else {
-                text = qsTr("Your PC's current network connection seems to be blocking Moonlight. Streaming over the Internet may not work while connected to this network.") + "\n\n" + qsTr("The following network ports were blocked:") + "\n"
+                text = qsTr("Your PC's current network connection seems to be blocking Norilight. Streaming over the Internet may not work while connected to this network.") + "\n\n" + qsTr("The following network ports were blocked:") + "\n"
                 text += blockedPorts
                 imageSrc = "qrc:/res/baseline-error_outline-24px.svg"
             }
@@ -358,6 +368,7 @@ CenteredGridView {
         property string originalName
         property int pcIndex : -1;
 
+        title: qsTr("Rename PC")
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         onOpened: {
@@ -378,7 +389,6 @@ CenteredGridView {
         ColumnLayout {
             Label {
                 text: renamePcDialog.label
-                font.bold: true
             }
 
             TextField {

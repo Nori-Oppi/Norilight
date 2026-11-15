@@ -2,7 +2,7 @@
 Name=Moonlight
 Comment=Stream games and other applications from another PC running Sunshine or GeForce Experience
 Exec=moonlight
-Icon=moonlight
+Icon=norilight
 Terminal=false
 Type=Application
 Categories=Qt;Game;Network;RemoteAccess;

@@ -2,6 +2,8 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Controls.Material 2.2
 
+import "."
+
 // Norilight: a checkbox whose name is followed by a short, always-visible line
 // explaining what the setting actually does (no need to hover for a tooltip).
 CheckBox {
@@ -12,6 +14,7 @@ CheckBox {
     hoverEnabled: true
     topPadding: 7
     bottomPadding: 7
+    font.pointSize: Theme.fontLabel
 
     contentItem: Column {
         leftPadding: control.indicator && !control.mirrored ? control.indicator.width + control.spacing : 0
@@ -23,7 +26,7 @@ CheckBox {
             width: parent.width - parent.leftPadding - parent.rightPadding
             text: control.text
             font: control.font
-            color: control.enabled ? "#ECECEE" : "#76767E"
+            color: control.enabled ? Theme.textPrimary : Theme.textDisabled
             wrapMode: Text.Wrap
         }
 
@@ -31,9 +34,9 @@ CheckBox {
             width: nameLabel.width
             visible: control.detail !== ""
             text: control.detail
-            font.pointSize: 10
+            font.pointSize: Theme.fontDetail
             lineHeight: 1.12
-            color: control.enabled ? "#9D9DA6" : "#62626A"
+            color: control.enabled ? Theme.textSecondary : Theme.textDisabledSecondary
             wrapMode: Text.Wrap
         }
     }

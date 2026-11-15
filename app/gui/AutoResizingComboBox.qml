@@ -2,7 +2,7 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 
 import SdlGamepadKeyNavigation 1.0
-import SystemProperties 1.0
+import "."
 
 // https://stackoverflow.com/questions/45029968/how-do-i-set-the-combobox-width-to-fit-the-largest-item
 ComboBox {
@@ -36,19 +36,25 @@ ComboBox {
     // so we can adjust the combo box width here too
     onActivated: recalculateWidth()
 
+    // The gamepad navigation mode in effect before the popup opened. Combo
+    // boxes also appear in dialogs over the app grid, which doesn't use UI
+    // navigation mode, so restore what was there instead of assuming it.
+    property bool previousUiNavMode: true
+
     popup.onAboutToShow: {
         // Switch to normal navigation for combo boxes
+        previousUiNavMode = SdlGamepadKeyNavigation.getUiNavMode()
         SdlGamepadKeyNavigation.setUiNavMode(false)
 
         // Override the popup color to improve contrast with the overridden
-        // Material 2 background color set in main.qml.
-        if (SystemProperties.usesMaterial3Theme) {
-            popup.background.color = "#424242"
+        // background color set in main.qml.
+        if (popup.background && popup.background.color !== undefined) {
+            popup.background.color = Theme.popup
         }
     }
 
     popup.onAboutToHide: {
-        SdlGamepadKeyNavigation.setUiNavMode(true)
+        SdlGamepadKeyNavigation.setUiNavMode(previousUiNavMode)
     }
 
     Keys.onLeftPressed: {
