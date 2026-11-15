@@ -79,6 +79,29 @@ build\Norilight-x64-release\Norilight.exe
 Use `debug` instead of `release` for a debug build. Later builds only recompile
 what changed.
 
+### Nightly Windows installer
+
+The GitHub `Nightly` workflow runs daily at 20:00 Europe/Amsterdam and publishes
+an x64 `Norilight-Windows-x64-nightly-...-Setup.exe` alongside the ZIP and macOS DMG
+on the rolling `nightly` pre-release. Scheduled runs skip unchanged commits; use
+**Run workflow** in GitHub Actions to rebuild manually.
+
+The setup wizard installs Norilight in Program Files, creates a Start menu shortcut,
+offers a desktop shortcut, and registers an uninstaller in Windows Settings.
+Later nightly installers update the same installation. Settings stay in the user's
+profile and are preserved on uninstall. The installer is unsigned, like the other
+nightly artifacts.
+
+To package a local release, install Inno Setup 6.3 or later, build as above, and run
+this from the repository folder in PowerShell (adjust the compiler path if needed):
+
+```powershell
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+  "/DPayloadDir=$PWD\build\Norilight-x64-release" `
+  "/DBuildVersion=local" "/DOutputDir=$PWD\build\installer-release" `
+  scripts\norilight-installer.iss
+```
+
 ### Optional: installer and portable zip
 
 The upstream release scripts still work for full packages. They also need

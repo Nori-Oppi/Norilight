@@ -2,6 +2,8 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Controls.Material 2.2
 
+import "."
+
 // Norilight: one block of settings with a real heading and a plain-language
 // description, instead of a framed GroupBox with a coloured title.
 GroupBox {
@@ -28,11 +30,10 @@ GroupBox {
         Label {
             width: parent.width
             text: group.title
-            font.family: "Segoe UI Variable Display"
-            font.pointSize: group.subheading ? 14 : 21
+            font.pointSize: group.subheading ? Theme.fontSubheading : Theme.fontHeading
             font.weight: group.subheading ? Font.DemiBold : Font.Medium
             font.letterSpacing: group.subheading ? 0 : -0.3
-            color: "#F1F1F3"
+            color: Theme.textHeading
             wrapMode: Text.Wrap
         }
 
@@ -40,9 +41,9 @@ GroupBox {
             width: Math.min(parent.width, 620)
             visible: text !== ""
             text: group.description
-            font.pointSize: 10.5
+            font.pointSize: Theme.fontDetail + 0.5
             lineHeight: 1.15
-            color: "#A3A3AB"
+            color: Theme.textSecondary
             wrapMode: Text.Wrap
         }
 
@@ -51,7 +52,7 @@ GroupBox {
         Rectangle {
             width: parent.width
             height: 1
-            color: group.subheading ? "#3A3A40" : "#45454D"
+            color: group.subheading ? Theme.divider : Theme.border
         }
     }
 

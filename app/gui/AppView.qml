@@ -283,6 +283,41 @@ CenteredGridView {
             appContextMenu.open()
         }
 
+        // Norilight: pick a monitor profile to open this app on
+        function openProfilePicker() {
+            profilePicker.appName = model.name
+            profilePicker.hostUuid = appModel.getComputerUuid()
+            profilePicker.hostName = appModel.getComputerName()
+            profilePicker.open()
+        }
+
+        // Norilight: a visible way into multi-monitor streaming, so it isn't
+        // only in the right-click menu. Keyboard and gamepad users reach the
+        // same action from the menu.
+        RoundButton {
+            id: monitorButton
+            visible: parent.hovered || hovered
+            focusPolicy: Qt.NoFocus
+            anchors.top: appIcon.top
+            anchors.right: appIcon.right
+            anchors.margins: 6
+            implicitWidth: 44
+            implicitHeight: 44
+
+            icon.source: "qrc:/res/desktop_windows-48px.svg"
+            icon.width: 24
+            icon.height: 24
+
+            onClicked: openProfilePicker()
+
+            ToolTip.text: qsTr("Stream on a monitor")
+            ToolTip.delay: 600
+            ToolTip.timeout: 3000
+            ToolTip.visible: hovered
+
+            Material.background: "#D0303036"
+        }
+
         function doQuitGame() {
             quitAppDialog.appName = appModel.getRunningAppName()
             quitAppDialog.segueToStream = false
@@ -307,12 +342,7 @@ CenteredGridView {
                 // Norilight: open the stream on a display manager profile's monitor
                 NavigableMenuItem {
                     text: qsTr("Stream on a Monitor…")
-                    onTriggered: {
-                        profilePicker.appName = model.name
-                        profilePicker.hostUuid = appModel.getComputerUuid()
-                        profilePicker.hostName = appModel.getComputerName()
-                        profilePicker.open()
-                    }
+                    onTriggered: openProfilePicker()
 
                     ToolTip.text: qsTr("Open this app in its own stream window on one of your monitor profiles. Norilight's main window stays open so you can watch and control the stream from it.")
                     ToolTip.delay: 1000
@@ -353,6 +383,9 @@ CenteredGridView {
         visible: appGrid.count === 0
 
         Label {
+            // Give the text a width so it wraps in a narrow window
+            width: Math.min(implicitWidth, appGrid.width - 40)
+            horizontalAlignment: Text.AlignHCenter
             text: qsTr("This computer doesn't seem to have any applications or some applications are hidden")
             font.pointSize: 20
             verticalAlignment: Text.AlignVCenter
@@ -372,6 +405,8 @@ CenteredGridView {
         property int nextAppIndex: 0
         text:qsTr("Are you sure you want to quit %1? Any unsaved progress will be lost.").arg(appName)
         standardButtons: Dialog.Yes | Dialog.No
+        acceptText: qsTr("Quit game")
+        rejectText: qsTr("Cancel")
 
         function quitApp() {
             var component = Qt.createComponent("QuitSegue.qml")
