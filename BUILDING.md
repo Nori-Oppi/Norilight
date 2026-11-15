@@ -81,7 +81,7 @@ what changed.
 
 ### Nightly Windows installer
 
-The GitHub `Nightly` workflow runs daily at 20:00 Europe/Amsterdam and publishes
+The GitHub `Nightly` workflow runs daily at 20:17 Europe/Amsterdam and publishes
 an x64 `Norilight-Windows-x64-nightly-...-Setup.exe` alongside the ZIP and macOS DMG
 on the rolling `nightly` pre-release. Scheduled runs skip unchanged commits; use
 **Run workflow** in GitHub Actions to rebuild manually.

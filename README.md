@@ -112,7 +112,7 @@ The version shown in Norilight (top right of Settings, or `Norilight --version`)
 nightly's name, such as `nightly-20261115-0f4841b`: the build date and commit, matching
 the release and its file names.
 
-New nightlies are built daily at 20:00 Europe/Amsterdam time, when `main` has changed.
+New nightlies are built daily at 20:17 Europe/Amsterdam time, when `main` has changed.
 They are unsigned pre-releases. Builds you compile yourself don't check for updates.
 
 ## Shortcuts while streaming
