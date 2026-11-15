@@ -10,6 +10,7 @@ import StreamingPreferences 1.0
 import SystemProperties 1.0
 import SdlGamepadKeyNavigation 1.0
 import DisplayManager 1.0
+import "."
 
 ApplicationWindow {
     property bool pollingActive: false
@@ -21,7 +22,11 @@ ApplicationWindow {
 
     id: window
     width: 1280
-    height: 600
+    height: 680
+
+    // Below this the settings sidebar leaves no room for the page beside it
+    minimumWidth: 640
+    minimumHeight: 420
 
     // Norilight: streams started from the display manager run in their own
     // processes and end when the hub closes, so check with the user first.
@@ -35,12 +40,11 @@ ApplicationWindow {
 
     // This function runs prior to creation of the initial StackView item
     function doEarlyInit() {
-        // Override the background color to Material 2 colors for Qt 6.5+
-        // in order to improve contrast between GFE's placeholder box art
-        // and the background of the app grid.
-        if (SystemProperties.usesMaterial3Theme) {
-            Material.background = "#303030"
-        }
+        // Override the background color on every Qt version. This keeps the
+        // contrast between GFE's placeholder box art and the app grid that
+        // the Material 2 colors gave, and matches the greys used by the
+        // settings page, dialogs and hub bar.
+        Material.background = Theme.background
 
         SdlGamepadKeyNavigation.enable()
     }
@@ -288,6 +292,29 @@ ApplicationWindow {
                 }
             }
 
+            // Norilight: the app's mark on the home screen, where there's no
+            // back button to take this spot
+            Row {
+                visible: stackView.depth === 1
+                spacing: 10
+                Layout.leftMargin: 6
+
+                Image {
+                    anchors.verticalCenter: parent.verticalCenter
+                    source: "qrc:/res/norilight.svg"
+                    sourceSize.width: 32
+                    sourceSize.height: 32
+                }
+
+                Label {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: titleLabel.visible
+                    text: "Norilight"
+                    font.pointSize: 14
+                    font.weight: Font.DemiBold
+                }
+            }
+
             // This label will appear when the window gets too small and
             // we need to ensure the toolbar controls don't collide
             Label {
@@ -311,26 +338,6 @@ ApplicationWindow {
                 font.pointSize: 12
                 horizontalAlignment: Qt.AlignRight
                 verticalAlignment: Qt.AlignVCenter
-            }
-
-            NavigableToolButton {
-                id: discordButton
-                visible: SystemProperties.hasBrowser &&
-                         stackView.currentItem instanceof SettingsView
-
-                iconSource: "qrc:/res/discord.svg"
-
-                ToolTip.delay: 1000
-                ToolTip.timeout: 3000
-                ToolTip.visible: hovered
-                ToolTip.text: qsTr("Join our community on Discord")
-
-                // TODO need to make sure browser is brought to foreground.
-                onClicked: Qt.openUrlExternally("https://moonlight-stream.org/discord");
-
-                Keys.onDownPressed: {
-                    stackView.currentItem.forceActiveFocus(Qt.TabFocus)
-                }
             }
 
             NavigableToolButton {
@@ -382,14 +389,17 @@ ApplicationWindow {
 
                 function updateAvailable(version, url)
                 {
-                    ToolTip.text = qsTr("Update available for Moonlight: Version %1").arg(version)
+                    ToolTip.text = qsTr("Update available for Norilight: Version %1").arg(version)
                     updateButton.browserUrl = url
                     updateButton.visible = true
                 }
 
+                // Norilight: the checker still reads Moonlight's update feed,
+                // which would offer Moonlight releases as Norilight updates.
+                // Norilight only publishes a rolling nightly with no version
+                // feed, so the check stays off until it has one.
                 Component.onCompleted: {
                     AutoUpdateChecker.onUpdateAvailable.connect(updateAvailable)
-                    AutoUpdateChecker.start()
                 }
 
                 Keys.onDownPressed: {
@@ -469,6 +479,9 @@ ApplicationWindow {
     // windows; this bar lists them and lets you stop or restart each one.
     footer: Pane {
         id: hubBar
+
+        readonly property int endedCount: DisplayManager.sessions.length - DisplayManager.runningCount
+
         visible: DisplayManager.sessions.length > 0
         padding: 0
         topPadding: 8
@@ -477,11 +490,11 @@ ApplicationWindow {
         rightPadding: 16
 
         background: Rectangle {
-            color: "#26262B"
+            color: Theme.sidebar
             Rectangle {
                 width: parent.width
                 height: 1
-                color: "#3B3B42"
+                color: Theme.divider
             }
         }
 
@@ -495,20 +508,25 @@ ApplicationWindow {
 
                 Label {
                     text: qsTr("Streams")
-                    font.pointSize: 12
+                    font.pointSize: Theme.fontLabel
                     font.weight: Font.DemiBold
                 }
                 Label {
                     text: qsTr("%1 running").arg(DisplayManager.runningCount)
-                    font.pointSize: 9.5
-                    color: "#9D9DA6"
+                    font.pointSize: Theme.fontSmall
+                    color: Theme.textSecondary
                 }
             }
 
             ListView {
                 id: hubList
+
+                readonly property bool scrollable: contentWidth > width
+                readonly property int cardHeight: 58
+
                 Layout.fillWidth: true
-                Layout.preferredHeight: 58
+                // Leave a strip under the cards for the scroll bar
+                Layout.preferredHeight: cardHeight + (scrollable ? 12 : 0)
                 orientation: ListView.Horizontal
                 spacing: 8
                 clip: true
@@ -516,20 +534,37 @@ ApplicationWindow {
                 model: DisplayManager.sessions
 
                 ScrollBar.horizontal: ScrollBar {
-                    policy: hubList.contentWidth > hubList.width ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                    policy: hubList.scrollable ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
                 }
 
                 delegate: Rectangle {
+                    id: hubCard
+
                     readonly property string status: modelData.stopping ? qsTr("Stopping…")
                                                    : modelData.running ? qsTr("Streaming")
                                                    : modelData.failed ? qsTr("Ended with an error")
                                                    : qsTr("Ended")
+                    readonly property string titleText: modelData.hostName ? qsTr("%1 on %2").arg(modelData.appName).arg(modelData.hostName)
+                                                                           : modelData.appName
+                    readonly property string detailText: modelData.profileName + " · " + modelData.monitorLabel + " · " + status
 
                     width: 330
-                    height: hubList.height
+                    height: hubList.cardHeight
                     radius: 6
-                    color: "#303036"
-                    border.color: "#3B3B42"
+                    color: cardHover.containsMouse ? Theme.cardHover : Theme.card
+                    border.color: Theme.border
+
+                    // Shows the full text when either line is cut off
+                    MouseArea {
+                        id: cardHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                    }
+
+                    ToolTip.text: titleText + "\n" + detailText
+                    ToolTip.delay: 600
+                    ToolTip.visible: cardHover.containsMouse && (cardTitle.truncated || cardDetail.truncated)
 
                     Rectangle {
                         id: statusDot
@@ -538,9 +573,9 @@ ApplicationWindow {
                         width: 9
                         height: 9
                         radius: 4.5
-                        color: modelData.stopping ? "#E0B050"
-                             : modelData.running ? "#5FCB82"
-                             : modelData.failed ? "#E06B6B" : "#76767E"
+                        color: modelData.stopping ? Theme.statusWarning
+                             : modelData.running ? Theme.statusOk
+                             : modelData.failed ? Theme.statusError : Theme.statusIdle
                     }
 
                     Column {
@@ -552,17 +587,18 @@ ApplicationWindow {
                         spacing: 2
 
                         Label {
+                            id: cardTitle
                             width: parent.width
-                            text: modelData.hostName ? qsTr("%1 on %2").arg(modelData.appName).arg(modelData.hostName)
-                                                     : modelData.appName
-                            font.pointSize: 10.5
+                            text: hubCard.titleText
+                            font.pointSize: Theme.fontBody - 1
                             elide: Text.ElideRight
                         }
                         Label {
+                            id: cardDetail
                             width: parent.width
-                            text: modelData.profileName + " · " + modelData.monitorLabel + " · " + status
-                            font.pointSize: 9
-                            color: "#9D9DA6"
+                            text: hubCard.detailText
+                            font.pointSize: Theme.fontSmall - 0.5
+                            color: Theme.textSecondary
                             elide: Text.ElideRight
                         }
                     }
@@ -586,16 +622,37 @@ ApplicationWindow {
                             text: qsTr("Restart")
                             onClicked: DisplayManager.relaunch(modelData.id)
                         }
-                        Button {
+                        ToolButton {
                             visible: !modelData.running
-                            flat: true
-                            text: "✕"
+                            anchors.verticalCenter: parent.verticalCenter
+                            icon.source: "qrc:/res/close.svg"
+                            icon.width: 18
+                            icon.height: 18
                             onClicked: DisplayManager.dismissSession(modelData.id)
 
                             ToolTip.text: qsTr("Remove from the list")
                             ToolTip.delay: 600
                             ToolTip.visible: hovered
                         }
+                    }
+                }
+            }
+
+            Button {
+                visible: hubBar.endedCount > 0
+                text: qsTr("Clear ended")
+                flat: true
+                onClicked: {
+                    // Copy the ids first: each dismissal rebuilds the list
+                    var ids = []
+                    var sessions = DisplayManager.sessions
+                    for (var i = 0; i < sessions.length; i++) {
+                        if (!sessions[i].running) {
+                            ids.push(sessions[i].id)
+                        }
+                    }
+                    for (var j = 0; j < ids.length; j++) {
+                        DisplayManager.dismissSession(ids[j])
                     }
                 }
             }
@@ -625,6 +682,8 @@ ApplicationWindow {
         id: hubCloseDialog
         standardButtons: Dialog.Yes | Dialog.No
         text: qsTr("Closing Norilight will end the %n stream(s) you started on your monitors. Close anyway?", "", DisplayManager.runningCount)
+        acceptText: qsTr("Close and end streams")
+        rejectText: qsTr("Keep open")
         onAccepted: {
             window.confirmedHubClose = true
             window.close()
@@ -633,7 +692,7 @@ ApplicationWindow {
 
     ErrorMessageDialog {
         id: noHwDecoderDialog
-        text: qsTr("No functioning hardware accelerated video decoder was detected by Moonlight. " +
+        text: qsTr("No functioning hardware accelerated video decoder was detected by Norilight. " +
                    "Your streaming performance may be severely degraded in this configuration.")
         helpText: qsTr("Click the Help button for more information on solving this problem.")
         helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Fixing-Hardware-Decoding-Problems"
@@ -650,16 +709,16 @@ ApplicationWindow {
     NavigableMessageDialog {
         id: wow64Dialog
         standardButtons: Dialog.Ok | Dialog.Cancel
-        text: qsTr("This version of Moonlight isn't optimized for your PC. Please download the '%1' version of Moonlight for the best streaming performance.").arg(SystemProperties.friendlyNativeArchName)
+        text: qsTr("This version of Norilight isn't optimized for your PC. Please download the '%1' version of Norilight for the best streaming performance.").arg(SystemProperties.friendlyNativeArchName)
         onAccepted: {
-            Qt.openUrlExternally("https://github.com/moonlight-stream/moonlight-qt/releases");
+            Qt.openUrlExternally("https://github.com/azijnwater/Norilight/releases");
         }
     }
 
     ErrorMessageDialog {
         id: unmappedGamepadDialog
         property string unmappedGamepads : ""
-        text: qsTr("Moonlight detected gamepads without a mapping:") + "\n" + unmappedGamepads
+        text: qsTr("Norilight detected gamepads without a mapping:") + "\n" + unmappedGamepads
         helpTextSeparator: "\n\n"
         helpText: qsTr("Click the Help button for information on how to map your gamepads.")
         helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Gamepad-Mapping"
@@ -670,6 +729,8 @@ ApplicationWindow {
         id: quitConfirmationDialog
         standardButtons: Dialog.Yes | Dialog.No
         text: qsTr("Are you sure you want to quit?")
+        acceptText: qsTr("Quit")
+        rejectText: qsTr("Cancel")
         // For keyboard/gamepad navigation
         onAccepted: Qt.quit()
     }
@@ -685,6 +746,7 @@ ApplicationWindow {
     // as the error dialog below)
     NavigableMessageDialog {
         id: streamSummaryDialog
+        title: qsTr("Stream summary")
         standardButtons: Dialog.Ok
         imageSrc: "qrc:/res/baseline-check_circle_outline-24px.svg"
         onClosed: text = ""
@@ -710,6 +772,7 @@ ApplicationWindow {
         id: addPcDialog
         property string label: qsTr("Enter the IP address of your host PC:")
 
+        title: qsTr("Add PC manually")
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         onOpened: {
@@ -730,7 +793,6 @@ ApplicationWindow {
         ColumnLayout {
             Label {
                 text: addPcDialog.label
-                font.bold: true
             }
 
             TextField {

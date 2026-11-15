@@ -13,6 +13,26 @@ NavigableDialog {
     property string helpUrl : "https://github.com/moonlight-stream/moonlight-docs/wiki/Troubleshooting"
     property string helpTextSeparator : " "
 
+    // Norilight: verb labels for confirmations ("Delete", "Cancel") instead of
+    // the generic Yes/No. Applied to the Yes/No buttons when set.
+    property string acceptText: ""
+    property string rejectText: ""
+
+    onAboutToShow: {
+        // standardButton() was added in Qt 5.10, so we must check for it first
+        if (!dialogButtonBox.standardButton) {
+            return
+        }
+        var yes = dialogButtonBox.standardButton(Dialog.Yes)
+        if (yes && acceptText !== "") {
+            yes.text = acceptText
+        }
+        var no = dialogButtonBox.standardButton(Dialog.No)
+        if (no && rejectText !== "") {
+            no.text = rejectText
+        }
+    }
+
     onOpened: {
         // Force keyboard focus on the label so keyboard navigation works
         if (dialogButtonBox.count > 0) {
