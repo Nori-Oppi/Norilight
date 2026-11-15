@@ -1,5 +1,6 @@
 #include "streamingpreferences.h"
 #include "utils.h"
+#include "profilemanager.h"
 
 #include <QSettings>
 #include <QTranslator>
@@ -129,6 +130,21 @@ void StreamingPreferences::reload()
 {
     QSettings settings;
 
+    // Norilight: the language is shared by all profiles
+    language = static_cast<Language>(settings.value(SER_LANGUAGE,
+                                                    static_cast<int>(Language::LANG_AUTO)).toInt());
+
+    // Everything else belongs to the active profile
+    QString profileGroup = ProfileManager::settingsGroup();
+    if (!profileGroup.isEmpty()) {
+        settings.beginGroup(profileGroup);
+    }
+
+    loadFrom(settings);
+}
+
+void StreamingPreferences::loadFrom(QSettings& settings)
+{
     int defaultVer = settings.value(SER_DEFAULTVER, 0).toInt();
 
 #ifdef Q_OS_DARWIN
@@ -215,9 +231,6 @@ void StreamingPreferences::reload()
     uiDisplayMode = static_cast<UIDisplayMode>(settings.value(SER_UIDISPLAYMODE,
                                                static_cast<int>(settings.value(SER_STARTWINDOWED, true).toBool() ? UIDisplayMode::UI_WINDOWED
                                                                                                                  : UIDisplayMode::UI_MAXIMIZED)).toInt());
-    language = static_cast<Language>(settings.value(SER_LANGUAGE,
-                                                    static_cast<int>(Language::LANG_AUTO)).toInt());
-
 
     // Perform default settings updates as required based on last default version
     if (defaultVer < 1) {
@@ -369,6 +382,15 @@ void StreamingPreferences::save()
 {
     QSettings settings;
 
+    // Norilight: the language is shared by all profiles; everything else is
+    // saved into the active profile
+    settings.setValue(SER_LANGUAGE, static_cast<int>(language));
+
+    QString profileGroup = ProfileManager::settingsGroup();
+    if (!profileGroup.isEmpty()) {
+        settings.beginGroup(profileGroup);
+    }
+
     settings.setValue(SER_WIDTH, width);
     settings.setValue(SER_HEIGHT, height);
     settings.setValue(SER_FPS, fps);
@@ -422,7 +444,6 @@ void StreamingPreferences::save()
     settings.setValue(SER_RENDERER, static_cast<int>(rendererSelection));
     settings.setValue(SER_WINDOWMODE, static_cast<int>(windowMode));
     settings.setValue(SER_UIDISPLAYMODE, static_cast<int>(uiDisplayMode));
-    settings.setValue(SER_LANGUAGE, static_cast<int>(language));
     settings.setValue(SER_DEFAULTVER, CURRENT_DEFAULT_VER);
     settings.setValue(SER_SWAPMOUSEBUTTONS, swapMouseButtons);
     settings.setValue(SER_MUTEONFOCUSLOSS, muteOnFocusLoss);

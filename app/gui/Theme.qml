@@ -42,4 +42,15 @@ QtObject {
 
     // Indent for settings that depend on the one above them
     readonly property int indent: 36
+
+    // Icon for a settings profile, by the kind it was created as
+    function profileIcon(kind) {
+        if (kind === "gaming") {
+            return "qrc:/res/ic_videogame_asset_white_48px.svg"
+        }
+        if (kind === "work") {
+            return "qrc:/res/desktop_windows-48px.svg"
+        }
+        return "qrc:/res/tune.svg"
+    }
 }

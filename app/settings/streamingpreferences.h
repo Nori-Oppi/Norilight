@@ -4,6 +4,8 @@
 #include <QRect>
 #include <QQmlEngine>
 
+class QSettings;
+
 class StreamingPreferences : public QObject
 {
     Q_OBJECT
@@ -17,6 +19,10 @@ public:
     Q_INVOKABLE void save();
 
     void reload();
+
+    // Norilight: reads every setting except the language from the given
+    // settings (a profile's group, or another app's settings to import)
+    void loadFrom(QSettings& settings);
 
     enum AudioConfig
     {
