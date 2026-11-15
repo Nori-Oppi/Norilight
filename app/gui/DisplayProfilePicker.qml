@@ -49,7 +49,7 @@ NavigableDialog {
             Layout.fillWidth: true
             Layout.bottomMargin: 6
             visible: DisplayManager.profiles.length === 0
-            text: qsTr("You don't have any monitor profiles yet. A profile picks the monitor the stream opens on, and its resolution and window settings.")
+            text: qsTr("You don't have any monitor presets yet. A preset picks the monitor the stream opens on, and its resolution and window settings.")
             wrapMode: Text.Wrap
             color: Theme.textSecondary
         }
@@ -107,7 +107,7 @@ NavigableDialog {
                 id: newProfileButton
                 flat: DisplayManager.profiles.length > 0
                 highlighted: DisplayManager.profiles.length === 0
-                text: qsTr("New profile…")
+                text: qsTr("New preset…")
                 onClicked: newProfileDialog.openNew("")
                 Keys.onReturnPressed: clicked()
                 Keys.onEnterPressed: clicked()
