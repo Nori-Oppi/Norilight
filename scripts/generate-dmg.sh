@@ -70,6 +70,10 @@ cp -R Norilight-$VERSION.dsym $INSTALLER_FOLDER || fail "dSYM copy failed!"
 popd
 
 echo Creating app bundle
+if [ -n "$DEPLOY_CACHE_DIR" ] && [ -d "$DEPLOY_CACHE_DIR" ]; then
+  echo Restoring deployed frameworks and plugins
+  ditto "$DEPLOY_CACHE_DIR" "$BUILD_FOLDER/app/Norilight.app/Contents" || fail "Restoring deployment cache failed!"
+fi
 EXTRA_ARGS=
 if [ "$BUILD_CONFIG" == "Debug" ]; then EXTRA_ARGS="$EXTRA_ARGS -use-debug-libs"; fi
 # Nightlies strip independent Mach-O files in parallel below. Signing stays in
@@ -84,6 +88,16 @@ find $BUILD_FOLDER/app/Norilight.app/ -name '*.dSYM' | xargs rm -rf
 if [ "$FAST_DEPLOY" == "1" ] && [ "$BUILD_CONFIG" == "Release" ]; then
   echo Stripping app bundle in parallel
   python3 "$SOURCE_ROOT/scripts/strip-macos.py" "$BUILD_FOLDER/app/Norilight.app" || fail "Stripping failed!"
+fi
+
+if [ -n "$DEPLOY_CACHE_DIR" ]; then
+  echo Saving deployed frameworks and plugins
+  for entry in Frameworks PlugIns Resources/qml Resources/qt.conf; do
+    if [ -e "$BUILD_FOLDER/app/Norilight.app/Contents/$entry" ]; then
+      mkdir -p "$(dirname "$DEPLOY_CACHE_DIR/$entry")"
+      ditto "$BUILD_FOLDER/app/Norilight.app/Contents/$entry" "$DEPLOY_CACHE_DIR/$entry" || fail "Saving deployment cache failed!"
+    fi
+  done
 fi
 
 if [ "$SIGNING_IDENTITY" != "" ]; then

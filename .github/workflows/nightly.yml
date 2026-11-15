@@ -229,6 +229,15 @@ jobs:
 
       # macOS --------------------------------------------------------------
 
+      # Reuse deployment work when Qt, native dependencies, build settings and
+      # QML imports are unchanged. The app executable is always rebuilt.
+      - name: Restore deployed frameworks (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/macos-deployment
+          key: macos-deployment-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ hashFiles('setup-deps.py', '**/*.pro', '**/*.pri', 'app/gui/**', 'scripts/generate-dmg.sh', 'scripts/strip-macos.py') }}
+
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
         env:
@@ -237,6 +246,7 @@ jobs:
           DISABLE_LTO: 1
           PLAIN_DMG: 1
           FAST_DEPLOY: 1
+          DEPLOY_CACHE_DIR: ${{ runner.temp }}/macos-deployment
         run: |
           ccache --zero-stats
           bash scripts/generate-dmg.sh Release
