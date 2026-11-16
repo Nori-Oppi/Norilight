@@ -26,12 +26,20 @@ Norishine. Each group is marked below.
 
 <table>
   <tr>
-    <td width="50%"><a href="docs/screenshots/apps.png"><img src="docs/screenshots/apps.png" alt="Norilight app library with Desktop, Steam, and a Streams bar"></a><br><strong>App library</strong>: apps and running streams in one window.</td>
-    <td width="50%"><a href="docs/screenshots/profiles.png"><img src="docs/screenshots/profiles.png" alt="Work and Gaming profiles with individual target monitor selectors"></a><br><strong>Profiles</strong>: a separate setup for each way you stream.</td>
+    <td width="50%"><a href="docs/screenshots/apps.png"><img src="docs/screenshots/apps.png" alt="Norilight app library for a host with Remote Input, Steam and Virtual Desktop"></a><br><strong>App library</strong>: the apps of a host, with its cover art.</td>
+    <td width="50%"><a href="docs/screenshots/profiles.png"><img src="docs/screenshots/profiles.png" alt="Gaming and Work profiles, each with its own target monitor"></a><br><strong>Profiles</strong>: a separate setup for each way you stream.</td>
   </tr>
   <tr>
-    <td><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Video quality settings with search, monitor matching, and bitrate controls"></a><br><strong>Settings</strong>: searchable, with an explanation beside each control.</td>
+    <td><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Video quality settings with search, monitor matching and bitrate"></a><br><strong>Settings</strong>: searchable, with an explanation beside each control.</td>
     <td><a href="docs/screenshots/streaming.png"><img src="docs/screenshots/streaming.png" alt="Live desktop stream showing the Steam library and performance statistics"></a><br><strong>Streaming</strong>: a desktop stream with compact performance stats.</td>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshots/welcome.png"><img src="docs/screenshots/welcome.png" alt="First start: create a profile from the Gaming, Work and desktop, or Standard starting point"></a><br><strong>First start</strong>: pick a starting point for your first profile.</td>
+    <td><a href="docs/screenshots/manage-apps.png"><img src="docs/screenshots/manage-apps.png" alt="Manage Host page, Apps tab: start, edit and reorder the host's apps"></a><br><strong>Manage Host</strong>: add, edit, start and reorder a Norishine host's apps.</td>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshots/manage-devices.png"><img src="docs/screenshots/manage-devices.png" alt="Manage Host page, Devices tab: paired devices with their permissions"></a><br><strong>Paired devices</strong>: what each device may do, and its current stream.</td>
+    <td><a href="docs/screenshots/manage-device-edit.png"><img src="docs/screenshots/manage-device-edit.png" alt="Editing a paired device: name, display mode, streaming level, input and extras"></a><br><strong>Device permissions</strong>: the same choices as the host's web UI.</td>
   </tr>
 </table>
 
