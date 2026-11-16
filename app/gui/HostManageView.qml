@@ -24,6 +24,7 @@ Item {
     property var devices: []
     property var displays: []
     property string outputName: ""
+    property var virtualDisplay: null  // headless_mode; null while unknown (or on other platforms)
     property bool appsLoaded: false
     property bool devicesLoaded: false
     property bool displaysLoaded: false
@@ -85,6 +86,7 @@ Item {
         case "apps": request("apps", "GET", "/api/v1/apps"); break
         case "devices": request("devices", "GET", "/api/v1/devices"); break
         case "displays": request("displays", "GET", "/api/v1/displays"); break
+        case "config": request("config", "GET", "/api/v1/config"); break
         }
     }
 
@@ -95,6 +97,7 @@ Item {
         load("apps")
         load("devices")
         load("displays")
+        load("config")
     }
 
     // A change: "what" is reloaded afterwards, "done" is shown on success
@@ -194,8 +197,11 @@ Item {
     }
 
     function displayBadge(display) {
+        if (virtualDisplay === true) {
+            return ""
+        }
         if (display.selected || (outputName === "" && display.primary && display.active)) {
-            return qsTr("Streams")
+            return qsTr("Streamed")
         }
         return ""
     }
@@ -250,6 +256,7 @@ Item {
                     }
                     else if (what === "displays") {
                         managePage.load("displays")
+                        managePage.load("config")
                     }
                     else if (what === "unpair-self") {
                         managePage.devices = []
@@ -294,6 +301,9 @@ Item {
             else if (kind === "devices") {
                 managePage.devices = data.devices
                 managePage.devicesLoaded = true
+            }
+            else if (kind === "config") {
+                managePage.virtualDisplay = data.values && data.values.hasOwnProperty("headless_mode") ? data.values.headless_mode === true : false
             }
             else if (kind === "displays") {
                 managePage.displays = data.displays
@@ -360,9 +370,8 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        text: managePage.hostStatus === null ? "" :
-                              managePage.canWrite ? qsTr("This device can manage the host.") :
-                                                    qsTr("This device can only look. To change things from here, choose \"Manage\" under host management for this device in the host's web UI.")
+                        text: managePage.hostStatus === null || managePage.canWrite ? "" :
+                              qsTr("This device can only look. To change things from here, choose \"Manage\" under host management for this device in the host's web UI.")
                         wrapMode: Text.Wrap
                         color: Theme.textSecondary
                         font.pointSize: Theme.fontDetail
@@ -572,8 +581,25 @@ Item {
                 SettingsCard {
                     visible: tabs.currentIndex === 2 && managePage.displaysLoaded
                     title: qsTr("Displays")
-                    description: managePage.outputName === "" ? qsTr("Streams use the main display unless a device or app asks for another.")
-                                                              : qsTr("Streams use the display marked below.")
+                    description: managePage.virtualDisplay === true
+                                 ? qsTr("Each stream gets its own virtual display that matches the device. Turn this off to stream one of these monitors.")
+                                 : managePage.outputName === "" ? qsTr("Streams use the main display, unless a device or app asks for a virtual display.")
+                                                                : qsTr("Streams use the monitor marked below, unless a device or app asks for a virtual display.")
+
+                    SettingsRow {
+                        visible: managePage.virtualDisplay !== null
+                        text: qsTr("Stream to a virtual display")
+                        hint: qsTr("Your monitors are left alone, and the stream matches the device's resolution and refresh rate.")
+                        available: managePage.canWrite
+                        Switch {
+                            enabled: managePage.canWrite && managePage.busy === 0
+                            checked: managePage.virtualDisplay === true
+                            onToggled: managePage.change("displays", "PATCH", "/api/v1/config", {"set": {"headless_mode": checked}}, function(data) {
+                                return data.restart_required ? qsTr("Saved. Restart the host (Host Settings) to apply it.") : ""
+                            })
+                            Accessible.name: qsTr("Stream to a virtual display")
+                        }
+                    }
 
                     SettingsRow {
                         visible: managePage.displays.length === 0
@@ -588,11 +614,12 @@ Item {
                             readonly property var display: modelData
                             text: display.friendly_name !== "" ? display.friendly_name : display.name
                             badge: managePage.displayBadge(display)
-                            hint: managePage.displayHint(display) + (display.friendly_name !== "" ? " · " + display.name : "")
+                            hint: managePage.displayHint(display)
+                            info: display.name
                             available: managePage.canWrite
 
                             Button {
-                                visible: managePage.canWrite && !displayRow.display.selected
+                                visible: managePage.canWrite && managePage.virtualDisplay !== true && managePage.displayBadge(displayRow.display) === ""
                                 enabled: managePage.busy === 0
                                 text: qsTr("Stream this one")
                                 flat: true
@@ -842,6 +869,7 @@ Item {
             errors = ({})
             deviceName.text = device.name
             displayMode.text = device.display_mode || ""
+            alwaysVirtual.checked = device.always_use_virtual_display === true
             open()
         }
 
@@ -850,7 +878,7 @@ Item {
         }
 
         onAccepted: {
-            var body = {"name": deviceName.text.trim(), "display_mode": displayMode.text.trim()}
+            var body = {"name": deviceName.text.trim(), "display_mode": displayMode.text.trim(), "always_use_virtual_display": alwaysVirtual.checked}
             if (!self) {
                 body.perm = perm
             }
@@ -875,9 +903,6 @@ Item {
                 TextField { id: deviceName; width: parent.width; Accessible.name: qsTr("Name") }
                 Label { visible: text !== ""; text: deviceEditor.errors.name || ""; color: Theme.statusError; wrapMode: Text.Wrap; width: parent.width }
 
-                Label { text: qsTr("Display mode for this device"); font.pointSize: Theme.fontLabel }
-                TextField { id: displayMode; width: parent.width; placeholderText: qsTr("Empty: what the device asks for, e.g. 1920x1080x60"); Accessible.name: qsTr("Display mode") }
-                Label { visible: text !== ""; text: deviceEditor.errors.display_mode || ""; color: Theme.statusError; wrapMode: Text.Wrap; width: parent.width }
 
                 Label {
                     width: parent.width
@@ -888,14 +913,38 @@ Item {
                     text: qsTr("A device can't change its own permissions. Use the host's web UI or another device.")
                 }
 
-                Label { text: qsTr("Streaming"); font.pointSize: Theme.fontLabel }
+                Label { text: qsTr("Can stream"); font.pointSize: Theme.fontLabel }
                 ComboBox {
                     width: parent.width
                     enabled: !deviceEditor.self
-                    model: managePage.accessLevels.map(function(l) { return l.title + " — " + l.help })
+                    model: managePage.accessLevels.map(function(l) { return l.title })
                     currentIndex: managePage.levelIndex(managePage.accessLevels, deviceEditor.perm)
                     onActivated: deviceEditor.setBits(managePage.accessMask, managePage.accessLevels[index].bits)
-                    Accessible.name: qsTr("Streaming")
+                    Accessible.name: qsTr("Can stream")
+                }
+                Label {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: Theme.textSecondary
+                    font.pointSize: Theme.fontDetail
+                    text: managePage.accessLevels[managePage.levelIndex(managePage.accessLevels, deviceEditor.perm)].help
+                }
+
+                Label { text: qsTr("Host management"); font.pointSize: Theme.fontLabel }
+                ComboBox {
+                    width: parent.width
+                    enabled: !deviceEditor.self
+                    model: managePage.manageLevels.map(function(l) { return l.title })
+                    currentIndex: managePage.levelIndex(managePage.manageLevels, deviceEditor.perm)
+                    onActivated: deviceEditor.setBits(managePage.manageMask, managePage.manageLevels[index].bits)
+                    Accessible.name: qsTr("Host management")
+                }
+                Label {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: Theme.textSecondary
+                    font.pointSize: Theme.fontDetail
+                    text: managePage.manageLevels[managePage.levelIndex(managePage.manageLevels, deviceEditor.perm)].help
                 }
 
                 Label { text: qsTr("Input it may send"); font.pointSize: Theme.fontLabel }
@@ -924,23 +973,13 @@ Item {
                     }
                 }
 
-                Label { text: qsTr("Host management"); font.pointSize: Theme.fontLabel }
-                ComboBox {
-                    width: parent.width
-                    enabled: !deviceEditor.self
-                    model: managePage.manageLevels.map(function(l) { return l.title })
-                    currentIndex: managePage.levelIndex(managePage.manageLevels, deviceEditor.perm)
-                    onActivated: deviceEditor.setBits(managePage.manageMask, managePage.manageLevels[index].bits)
-                    Accessible.name: qsTr("Host management")
+                Switch {
+                    id: alwaysVirtual
+                    text: qsTr("Always use a virtual display for this device")
                 }
-                Label {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: Theme.textSecondary
-                    font.pointSize: Theme.fontDetail
-                    text: managePage.manageLevels[managePage.levelIndex(managePage.manageLevels, deviceEditor.perm)].help
-                }
-
+                Label { text: qsTr("Display mode for this device"); font.pointSize: Theme.fontLabel }
+                TextField { id: displayMode; width: parent.width; placeholderText: qsTr("Empty: what the device asks for, e.g. 1920x1080x60"); Accessible.name: qsTr("Display mode") }
+                Label { visible: text !== ""; text: deviceEditor.errors.display_mode || ""; color: Theme.statusError; wrapMode: Text.Wrap; width: parent.width }
                 Label {
                     width: parent.width
                     wrapMode: Text.Wrap
