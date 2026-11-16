@@ -93,6 +93,19 @@ These need [Apollo](https://github.com/ClassicOldSong/Apollo) on the host.
 - Text clipboard sync, with an option to keep host text out of Windows clipboard history.
 - Run host server commands during a stream with Ctrl+Alt+Shift+R.
 
+### Norishine host settings
+
+These need [Norishine](https://github.com/azijnwater/Norishine) on the host.
+
+- **Change host settings from Norilight.** Right-click a paired Norishine host and choose
+  **Host Settings** to see the host's status and its settings, search them, and save
+  changes. The host checks every value and marks the ones it rejects.
+- **Restart the host** from the same page when a change needs it.
+- The host decides what each device may do. In the host's web UI, under paired devices,
+  turn on **Read Host Settings** or **Change Host Settings** for this device.
+- Settings with lists or scripts, such as app commands, are shown but still changed in
+  the host's web UI.
+
 ## Updating
 
 Norilight checks for a newer nightly each time it starts. When one is available, an
@@ -134,8 +147,7 @@ The most useful ones are below. **Settings > Shortcuts** lists every keyboard an
 
 Planned, not available yet:
 
-- **Norishine integration**, so the host and client work together more closely.
-- **Host configuration from the client**, so you visit the host's settings less often.
+- **More Norishine integration**, so the host and client work together more closely.
 - **Automatic hardware and network tuning** to help pick good streaming settings.
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.

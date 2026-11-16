@@ -194,6 +194,16 @@ CenteredGridView {
                     visible: model.online && model.paired
                 }
                 NavigableMenuItem {
+                    // Norilight: Norishine hosts have a management API for paired clients
+                    text: qsTr("Host Settings")
+                    onTriggered: {
+                        var component = Qt.createComponent("HostSettingsView.qml")
+                        var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("%1 settings").arg(model.name)})
+                        stackView.push(hostView)
+                    }
+                    visible: model.online && model.paired && model.norishineApi >= 1
+                }
+                NavigableMenuItem {
                     text: qsTr("Wake PC")
                     onTriggered: computerModel.wakeComputer(index)
                     visible: !model.online && model.wakeable

@@ -121,6 +121,11 @@ public:
     int permission = -1;            // Apollo permission bits, -1 if the host doesn't say
     QStringList serverCommands;     // names, in the order the host runs them
 
+    // Norilight: Norishine management API from the <Norishine> serverinfo element
+    // (runtime only, not saved). 0 if the host has none.
+    int norishineApiVersion = 0;
+    QStringList norishineFeatures;
+
     // Synchronization
     mutable CopySafeReadWriteLock lock;
 
