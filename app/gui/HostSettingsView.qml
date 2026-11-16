@@ -95,12 +95,109 @@ Item {
         notice = ""
     }
 
+    // An integer with a readable name for every value is shown as a list (as in the web UI).
+    function isEnumInteger(setting) {
+        if (setting.type !== "integer" || !setting.value_titles || setting.max === undefined) {
+            return false
+        }
+        for (var n = setting.min; n <= setting.max; n++) {
+            if (!setting.value_titles.hasOwnProperty(String(n))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    function valueTitle(setting, value) {
+        var titles = setting.value_titles || {}
+        if (titles.hasOwnProperty(String(value))) {
+            return titles[String(value)]
+        }
+        if (value === "") {
+            return qsTr("Automatic")
+        }
+        if (typeof value === "boolean") {
+            return value ? qsTr("On") : qsTr("Off")
+        }
+        return String(value)
+    }
+
+    // List entries: readable names, with the default marked in the list itself.
+    function listValues(setting) {
+        var values = []
+        if (setting.type === "choice") {
+            values = setting.choices.slice()
+        }
+        else {
+            for (var n = setting.min; n <= setting.max; n++) {
+                values.push(n)
+            }
+        }
+        return values
+    }
+
+    function listTitles(setting) {
+        return listValues(setting).map(function(v) {
+            var title = valueTitle(setting, v)
+            return same(v, setting["default"]) ? qsTr("%1 (default)").arg(title) : title
+        })
+    }
+
+    // The one named special value of a wide number range (0 = "No limit", -1 = "Off").
+    function specialValue(setting) {
+        if (isEnumInteger(setting) || !setting.value_titles) {
+            return null
+        }
+        var keys = Object.keys(setting.value_titles)
+        return keys.length === 1 ? {"value": Number(keys[0]), "title": setting.value_titles[keys[0]]} : null
+    }
+
+    function unitScale(setting) {
+        return setting.unit === "kbps" ? 1000 : 1
+    }
+
+    function unitText(setting) {
+        switch (setting.unit) {
+        case "kbps": return qsTr("Mbps")
+        case "ms": return qsTr("ms")
+        case "percent": return "%"
+        case "fps": return qsTr("fps")
+        case "per_second": return qsTr("/s")
+        }
+        return ""
+    }
+
+    // Whether the setting it depends on has one of the values it needs.
+    function dependencyMet(setting) {
+        if (!setting.depends_on) {
+            return true
+        }
+        var other = settingByKey(setting.depends_on.key)
+        if (!other) {
+            return true
+        }
+        var value = current(other)
+        for (var i = 0; i < setting.depends_on.values.length; i++) {
+            if (same(setting.depends_on.values[i], value)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function dependencyText(setting) {
+        var other = settingByKey(setting.depends_on.key)
+        var names = setting.depends_on.values.map(function(v) { return "\u201C" + valueTitle(other, v) + "\u201D" })
+        return qsTr("Only has an effect when \u201C%1\u201D is %2.").arg(other.title).arg(names.join(" / "))
+    }
+
     function isComplex(setting) {
         return ["prep_commands", "server_commands", "keybindings", "mode_remapping"].indexOf(setting.type) >= 0
     }
 
     function matches(setting) {
-        if (!setting.available || (!showAdvanced && setting.tier !== "basic")) {
+        // Search covers advanced settings too, so nothing is hard to find (as in the web UI).
+        if (!setting.available || (!showAdvanced && setting.tier !== "basic" && searchText === "")) {
             return false
         }
         if (searchText === "") {
@@ -130,6 +227,8 @@ Item {
         return result
     }
 
+    // What a row says under its name: a problem first, otherwise its explanation, plus
+    // whether it has an effect right now and what the default is.
     function rowHint(setting) {
         if (errors.hasOwnProperty(setting.key)) {
             return errors[setting.key]
@@ -137,16 +236,40 @@ Item {
         if (invalid.hasOwnProperty(setting.key)) {
             return qsTr("The stored value \"%1\" isn't valid: %2").arg(invalid[setting.key].value).arg(invalid[setting.key].error)
         }
+        var parts = []
+        if (setting.help) {
+            parts.push(setting.help)
+        }
+        if (!dependencyMet(setting)) {
+            parts.push(dependencyText(setting))
+        }
         if (isComplex(setting)) {
-            return qsTr("Change this in the host's web UI.")
+            parts.push(qsTr("Change this in the host's web UI."))
         }
-        if (edits.hasOwnProperty(setting.key)) {
-            return qsTr("Changed, not saved yet")
+        else if (edits.hasOwnProperty(setting.key)) {
+            parts.push(qsTr("Changed, not saved yet. Default: %1").arg(valueTitle(setting, setting["default"])))
         }
-        return ""
+        else if (!same(current(setting), setting["default"])) {
+            parts.push(qsTr("Default: %1").arg(valueTitle(setting, setting["default"])))
+        }
+        return parts.join("\n")
     }
 
-    function save(confirmed) {
+    property bool restartAfterSave: false
+    readonly property bool editsNeedRestart: {
+        for (var key in edits) {
+            var s = settingByKey(key)
+            if (s && s.restart_required) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function save(confirmed, andRestart) {
+        if (andRestart !== undefined) {
+            restartAfterSave = andRestart
+        }
         var set = {}
         var reset = []
         var dangerous = []
@@ -223,6 +346,11 @@ Item {
                     hostPage.errors = ({})
                     hostPage.restartNeeded = hostPage.restartNeeded || data.restart_required
                     hostPage.notice = data.restart_required ? qsTr("Saved. Restart the host to apply the changes.") : qsTr("Saved.")
+                    if (hostPage.restartAfterSave && data.restart_required) {
+                        hostPage.notice = qsTr("Saved. Asking the host to restart...")
+                        hostPage.request("restart", "POST", "/api/v1/restart", {})
+                    }
+                    hostPage.restartAfterSave = false
                     hostPage.request("values", "GET", "/api/v1/config")
                     hostPage.pendingLoads += 1
                 }
@@ -303,11 +431,21 @@ Item {
                 }
 
                 Button {
-                    text: hostPage.editCount > 0 ? qsTr("Save (%1)").arg(hostPage.editCount) : qsTr("Save")
+                    text: qsTr("Save only")
+                    flat: true
+                    visible: hostPage.canWrite && hostPage.editCount > 0 && hostPage.editsNeedRestart
+                    enabled: !hostPage.saving
+                    onClicked: hostPage.save(false, false)
+                }
+
+                Button {
+                    text: hostPage.editCount === 0 ? qsTr("Save")
+                          : hostPage.editsNeedRestart ? qsTr("Save and restart (%1)").arg(hostPage.editCount)
+                          : qsTr("Save (%1)").arg(hostPage.editCount)
                     highlighted: true
                     visible: hostPage.canWrite
                     enabled: hostPage.editCount > 0 && !hostPage.saving
-                    onClicked: hostPage.save(false)
+                    onClicked: hostPage.save(false, hostPage.editsNeedRestart)
                 }
             }
 
@@ -411,11 +549,12 @@ Item {
                             id: settingRow
                             readonly property var setting: modelData
                             text: setting.title
-                            info: setting.help + (setting.tier === "dangerous" ? "\n\n" + qsTr("Changing this can make the host unreachable or less secure.") : "")
+                            info: setting.tier === "dangerous" ? qsTr("Changing this can make the host unreachable or less secure.") : ""
                             badge: setting.tier === "dangerous" ? qsTr("Careful") : ""
                             hint: hostPage.rowHint(setting)
                             hintIsError: hostPage.errors.hasOwnProperty(setting.key) || hostPage.invalid.hasOwnProperty(setting.key)
-                            available: hostPage.canWrite && !hostPage.isComplex(setting)
+                            indented: !!setting.depends_on
+                            available: hostPage.canWrite && !hostPage.isComplex(setting) && hostPage.dependencyMet(setting)
 
                             Loader {
                                 sourceComponent: {
@@ -423,6 +562,7 @@ Item {
                                     case "boolean": return booleanControl
                                     case "choice": return choiceControl
                                     case "integer":
+                                        return hostPage.isEnumInteger(settingRow.setting) ? choiceControl : numberControl
                                     case "number": return numberControl
                                     case "string":
                                     case "path": return textControl
@@ -443,40 +583,81 @@ Item {
                                 Component {
                                     id: choiceControl
                                     ComboBox {
+                                        readonly property var values: hostPage.listValues(settingRow.setting)
                                         enabled: settingRow.available
-                                        implicitWidth: 220
-                                        model: settingRow.setting.choices.map(function(c) { return c === "" ? qsTr("Automatic") : c })
-                                        currentIndex: settingRow.setting.choices.indexOf(hostPage.current(settingRow.setting))
-                                        onActivated: hostPage.setEdit(settingRow.setting, settingRow.setting.choices[index])
+                                        implicitWidth: 300
+                                        model: hostPage.listTitles(settingRow.setting)
+                                        currentIndex: {
+                                            var v = hostPage.current(settingRow.setting)
+                                            for (var i = 0; i < values.length; i++) {
+                                                if (hostPage.same(values[i], v)) {
+                                                    return i
+                                                }
+                                            }
+                                            return -1
+                                        }
+                                        displayText: currentIndex < 0 ? String(hostPage.current(settingRow.setting)) : currentText
+                                        onActivated: hostPage.setEdit(settingRow.setting, values[index])
                                         Accessible.name: settingRow.text
                                     }
                                 }
 
                                 Component {
                                     id: numberControl
-                                    TextField {
-                                        enabled: settingRow.available
-                                        implicitWidth: 140
-                                        horizontalAlignment: TextInput.AlignRight
-                                        text: String(hostPage.current(settingRow.setting))
-                                        inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                        // Count the change while typing, so Save is ready without leaving the field.
-                                        onTextEdited: {
-                                            var n = Number(text)
-                                            if (text.trim() !== "" && !isNaN(n)) {
-                                                hostPage.setEdit(settingRow.setting, n)
+                                    RowLayout {
+                                        id: numberRow
+                                        readonly property var special: hostPage.specialValue(settingRow.setting)
+                                        readonly property bool isSpecial: special !== null && Number(hostPage.current(settingRow.setting)) === special.value
+                                        readonly property int unitFactor: hostPage.unitScale(settingRow.setting)
+                                        spacing: 8
+
+                                        CheckBox {
+                                            visible: numberRow.special !== null
+                                            enabled: settingRow.available
+                                            text: numberRow.special ? numberRow.special.title : ""
+                                            checked: numberRow.isSpecial
+                                            onToggled: {
+                                                var s = settingRow.setting
+                                                if (checked) {
+                                                    hostPage.setEdit(s, numberRow.special.value)
+                                                }
+                                                else {
+                                                    var starts = {"max_bitrate": 50000, "back_button_timeout": 2000, "minimum_fps_target": 20, "dd_wa_hdr_toggle_delay": 500}
+                                                    var fallback = Number(s["default"]) !== numberRow.special.value ? s["default"]
+                                                                 : ((s.key in starts) ? starts[s.key] : numberRow.special.value + 1)
+                                                    hostPage.setEdit(s, fallback)
+                                                }
                                             }
                                         }
-                                        onEditingFinished: {
-                                            var n = Number(text)
-                                            if (text.trim() !== "" && !isNaN(n)) {
-                                                hostPage.setEdit(settingRow.setting, n)
+
+                                        TextField {
+                                            visible: !numberRow.isSpecial
+                                            enabled: settingRow.available
+                                            implicitWidth: 110
+                                            horizontalAlignment: TextInput.AlignRight
+                                            text: String(Number(hostPage.current(settingRow.setting)) / numberRow.unitFactor)
+                                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                            // Count the change while typing, so Save is ready without leaving the field.
+                                            function apply(final) {
+                                                var n = Number(text.replace(",", "."))
+                                                if (text.trim() !== "" && !isNaN(n)) {
+                                                    var value = numberRow.unitFactor !== 1 ? Math.round(n * numberRow.unitFactor) : n
+                                                    hostPage.setEdit(settingRow.setting, value)
+                                                }
+                                                else if (final) {
+                                                    text = String(Number(hostPage.current(settingRow.setting)) / numberRow.unitFactor)
+                                                }
                                             }
-                                            else {
-                                                text = String(hostPage.current(settingRow.setting))
-                                            }
+                                            onTextEdited: apply(false)
+                                            onEditingFinished: apply(true)
+                                            Accessible.name: settingRow.text
                                         }
-                                        Accessible.name: settingRow.text
+
+                                        Label {
+                                            visible: !numberRow.isSpecial && text !== ""
+                                            text: hostPage.unitText(settingRow.setting)
+                                            color: Theme.textSecondary
+                                        }
                                     }
                                 }
 
@@ -502,6 +683,13 @@ Item {
                                             var v = hostPage.current(settingRow.setting)
                                             if (Array.isArray(v)) {
                                                 return v.length === 0 ? qsTr("None") : qsTr("%n entries", "", v.length)
+                                            }
+                                            if (typeof v === "string" && v.charAt(0) === "[") {
+                                                var items = v.length > 2 ? v.slice(1, -1).split(",").length : 0
+                                                if (settingRow.setting.type === "keybindings") {
+                                                    items = Math.floor(items / 2)
+                                                }
+                                                return items === 0 ? qsTr("None") : qsTr("%n entries", "", items)
                                             }
                                             return typeof v === "string" ? v : JSON.stringify(v)
                                         }
@@ -529,6 +717,6 @@ Item {
             text: qsTr("%1 can make the host unreachable or less secure. You may need the host's web UI to undo it.").arg(confirmDialog.names)
         }
 
-        onAccepted: hostPage.save(true)
+        onAccepted: hostPage.save(true, hostPage.restartAfterSave)
     }
 }
