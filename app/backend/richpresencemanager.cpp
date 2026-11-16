@@ -2,10 +2,11 @@
 
 #include <QDebug>
 
-// Norilight: the Discord application whose name and "icon" asset Discord shows ("Playing ...").
-// It must be Norilight's own application from the Discord Developer Portal; Moonlight's id
-// (594668102021677159) makes Discord show "Moonlight".
-static const char* const DISCORD_APP_ID = "594668102021677159";
+// Norilight: the Discord application whose name Discord shows ("Playing Norilight"), and the
+// key of the Rich Presence art asset uploaded to it (Developer Portal > Rich Presence > Art
+// Assets). Asset keys can't be renamed in Discord, so this must match the uploaded key.
+static const char* const DISCORD_APP_ID = "1572005705609773157";
+static const char* const DISCORD_ICON_KEY = "nori-oppi-icon-512";
 
 RichPresenceManager::RichPresenceManager(StreamingPreferences& prefs, QString gameName)
     : m_DiscordActive(false)
@@ -26,7 +27,8 @@ RichPresenceManager::RichPresenceManager(StreamingPreferences& prefs, QString ga
         DiscordRichPresence discordPresence = {};
         discordPresence.state = stateStr.data();
         discordPresence.startTimestamp = time(nullptr);
-        discordPresence.largeImageKey = "icon";
+        discordPresence.largeImageKey = DISCORD_ICON_KEY;
+        discordPresence.largeImageText = "Norilight";
         Discord_UpdatePresence(&discordPresence);
     }
 #else
