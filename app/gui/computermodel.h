@@ -16,7 +16,8 @@ class ComputerModel : public QAbstractListModel
         WakeableRole,
         StatusUnknownRole,
         ServerSupportedRole,
-        DetailsRole
+        DetailsRole,
+        NorishineApiRole
     };
 
 public:
@@ -45,9 +46,15 @@ public:
 
     Q_INVOKABLE Session* createSessionForCurrentGame(int computerIndex);
 
+    // Norilight: call the host's Norishine management API (/api/v1 on the HTTPS port).
+    // The answer comes back through hostApiResponse with the same requestId.
+    Q_INVOKABLE void hostApiRequest(int computerIndex, QString requestId, QString verb, QString path, QString jsonBody);
+
 signals:
     void pairingCompleted(QVariant error);
     void connectionTestCompleted(int result, QString blockedPorts);
+    // status 0: no answer (error says why); otherwise the HTTP status and JSON body
+    void hostApiResponse(QString requestId, int status, QString body, QString error);
 
 private slots:
     void handleComputerStateChanged(NvComputer* computer);

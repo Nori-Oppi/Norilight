@@ -268,6 +268,61 @@ NvHTTP::sendClipboard(const QString& text)
     return response.trimmed().isEmpty();
 }
 
+NvHTTP::ApiResponse
+NvHTTP::apiRequest(const QByteArray& verb, const QString& pathAndQuery, const QByteArray& jsonBody, int timeoutMs)
+{
+    // Norilight: Norishine management API. Same client certificate and server certificate
+    // pinning as every HTTPS request, but answers are JSON and error statuses (400, 403)
+    // carry a useful body, so this returns them instead of throwing.
+    ApiResponse result;
+
+    QUrl url(m_BaseUrlHttps);
+    int queryStart = pathAndQuery.indexOf('?');
+    url.setPath(queryStart < 0 ? pathAndQuery : pathAndQuery.left(queryStart));
+    if (queryStart >= 0) {
+        url.setQuery(pathAndQuery.mid(queryStart + 1));
+    }
+
+    QNetworkRequest request(url);
+    request.setSslConfiguration(IdentityManager::get()->getSslConfig());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+#endif
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+    request.setAttribute(QNetworkRequest::ConnectionCacheExpiryTimeoutSecondsAttribute, 0);
+#endif
+    if (!jsonBody.isEmpty()) {
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    }
+
+    auto sslErrorsConnection = connect(m_Nam, &QNetworkAccessManager::sslErrors, this, &NvHTTP::handleSslErrors);
+    QNetworkReply* reply = verb == "GET" ? m_Nam->get(request)
+                                         : m_Nam->sendCustomRequest(request, verb, jsonBody);
+
+    QEventLoop loop;
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, &loop, &QEventLoop::quit);
+    if (timeoutMs) {
+        QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+    }
+    loop.exec(QEventLoop::ExcludeUserInputEvents);
+
+    if (!reply->isFinished()) {
+        reply->abort();
+        result.error = tr("The host didn't answer in time.");
+    }
+    disconnect(sslErrorsConnection);
+
+    result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    result.body = reply->readAll();
+    if (result.status == 0 && result.error.isEmpty()) {
+        result.error = reply->errorString();
+    }
+
+    delete reply;
+    return result;
+}
+
 QStringList
 NvHTTP::getXmlStringList(QString xml,
                          QString tagName)

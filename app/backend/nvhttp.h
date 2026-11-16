@@ -147,6 +147,16 @@ public:
     QString getClipboard();
     bool sendClipboard(const QString& text);
 
+    // Norilight: Norishine management API (/api/v1 on the HTTPS port). Returns the
+    // HTTP status and body even for error statuses; status 0 means no answer (see error).
+    struct ApiResponse {
+        int status = 0;
+        QByteArray body;
+        QString error;
+    };
+    ApiResponse apiRequest(const QByteArray& verb, const QString& pathAndQuery,
+                           const QByteArray& jsonBody = QByteArray(), int timeoutMs = 10000);
+
     // Norilight: every element with this tag, in document order
     static
     QStringList

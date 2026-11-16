@@ -42,6 +42,8 @@ QVariant ComputerModel::data(const QModelIndex& index, int role) const
         return computer->state == NvComputer::CS_UNKNOWN;
     case ServerSupportedRole:
         return computer->isSupportedServerVersion;
+    case NorishineApiRole:
+        return computer->norishineApiVersion;
     case DetailsRole: {
         QString state, pairState;
 
@@ -110,6 +112,7 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     names[StatusUnknownRole] = "statusUnknown";
     names[ServerSupportedRole] = "serverSupported";
     names[DetailsRole] = "details";
+    names[NorishineApiRole] = "norishineApi";
 
     return names;
 }
@@ -211,6 +214,54 @@ void ComputerModel::testConnectionForComputer(int)
     QObject::connect(testConnectionTask, &DeferredTestConnectionTask::connectionTestCompleted,
                      this, &ComputerModel::connectionTestCompleted);
     QThreadPool::globalInstance()->start(testConnectionTask);
+}
+
+// Norilight: a Norishine management API request (/api/v1), off the GUI thread
+class HostApiRequestTask : public QObject, public QRunnable
+{
+    Q_OBJECT
+public:
+    HostApiRequestTask(NvComputer* computer, QString requestId, QByteArray verb, QString path, QByteArray body)
+        : m_RequestId(requestId), m_Verb(verb), m_Path(path), m_Body(body)
+    {
+        QReadLocker lock(&computer->lock);
+        m_Address = computer->activeAddress;
+        m_HttpsPort = computer->activeHttpsPort;
+        m_ServerCert = computer->serverCert;
+    }
+
+    void run()
+    {
+        if (m_Address.isNull() || m_ServerCert.isNull()) {
+            emit finished(m_RequestId, 0, QString(), tr("The host is offline or not paired."));
+            return;
+        }
+
+        NvHTTP http(m_Address, m_HttpsPort, m_ServerCert, true);
+        NvHTTP::ApiResponse response = http.apiRequest(m_Verb, m_Path, m_Body);
+        emit finished(m_RequestId, response.status, QString::fromUtf8(response.body), response.error);
+    }
+
+signals:
+    void finished(QString requestId, int status, QString body, QString error);
+
+private:
+    QString m_RequestId;
+    QByteArray m_Verb;
+    QString m_Path;
+    QByteArray m_Body;
+    NvAddress m_Address;
+    uint16_t m_HttpsPort = 0;
+    QSslCertificate m_ServerCert;
+};
+
+void ComputerModel::hostApiRequest(int computerIndex, QString requestId, QString verb, QString path, QString jsonBody)
+{
+    Q_ASSERT(computerIndex < m_Computers.count());
+
+    auto task = new HostApiRequestTask(m_Computers[computerIndex], requestId, verb.toUtf8(), path, jsonBody.toUtf8());
+    QObject::connect(task, &HostApiRequestTask::finished, this, &ComputerModel::hostApiResponse);
+    QThreadPool::globalInstance()->start(task);
 }
 
 void ComputerModel::pairComputer(int computerIndex, QString pin)

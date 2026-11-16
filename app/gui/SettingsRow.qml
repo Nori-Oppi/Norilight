@@ -19,6 +19,8 @@ Item {
     property string badge: ""
     // Short, always visible: a requirement, a consequence or the current state
     property string hint: ""
+    // Show the hint as an error (a value the host rejected)
+    property bool hintIsError: false
     // Longer explanation, shown when the (i) button is opened
     property string info: ""
     // Key combination that changes this setting during a stream
@@ -190,7 +192,7 @@ Item {
             text: row.hint
             font.pointSize: Theme.fontDetail
             lineHeight: 1.1
-            color: row.available ? Theme.textSecondary : Theme.textDisabledSecondary
+            color: row.hintIsError ? Theme.statusError : row.available ? Theme.textSecondary : Theme.textDisabledSecondary
             wrapMode: Text.Wrap
         }
     }
