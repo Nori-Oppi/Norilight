@@ -423,7 +423,8 @@ macx {
 discord-rpc {
     message(Discord integration enabled)
 
-    LIBS += -ldiscord-rpc
+    # Norilight talks to Discord over its local IPC socket itself (richpresencemanager.cpp),
+    # so the discord-rpc library is no longer linked.
     DEFINES += HAVE_DISCORD
 }
 embedded {
