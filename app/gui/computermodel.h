@@ -17,7 +17,8 @@ class ComputerModel : public QAbstractListModel
         StatusUnknownRole,
         ServerSupportedRole,
         DetailsRole,
-        NorishineApiRole
+        NorishineApiRole,
+        NorishineFeaturesRole
     };
 
 public:

@@ -107,8 +107,14 @@ These need [Norishine](https://github.com/Nori-Oppi/Norishine) on the host.
   **Host Settings** to see the host's status and its settings, search them, and save
   changes. The host checks every value and marks the ones it rejects.
 - **Restart the host** from the same page when a change needs it.
+- **Manage the host's apps, devices and displays.** Choose **Manage Host** for a paired
+  Norishine host: add, edit, reorder, start, close and remove apps; rename paired devices,
+  change their permissions and display mode, end their streams or unpair them; see the
+  host's displays and pick the one to stream. Needs a Norishine build with these calls
+  (the menu item only shows when the host offers them).
 - The host decides what each device may do. In the host's web UI, under paired devices,
-  turn on **Read Host Settings** or **Change Host Settings** for this device.
+  choose **View** or **Manage** under host management for this device. A device can't
+  change its own permissions.
 - Settings with lists or scripts, such as app commands, are shown but still changed in
   the host's web UI.
 
