@@ -8,212 +8,32 @@
 
 <p align="center">
   <a href="https://github.com/Nori-Oppi/Norilight/releases/tag/nightly"><strong>Download nightly</strong></a> ·
-  <a href="#whats-inside">What's inside</a> ·
-  <a href="#updating">Updating</a> ·
+  <a href="docs/GUIDE.md">Guide</a> ·
+  <a href="docs/FEATURES.md">Features</a> ·
   <a href="BUILDING.md">Build from source</a>
 </p>
 
-Norilight streams games and desktops from your PC, just like
+Norilight streams games and desktops from your PC, like
 [Moonlight](https://github.com/moonlight-stream/moonlight-qt), the client it's forked from.
-It adds **profiles** so one app works for both gaming and desktop work: each profile
-keeps its own streaming settings and the monitor it opens on. Streams open in their own
-windows, and the main window stays open beside them.
+Its **profiles** make one app work for both gaming and desktop work, and streams open in
+their own windows. It works with [Sunshine](https://github.com/LizardByte/Sunshine),
+[Apollo](https://github.com/ClassicOldSong/Apollo) and
+[Norishine](https://github.com/Nori-Oppi/Norishine), which it can also manage.
 
-It works with [Sunshine](https://github.com/LizardByte/Sunshine),
-[Apollo](https://github.com/ClassicOldSong/Apollo) and older NVIDIA GameStream hosts.
-Apollo-compatible extras work with Apollo or Norishine; host management needs
-Norishine. Each group is marked below.
+<p align="center">
+  <img src="docs/screenshots/profiles.png" width="720" alt="Norilight settings: Gaming and Work profiles, each with its own target monitor">
+</p>
 
-<table>
-  <tr>
-    <td width="50%"><a href="docs/screenshots/apps.png"><img src="docs/screenshots/apps.png" alt="Norilight app library for a host with Remote Input, Steam and Virtual Desktop"></a><br><strong>App library</strong>: the apps of a host, with its cover art.</td>
-    <td width="50%"><a href="docs/screenshots/profiles.png"><img src="docs/screenshots/profiles.png" alt="Gaming and Work profiles, each with its own target monitor"></a><br><strong>Profiles</strong>: a separate setup for each way you stream.</td>
-  </tr>
-  <tr>
-    <td><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Video quality settings with search, monitor matching and bitrate"></a><br><strong>Settings</strong>: searchable, with an explanation beside each control.</td>
-    <td><a href="docs/screenshots/streaming.png"><img src="docs/screenshots/streaming.png" alt="Live desktop stream showing the Steam library and performance statistics"></a><br><strong>Streaming</strong>: a desktop stream with compact performance stats.</td>
-  </tr>
-  <tr>
-    <td><a href="docs/screenshots/welcome.png"><img src="docs/screenshots/welcome.png" alt="First start: create a profile from the Gaming, Work and desktop, or Standard starting point"></a><br><strong>First start</strong>: pick a starting point for your first profile.</td>
-    <td><a href="docs/screenshots/manage-apps.png"><img src="docs/screenshots/manage-apps.png" alt="Manage Host page, Apps tab: start, edit and reorder the host's apps"></a><br><strong>Manage Host</strong>: add, edit, start and reorder a Norishine host's apps.</td>
-  </tr>
-  <tr>
-    <td><a href="docs/screenshots/manage-devices.png"><img src="docs/screenshots/manage-devices.png" alt="Manage Host page, Devices tab: paired devices with their permissions"></a><br><strong>Paired devices</strong>: what each device may do, and its current stream.</td>
-    <td><a href="docs/screenshots/manage-device-edit.png"><img src="docs/screenshots/manage-device-edit.png" alt="Editing a paired device: name, display mode, streaming level, input and extras"></a><br><strong>Device permissions</strong>: the same choices as the host's web UI.</td>
-  </tr>
-</table>
+## Get started
 
-![Norilight and Norishine connection overview](docs/images/nori-overview.svg)
+1. Download from the [nightly release](https://github.com/Nori-Oppi/Norilight/releases/tag/nightly):
+   the Windows installer or ZIP, or the macOS DMG.
+2. On first start, pick a starting profile: Gaming, Work and desktop, or Standard.
+3. Pair with your PC. It usually appears by itself; otherwise add it with **+**.
 
-## Getting started
+The [guide](docs/GUIDE.md) covers installing on macOS, profiles, updating and shortcuts.
+Norilight checks for new nightlies itself.
 
-1. **Install.** Download from the [nightly release](https://github.com/Nori-Oppi/Norilight/releases/tag/nightly):
-   - **Windows x64:** run the `-Setup.exe`. To skip installing, extract the ZIP and run `Norilight.exe` instead.
-   - **macOS (Apple Silicon and Intel):** open the DMG and drag Norilight to Applications.
-     Nightlies are unsigned, so right-click the app and choose **Open** the first time.
-     Allow Local Network access when asked, or Norilight can't find your PC.
-2. **Pick a starting profile.** On first launch, Norilight asks how you'll use it:
+## License
 
-   | Starting point | What it sets up |
-   | --- | --- |
-   | **Gaming** | Fullscreen, V-Sync and frame pacing off, mouse captured. Frame rate follows your main display (60–240 FPS). |
-   | **Work and desktop** | Borderless fullscreen at 60 FPS, V-Sync on, direct mouse control, and a cursor that can leave the stream. |
-   | **Standard** | Norilight's defaults, ready to customise. |
-   | **Existing settings** | Keep your current settings, copy the active profile, or import Moonlight's settings if they're on this PC. Moonlight's own settings are left untouched. |
-
-3. **Pair with your host.** Your PC appears automatically on most networks. If it
-   doesn't, add it by IP address with the **+** button.
-
-## What's inside
-
-### Profiles, monitors and streams
-
-- **One profile per use.** Each profile keeps its own streaming settings and target
-  monitor. Create, copy, rename and switch profiles from the toolbar or
-  **Settings > Profiles**. Language is shared across all of them.
-- **Choose where a stream opens.** Target a specific monitor or the one the main window
-  is on. Resolution and frame rate can match that monitor when the stream starts. If a
-  profile's monitor is unplugged, the profile stays saved and becomes available again
-  when the monitor returns.
-- **Several streams at once.** Pick an app, then a profile, and the stream opens in its
-  own window. The **Streams** bar in the main window lists your sessions, so you can stop
-  running ones or restart ended ones. How many connections work at once depends on the
-  host; separate windows don't give you separate host desktops.
-
-### Desktop and input
-
-- The cursor can move freely between the stream and your other windows and monitors.
-- Always-on-top, remembered window placement, and a watch-only mode.
-- Adjustable mouse and scroll speed, plus an optional local cursor over the stream.
-- **Windows:** **Take screenshots on this PC only** keeps PrtScn and Win+Shift+S local,
-  so your own capture tool (ShareX included) handles them.
-- Controller deadzones, stick scrolling in mouse mode, and switches for motion sensors
-  and touchpad input.
-
-### Picture and performance
-
-- Fit, Fill or Stretch the picture, with optional top alignment.
-- Type an exact bitrate, and request full-range colour.
-- Compact performance stats, and an optional latency summary when a stream ends.
-
-### Apollo and Norishine extras
-
-These need [Apollo](https://github.com/ClassicOldSong/Apollo) or
-[Norishine](https://github.com/Nori-Oppi/Norishine) on the host.
-
-- Virtual displays that match the client, with a resolution scale (needs SudoVDA on the host).
-- Text clipboard sync, with an option to keep host text out of Windows clipboard history.
-- Run host server commands during a stream with Ctrl+Alt+Shift+R.
-
-### Norishine host settings
-
-These need [Norishine](https://github.com/Nori-Oppi/Norishine) on the host.
-
-- **Paired-device authentication.** Host management uses the client certificate from
-  pairing; Norilight does not store the host's web administrator password.
-- **Change host settings from Norilight.** Right-click a paired Norishine host and choose
-  **Host Settings** to see the host's status and its settings, search them, and save
-  changes. The host checks every value and marks the ones it rejects.
-- **Restart the host** from the same page when a change needs it.
-- **Manage the host's apps, devices and displays.** Choose **Manage Host** for a paired
-  Norishine host: add, edit, reorder, start, close and remove apps; rename paired devices,
-  change their permissions and display mode, end their streams or unpair them; see the
-  host's displays and pick the one to stream. Needs a Norishine build with these calls
-  (the menu item only shows when the host offers them).
-- The host decides what each device may do. In the host's web UI, under paired devices,
-  choose **View** or **Manage** under host management for this device. A device can't
-  change its own permissions.
-- Settings with lists or scripts, such as app commands, are shown but still changed in
-  the host's web UI.
-
-## Development across branches
-
-Branch review: **16 November 2026**. The current `main` includes profiles and monitor
-selection, separate stream windows, the blush toolbar, settings rebuilt as cards with
-inline help, in-app nightly installation, and the Norishine Host Settings page.
-
-| Branch | Changes | Availability at review |
-| --- | --- | --- |
-| `host-settings` | Native Norishine status, schema-driven settings editing, per-field errors and host restart | Merged into `main` |
-| `ci-speedup` | Windows compile caching, cached macOS deployment, parallel packaging and deployed-binary/architecture smoke checks | Merged into `main` |
-| `integrate-all-refs` | Earlier integration work | No unique commits beyond `main` |
-| `dependabot/submodules/app/SDL_GameControllerDB-c0f11d4` | Controller database refresh | Included in `main` |
-
-Nightlies build `main`; check the build's commit before assuming it contains a
-particular change. Host Settings also needs a Norishine build with the management
-API and explicit device permissions. The newer Norishine web pages and CSRF work
-on `phase3/m3` are host-side changes, independent of this client's settings page.
-
-## Updating
-
-Norilight checks for a newer nightly each time it starts. When one is available, an
-update button appears in the toolbar. Click it and choose **Install and restart**:
-
-- **Windows (installed):** Norilight downloads the new installer, checks it, and installs
-  it over the current version. Windows asks for permission, then Norilight reopens by itself.
-- **Windows (ZIP):** Norilight downloads the new ZIP and replaces its own files once it has
-  closed, keeping your portable settings, then reopens.
-- **macOS:** Norilight downloads the new DMG and replaces the app in place, then reopens.
-  If it can't write to the app's folder, it opens the DMG so you can drag the app over yourself.
-
-Settings live in your user profile (or next to `Norilight.exe` for the ZIP), so updates
-keep them. Uninstalling on Windows also leaves them in place.
-
-The version shown in Norilight (top right of Settings, or `Norilight --version`) is the
-nightly's name, such as `nightly-20261115-0f4841b`: the build date and commit, matching
-the release and its file names.
-
-New nightlies are built daily at 20:17 Europe/Amsterdam time, when `main` has changed.
-They are unsigned pre-releases. Builds you compile yourself don't check for updates.
-
-## Shortcuts while streaming
-
-The most useful ones are below. **Settings > Shortcuts** lists every keyboard and controller shortcut.
-
-| Shortcut | What it does |
-| --- | --- |
-| Ctrl+Alt+Shift+Q | End the stream |
-| Ctrl+Alt+Shift+Z | Release or recapture the mouse and keyboard |
-| Ctrl+Alt+Shift+X | Switch between fullscreen and windowed |
-| Ctrl+Alt+Shift+L | Keep the cursor inside the stream window, or let it out |
-| Ctrl+Alt+Shift+K | Send system keys to the host, or keep them on this PC |
-| Ctrl+Alt+Shift+V | Type this PC's clipboard text into the host |
-| Ctrl+Alt+Shift+S | Show or hide performance stats |
-| Ctrl+Alt+Shift+R | List Apollo server commands (1–9 runs one, Esc closes) |
-
-## Roadmap
-
-Planned, not available yet:
-
-- **More Norishine integration**: manage host apps, paired devices, displays and active
-  sessions. Host status, settings editing and restart are already implemented.
-- **Automatic hardware and network tuning** to help pick good streaming settings.
-
-Existing Sunshine hosts and Moonlight-compatible setups will keep working.
-
-## Building
-
-Clone with submodules. Norilight uses its own fork of `moonlight-common-c`, which adds
-Apollo server commands.
-
-```sh
-git clone --recursive https://github.com/Nori-Oppi/Norilight.git
-```
-
-Then follow [BUILDING.md](BUILDING.md) for Windows x64 or macOS. The nightly workflow only
-packages those two platforms. Linux and other upstream targets keep Moonlight's build code
-but aren't built or tested here; see the [upstream build notes](docs/MOONLIGHT-README.md#building).
-
-## Credits and license
-
-Norilight builds on [Moonlight PC](https://github.com/moonlight-stream/moonlight-qt) and the
-Moonlight Game Streaming Project. Several additions follow
-[Artemis](https://github.com/ClassicOldSong/moonlight-android), with host extensions from
-[Apollo](https://github.com/ClassicOldSong/Apollo). Thanks also to Qt, SDL, FFmpeg, Opus,
-[moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c),
-[QMdnsEngine](https://github.com/cgutman/qmdnsengine) and
-[SDL_GameControllerDB](https://github.com/gabomdq/SDL_GameControllerDB).
-The [original Moonlight README](docs/MOONLIGHT-README.md) is kept in this repository.
-
-Norilight is licensed under the GNU General Public License v3, like Moonlight. See
-[LICENSE](LICENSE). Bundled dependencies keep their own licenses.
+GPL v3, like Moonlight. See [LICENSE](LICENSE) and the [credits](docs/FEATURES.md#credits).
