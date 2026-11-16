@@ -2,6 +2,11 @@
 
 #include <QDebug>
 
+// Norilight: the Discord application whose name and "icon" asset Discord shows ("Playing ...").
+// It must be Norilight's own application from the Discord Developer Portal; Moonlight's id
+// (594668102021677159) makes Discord show "Moonlight".
+static const char* const DISCORD_APP_ID = "594668102021677159";
+
 RichPresenceManager::RichPresenceManager(StreamingPreferences& prefs, QString gameName)
     : m_DiscordActive(false)
 {
@@ -11,7 +16,7 @@ RichPresenceManager::RichPresenceManager(StreamingPreferences& prefs, QString ga
         handlers.ready = discordReady;
         handlers.disconnected = discordDisconnected;
         handlers.errored = discordErrored;
-        Discord_Initialize("594668102021677159", &handlers, 0, nullptr);
+        Discord_Initialize(DISCORD_APP_ID, &handlers, 0, nullptr);
         m_DiscordActive = true;
     }
 
