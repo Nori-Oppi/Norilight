@@ -44,6 +44,8 @@ QVariant ComputerModel::data(const QModelIndex& index, int role) const
         return computer->isSupportedServerVersion;
     case NorishineApiRole:
         return computer->norishineApiVersion;
+    case NorishineFeaturesRole:
+        return computer->norishineFeatures;
     case DetailsRole: {
         QString state, pairState;
 
@@ -113,6 +115,7 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     names[ServerSupportedRole] = "serverSupported";
     names[DetailsRole] = "details";
     names[NorishineApiRole] = "norishineApi";
+    names[NorishineFeaturesRole] = "norishineFeatures";
 
     return names;
 }

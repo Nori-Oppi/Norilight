@@ -204,6 +204,16 @@ CenteredGridView {
                     visible: model.online && model.paired && model.norishineApi >= 1
                 }
                 NavigableMenuItem {
+                    // Norilight: apps, paired devices, streams and displays (Norishine hosts with M7)
+                    text: qsTr("Manage Host")
+                    onTriggered: {
+                        var component = Qt.createComponent("HostManageView.qml")
+                        var manageView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("Manage %1").arg(model.name)})
+                        stackView.push(manageView)
+                    }
+                    visible: model.online && model.paired && model.norishineApi >= 1 && model.norishineFeatures.indexOf("apps") >= 0
+                }
+                NavigableMenuItem {
                     text: qsTr("Wake PC")
                     onTriggered: computerModel.wakeComputer(index)
                     visible: !model.online && model.wakeable
