@@ -914,7 +914,7 @@ ApplicationWindow {
         standardButtons: Dialog.Ok | Dialog.Cancel
         text: qsTr("This version of Norilight isn't optimized for your PC. Please download the '%1' version of Norilight for the best streaming performance.").arg(SystemProperties.friendlyNativeArchName)
         onAccepted: {
-            Qt.openUrlExternally("https://github.com/azijnwater/Norilight/releases");
+            Qt.openUrlExternally("https://github.com/Nori-Oppi/Norilight/releases");
         }
     }
 

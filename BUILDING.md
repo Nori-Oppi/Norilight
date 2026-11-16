@@ -13,7 +13,7 @@ Always clone with submodules. Norilight uses its own fork of
 build.
 
 ```sh
-git clone --recursive https://github.com/azijnwater/Norilight.git
+git clone --recursive https://github.com/Nori-Oppi/Norilight.git
 cd Norilight
 ```
 

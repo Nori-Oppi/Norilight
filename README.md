@@ -7,7 +7,7 @@
 <p align="center"><em>The cutest Moonlight client ε(　꜆´ω`)꜆ for desktop users and gamers alike.</em></p>
 
 <p align="center">
-  <a href="https://github.com/azijnwater/Norilight/releases/tag/nightly"><strong>Download nightly</strong></a> ·
+  <a href="https://github.com/Nori-Oppi/Norilight/releases/tag/nightly"><strong>Download nightly</strong></a> ·
   <a href="#whats-inside">What's inside</a> ·
   <a href="#updating">Updating</a> ·
   <a href="BUILDING.md">Build from source</a>
@@ -21,7 +21,8 @@ windows, and the main window stays open beside them.
 
 It works with [Sunshine](https://github.com/LizardByte/Sunshine),
 [Apollo](https://github.com/ClassicOldSong/Apollo) and older NVIDIA GameStream hosts.
-A few extras need Apollo on the host; they're marked below.
+Apollo-compatible extras work with Apollo or Norishine; host management needs
+Norishine. Each group is marked below.
 
 <table>
   <tr>
@@ -34,9 +35,11 @@ A few extras need Apollo on the host; they're marked below.
   </tr>
 </table>
 
+![Norilight and Norishine connection overview](docs/images/nori-overview.svg)
+
 ## Getting started
 
-1. **Install.** Download from the [nightly release](https://github.com/azijnwater/Norilight/releases/tag/nightly):
+1. **Install.** Download from the [nightly release](https://github.com/Nori-Oppi/Norilight/releases/tag/nightly):
    - **Windows x64:** run the `-Setup.exe`. To skip installing, extract the ZIP and run `Norilight.exe` instead.
    - **macOS (Apple Silicon and Intel):** open the DMG and drag Norilight to Applications.
      Nightlies are unsigned, so right-click the app and choose **Open** the first time.
@@ -85,9 +88,10 @@ A few extras need Apollo on the host; they're marked below.
 - Type an exact bitrate, and request full-range colour.
 - Compact performance stats, and an optional latency summary when a stream ends.
 
-### Apollo extras
+### Apollo and Norishine extras
 
-These need [Apollo](https://github.com/ClassicOldSong/Apollo) on the host.
+These need [Apollo](https://github.com/ClassicOldSong/Apollo) or
+[Norishine](https://github.com/Nori-Oppi/Norishine) on the host.
 
 - Virtual displays that match the client, with a resolution scale (needs SudoVDA on the host).
 - Text clipboard sync, with an option to keep host text out of Windows clipboard history.
@@ -95,8 +99,10 @@ These need [Apollo](https://github.com/ClassicOldSong/Apollo) on the host.
 
 ### Norishine host settings
 
-These need [Norishine](https://github.com/azijnwater/Norishine) on the host.
+These need [Norishine](https://github.com/Nori-Oppi/Norishine) on the host.
 
+- **Paired-device authentication.** Host management uses the client certificate from
+  pairing; Norilight does not store the host's web administrator password.
 - **Change host settings from Norilight.** Right-click a paired Norishine host and choose
   **Host Settings** to see the host's status and its settings, search them, and save
   changes. The host checks every value and marks the ones it rejects.
@@ -105,6 +111,24 @@ These need [Norishine](https://github.com/azijnwater/Norishine) on the host.
   turn on **Read Host Settings** or **Change Host Settings** for this device.
 - Settings with lists or scripts, such as app commands, are shown but still changed in
   the host's web UI.
+
+## Development across branches
+
+Branch review: **16 November 2026**. The current `main` includes profiles and monitor
+selection, separate stream windows, the blush toolbar, settings rebuilt as cards with
+inline help, in-app nightly installation, and the Norishine Host Settings page.
+
+| Branch | Changes | Availability at review |
+| --- | --- | --- |
+| `host-settings` | Native Norishine status, schema-driven settings editing, per-field errors and host restart | Merged into `main` |
+| `ci-speedup` | Windows compile caching, cached macOS deployment, parallel packaging and deployed-binary/architecture smoke checks | Merged into `main` |
+| `integrate-all-refs` | Earlier integration work | No unique commits beyond `main` |
+| `dependabot/submodules/app/SDL_GameControllerDB-c0f11d4` | Controller database refresh | Included in `main` |
+
+Nightlies build `main`; check the build's commit before assuming it contains a
+particular change. Host Settings also needs a Norishine build with the management
+API and explicit device permissions. The newer Norishine web pages and CSRF work
+on `phase3/m3` are host-side changes, independent of this client's settings page.
 
 ## Updating
 
@@ -147,7 +171,8 @@ The most useful ones are below. **Settings > Shortcuts** lists every keyboard an
 
 Planned, not available yet:
 
-- **More Norishine integration**, so the host and client work together more closely.
+- **More Norishine integration**: manage host apps, paired devices, displays and active
+  sessions. Host status, settings editing and restart are already implemented.
 - **Automatic hardware and network tuning** to help pick good streaming settings.
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
@@ -158,7 +183,7 @@ Clone with submodules. Norilight uses its own fork of `moonlight-common-c`, whic
 Apollo server commands.
 
 ```sh
-git clone --recursive https://github.com/azijnwater/Norilight.git
+git clone --recursive https://github.com/Nori-Oppi/Norilight.git
 ```
 
 Then follow [BUILDING.md](BUILDING.md) for Windows x64 or macOS. The nightly workflow only

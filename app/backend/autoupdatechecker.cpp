@@ -23,9 +23,9 @@
 #include "buildversion.h"
 
 static const char* k_NightlyReleaseUrl =
-        "https://api.github.com/repos/azijnwater/Norilight/releases/tags/nightly";
+        "https://api.github.com/repos/Nori-Oppi/Norilight/releases/tags/nightly";
 static const char* k_NightlyReleasePage =
-        "https://github.com/azijnwater/Norilight/releases/tag/nightly";
+        "https://github.com/Nori-Oppi/Norilight/releases/tag/nightly";
 
 #if defined(Q_OS_WIN32)
 // Waits for Norilight to close, copies the extracted ZIP over the portable
