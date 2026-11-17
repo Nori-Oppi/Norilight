@@ -69,8 +69,8 @@ From a normal Command Prompt in the repository folder:
 scripts\build-norilight.bat release
 ```
 
-The script finds Visual Studio by itself, compiles, and copies everything needed
-to run into one folder:
+The script finds a Visual Studio install that has the C++ tools by itself, compiles,
+and copies everything needed to run into one folder:
 
 ```
 build\Norilight-x64-release\Norilight.exe
@@ -200,6 +200,9 @@ before running the script, as in upstream Moonlight.
 - **Windows: "Qt not found".** Set `QT_DIR` to the folder that contains
   `bin\qmake.exe`.
 - **Windows: "Prebuilt deps missing".** Run `setup-deps.ps1` first.
+- **Windows: "MSVC compiler not found".** No Visual Studio install on this PC has
+  the C++ tools. Add the **Desktop development with C++** workload (or the C++
+  Build Tools) in the Visual Studio Installer.
 - **macOS: `qmake: command not found`.** Qt's `bin` folder isn't on your
   `PATH` (see step 1).
 - **macOS: "Norilight is damaged and can't be opened".** That's Gatekeeper

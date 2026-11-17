@@ -64,6 +64,13 @@ They are unsigned pre-releases. Builds you compile yourself don't check for upda
 | Ctrl+Alt+Shift+S | Show or hide performance stats |
 | Ctrl+Alt+Shift+R | List Apollo server commands (1–9 runs one, Esc closes) |
 
+## Command line
+
+`Norilight pair <host> --pin 1234`, `Norilight stream <host> <app>`, `Norilight list <host>`
+and `Norilight quit <host>` work as in Moonlight; `Norilight --help` lists the options.
+Scripts that capture Norilight's output must keep reading it while it runs. If nobody
+reads the pipe, Norilight pauses as soon as it fills, which can make pairing time out.
+
 ## More
 
 - [Features](FEATURES.md), with screenshots
