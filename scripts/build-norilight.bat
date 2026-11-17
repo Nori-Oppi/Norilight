@@ -27,7 +27,7 @@ set PATH=%QT_DIR%\bin;%PATH%
 where /q cl.exe
 if !ERRORLEVEL! NEQ 0 (
     set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-    for /f "usebackq delims=" %%i in (`call "!VSWHERE!" -latest -property installationPath`) do set "VS_PATH=%%i"
+    for /f "usebackq delims=" %%i in (`call "!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
     call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" x64 >nul
 )
 where /q cl.exe || (echo MSVC compiler not found & exit /b 1)

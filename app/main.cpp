@@ -247,7 +247,7 @@ void qtLogToDiskHandler(QtMsgType type, const QMessageLogContext&, const QString
 void ffmpegLogToDiskHandler(void* ptr, int level, const char* fmt, va_list vl)
 {
     char lineBuffer[1024];
-    static int printPrefix = 1;
+    thread_local int printPrefix = 1;
 
     if ((level & 0xFF) > av_log_get_level()) {
         return;
@@ -669,6 +669,15 @@ int main(int argc, char *argv[])
     // NB: Windows defaults to the "windows" non-threaded render loop on
     // Qt 5 and the threaded render loop on Qt 6.
     qputenv("QSG_RENDER_LOOP", "basic");
+#endif
+
+#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    // Norilight: Qt's D3D11 backend runs a DXGI vblank thread (QDxgiVSyncThread) that
+    // can crash with a null dereference when displays come and go, which streams with
+    // virtual displays do. The basic render loop paces the UI with Present() anyway.
+    if (!qEnvironmentVariableIsSet("QT_D3D_NO_VBLANK_THREAD")) {
+        qputenv("QT_D3D_NO_VBLANK_THREAD", "1");
+    }
 #endif
 
 #if defined(Q_OS_DARWIN) && defined(QT_DEBUG) && !defined(HAVE_LIBPLACEBO_VULKAN)

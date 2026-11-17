@@ -20,6 +20,12 @@ before assuming it contains a particular change.
 | `integrate-all-refs` | Earlier integration work | No unique commits beyond `main` |
 | `dependabot/submodules/app/SDL_GameControllerDB-c0f11d4` | Controller database refresh | Included in `main` |
 
+## Upstream
+
+Norilight includes every bug fix from Moonlight PC's `master` up to
+[`28629dc`](https://github.com/moonlight-stream/moonlight-qt/commit/28629dc1) (synced
+17 November 2026).
+
 ## Building
 
 Clone with submodules (`git clone --recursive`); Norilight uses its own fork of

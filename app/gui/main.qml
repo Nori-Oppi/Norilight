@@ -257,7 +257,7 @@ ApplicationWindow {
 
     Connections {
         target: ProfileManager
-        onActiveProfileChanged: Qt.callLater(reloadSettingsPage)
+        function onActiveProfileChanged() { Qt.callLater(reloadSettingsPage) }
     }
 
     function navigateTo(url, objectType)
@@ -711,7 +711,7 @@ ApplicationWindow {
 
     Connections {
         target: DisplayManager
-        onLaunchFailed: {
+        function onLaunchFailed(message) {
             hubErrorDialog.text = message
             hubErrorDialog.open()
         }
