@@ -671,6 +671,15 @@ int main(int argc, char *argv[])
     qputenv("QSG_RENDER_LOOP", "basic");
 #endif
 
+#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    // Norilight: Qt's D3D11 backend runs a DXGI vblank thread (QDxgiVSyncThread) that
+    // can crash with a null dereference when displays come and go, which streams with
+    // virtual displays do. The basic render loop paces the UI with Present() anyway.
+    if (!qEnvironmentVariableIsSet("QT_D3D_NO_VBLANK_THREAD")) {
+        qputenv("QT_D3D_NO_VBLANK_THREAD", "1");
+    }
+#endif
+
 #if defined(Q_OS_DARWIN) && defined(QT_DEBUG) && !defined(HAVE_LIBPLACEBO_VULKAN)
     // Enable Metal valiation for debug builds without libplacebo
     //

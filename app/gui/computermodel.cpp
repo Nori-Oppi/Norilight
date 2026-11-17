@@ -260,7 +260,7 @@ private:
 
 void ComputerModel::hostApiRequest(int computerIndex, QString requestId, QString verb, QString path, QString jsonBody)
 {
-    Q_ASSERT(computerIndex < m_Computers.count());
+    Q_ASSERT(computerIndex >= 0 && computerIndex < m_Computers.count());
 
     auto task = new HostApiRequestTask(m_Computers[computerIndex], requestId, verb.toUtf8(), path, jsonBody.toUtf8());
     QObject::connect(task, &HostApiRequestTask::finished, this, &ComputerModel::hostApiResponse);
