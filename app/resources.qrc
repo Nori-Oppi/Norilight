@@ -23,6 +23,7 @@
         <file>res/check.svg</file>
         <file>res/tune.svg</file>
         <file>res/info_outline.svg</file>
+        <file>res/undo.svg</file>
         <file>res/more_vert.svg</file>
         <file>languages/qml_de.ts</file>
         <file>languages/qml_de.qm</file>
