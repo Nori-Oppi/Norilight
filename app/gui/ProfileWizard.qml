@@ -4,6 +4,8 @@ import QtQuick.Controls.Material 2.2
 
 import ProfileManager 1.0
 import SdlGamepadKeyNavigation 1.0
+import StreamingPreferences 1.0
+import SystemProperties 1.0
 import "."
 
 // Norilight: the first-run wizard. Every settings change belongs to a profile,
@@ -15,6 +17,9 @@ Item {
 
     // true: the form for a new profile. false: the list of profiles made so far.
     property bool adding: true
+    // The answer to the "Try Norilight!" Discord button question, given to
+    // every profile made here (each profile keeps its own copy of the setting)
+    property bool discordButton: true
 
     function showForm() {
         adding = true
@@ -29,6 +34,11 @@ Item {
         var profileId = ProfileManager.createProfile(editor.name, editor.startFrom)
         if (!profileId) return
         ProfileManager.setTargetMonitor(profileId, editor.monitorKey, editor.monitorLabel)
+        if (SystemProperties.hasDiscordIntegration) {
+            // The new profile is now the active one
+            StreamingPreferences.richPresenceButton = wizard.discordButton
+            StreamingPreferences.save()
+        }
         adding = false
         finishButton.forceActiveFocus(Qt.TabFocusReason)
     }
@@ -141,6 +151,25 @@ Item {
                 visible: wizard.adding
                 width: parent.width
                 onAccepted: wizard.createProfile()
+            }
+
+            Item {
+                visible: wizard.adding && SystemProperties.hasDiscordIntegration
+                width: 1
+                height: 20
+            }
+
+            SettingsCard {
+                visible: wizard.adding && SystemProperties.hasDiscordIntegration
+                title: qsTr("Support Norilight")
+
+                SettingsSwitch {
+                    text: qsTr("Add a \"Try Norilight!\" button to my Discord status")
+                    hint: qsTr("Shown while you stream, so friends can find Norilight.")
+                    info: qsTr("Your Discord status shows what you're streaming with Norilight. This adds a button to it that opens the Norilight project page. You can change this later in Settings.")
+                    checked: wizard.discordButton
+                    onCheckedChanged: wizard.discordButton = checked
+                }
             }
 
             Row {

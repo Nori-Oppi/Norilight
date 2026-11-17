@@ -11,8 +11,9 @@
 #endif
 
 // Norilight: Discord Rich Presence while streaming ("Playing Norilight", the app being
-// streamed, a timer, the icon and a "Try Norilight!" button). Talks to the Discord client
-// directly over its local IPC socket; the old discord-rpc library can't send buttons.
+// streamed, a timer, the icon and, if turned on in settings, a "Try Norilight!" button).
+// Talks to the Discord client directly over its local IPC socket; the old discord-rpc
+// library can't send buttons.
 class RichPresenceManager
 {
 public:
@@ -33,6 +34,7 @@ private:
     std::unique_ptr<QLocalSocket> m_Socket;
     QByteArray m_State;
     qint64 m_StartTime = 0;
+    bool m_ShowButton = true;
     QElapsedTimer m_SinceAttempt;
 #endif
 

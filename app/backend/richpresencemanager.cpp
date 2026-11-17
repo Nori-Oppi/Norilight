@@ -35,6 +35,7 @@ RichPresenceManager::RichPresenceManager(StreamingPreferences& prefs, QString ga
 #ifdef HAVE_DISCORD
     if (prefs.richPresence) {
         m_DiscordActive = true;
+        m_ShowButton = prefs.richPresenceButton;
         m_State = ("Streaming " + gameName).toUtf8().left(128);
         m_StartTime = QDateTime::currentSecsSinceEpoch();
         if (connectToDiscord()) {
@@ -164,7 +165,9 @@ void RichPresenceManager::sendActivity(bool clear)
         activity["state"] = QString::fromUtf8(m_State);
         activity["timestamps"] = QJsonObject {{"start", m_StartTime}};
         activity["assets"] = assets;
-        activity["buttons"] = QJsonArray {button};
+        if (m_ShowButton) {
+            activity["buttons"] = QJsonArray {button};
+        }
         args["activity"] = activity;
     }
 
