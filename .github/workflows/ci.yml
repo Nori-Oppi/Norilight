@@ -1,0 +1,69 @@
+# Norilight checks for pull requests and pushes to main: the full Windows and
+# macOS build, the Windows regression tests and the installer checks (see
+# norilight-build.yml). Changes that only touch documentation skip it.
+#
+# Pushes to main build with the nightly version and SHA, so nightly.yml can
+# publish that build instead of compiling the same commit again.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # A new push to a pull request replaces its running check. Builds of main
+  # always finish, since the nightly may publish them.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_sha: ${{ steps.version.outputs.build_sha }}
+      on_main: ${{ steps.version.outputs.on_main }}
+    steps:
+      - name: Name the build
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "${PR_NUMBER}" ]; then
+            # Pull request builds never offer updates (empty build SHA)
+            echo "version=pr${PR_NUMBER}-${HEAD_SHA:0:7}" >> "${GITHUB_OUTPUT}"
+            echo "build_sha=" >> "${GITHUB_OUTPUT}"
+            echo "on_main=false" >> "${GITHUB_OUTPUT}"
+          else
+            # Same name nightly.yml gives this commit: the commit's own date, not the build date
+            DATE=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.committer.date')
+            echo "version=nightly-$(date -u -d "${DATE}" +%Y%m%d)-${HEAD_SHA:0:7}" >> "${GITHUB_OUTPUT}"
+            echo "build_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
+            echo "on_main=${{ github.ref == 'refs/heads/main' }}" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    needs: version
+    uses: ./.github/workflows/norilight-build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      build_sha: ${{ needs.version.outputs.build_sha }}
+      save_caches: ${{ needs.version.outputs.on_main == 'true' }}
+      # Main builds stay a week so a nightly can still publish them
+      artifact_retention_days: ${{ needs.version.outputs.on_main == 'true' && 7 || 3 }}

@@ -79,12 +79,20 @@ build\Norilight-x64-release\Norilight.exe
 Use `debug` instead of `release` for a debug build. Later builds only recompile
 what changed.
 
+To run the Windows regression tests after a release build:
+
+```bat
+scripts\run-tests.bat
+```
+
 ### Nightly Windows installer
 
 The GitHub `Nightly` workflow runs daily at 20:17 Europe/Amsterdam and publishes
 an x64 `Norilight-Windows-x64-nightly-...-Setup.exe` alongside the ZIP and macOS DMG
-on the rolling `nightly` pre-release. Scheduled runs skip unchanged commits; use
-**Run workflow** in GitHub Actions to rebuild manually.
+on the rolling `nightly` pre-release. Scheduled runs skip nights where only
+documentation changed. If the `CI` workflow already built the commit on `main`, the
+nightly publishes that build instead of compiling it again. Use **Run workflow** in
+GitHub Actions to publish by hand, and tick **Build from scratch** to rebuild.
 
 The setup wizard installs Norilight in Program Files, creates a Start menu shortcut,
 offers a desktop shortcut, and registers an uninstaller in Windows Settings.

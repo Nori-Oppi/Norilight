@@ -1,5 +1,8 @@
 # Profile regression tests
 
+`scripts\run-tests.bat` builds and runs this test along with the others; CI runs it on
+every pull request. The manual steps:
+
 These tests use temporary INI settings, leaving real Norilight settings untouched.
 Run scenarios in separate processes because active profile selection is process-local.
 

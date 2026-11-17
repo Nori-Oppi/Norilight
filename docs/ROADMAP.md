@@ -20,6 +20,12 @@ before assuming it contains a particular change.
 | `integrate-all-refs` | Earlier integration work | No unique commits beyond `main` |
 | `dependabot/submodules/app/SDL_GameControllerDB-c0f11d4` | Controller database refresh | Included in `main` |
 
+## Checks
+
+Every pull request and push to `main` runs the `CI` workflow: the Windows x64 and macOS
+builds, the Windows regression tests (`scripts\run-tests.bat`) and the installer checks.
+Changes that only touch documentation skip it.
+
 ## Upstream
 
 Norilight includes every bug fix from Moonlight PC's `master` up to

@@ -4,8 +4,8 @@ permissions:
   contents: read
 
 # Norilight: upstream's full matrix (AppImage, Steam Link, Windows x64/arm64,
-# macOS). It no longer runs on every push; Norilight's builds come from
-# nightly.yml for now. Run it by hand from the Actions tab if needed.
+# macOS). It doesn't run on its own; Norilight's checks and builds come from
+# ci.yml and nightly.yml. Run it by hand from the Actions tab if needed.
 on:
   workflow_dispatch:
 

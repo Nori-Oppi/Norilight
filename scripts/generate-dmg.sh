@@ -32,8 +32,13 @@ fi
 
 [ "$SIGNING_IDENTITY" == "" ] || git diff-index --quiet HEAD -- || fail "Signed release builds must not have unstaged changes!"
 
-echo Updating dependencies
-python3 $SOURCE_ROOT/setup-deps.py
+# SKIP_SETUP_DEPS=1 keeps libs/mac as it is (CI restores it from a cache)
+if [ "$SKIP_SETUP_DEPS" == "1" ] && [ -d libs/mac ]; then
+  echo Using existing dependencies in libs/mac
+else
+  echo Updating dependencies
+  python3 $SOURCE_ROOT/setup-deps.py
+fi
 
 echo Cleaning output directories
 rm -rf $BUILD_FOLDER
