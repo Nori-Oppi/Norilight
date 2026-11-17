@@ -1,5 +1,8 @@
 # Windows screenshot shortcut regression test
 
+`scripts\run-tests.bat` builds and runs this test along with the others; CI runs it on
+every pull request. The manual steps:
+
 From an x64 Visual Studio Developer Command Prompt at the repository root:
 
 ```bat
