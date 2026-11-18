@@ -22,8 +22,8 @@ more.
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
 | N1 | Reset button | S | Settings › Reset Norilight: settings moved to a backup, restart into the first-start wizard |
-| N2 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
-| N4 | Comparison test suite (with Norishine) | M–L | Norilight against Moonlight, on Norishine, Apollo, Vibepollo and Sunshine |
+| N2 | Benchmark check (with Norishine) | M | After each streaming change: Norishine with Norilight against stored Apollo, Vibepollo and Sunshine results with Moonlight; never worse |
+| N3 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
 | N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |
 | N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
 | N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |
