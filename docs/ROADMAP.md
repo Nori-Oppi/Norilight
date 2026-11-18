@@ -16,6 +16,8 @@ numbers below match it.
 - **Reset button** (N1): Settings › Reset Norilight moves the settings to a dated backup and
   restarts into the first-start wizard; `Norilight --reset` does the same. See
   [GUIDE.md](GUIDE.md#resetting-norilight).
+- **Benchmark check** (N2, with Norishine): Norishine with Norilight against stored Apollo,
+  Vibepollo and Sunshine results with Moonlight. See [Checks](#checks).
 
 ## Next
 
@@ -24,7 +26,6 @@ more.
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N2 | Benchmark check (with Norishine) | M | After each streaming change: Norishine with Norilight against stored Apollo, Vibepollo and Sunshine results with Moonlight; never worse |
 | N3 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
 | N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |
 | N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
@@ -55,6 +56,13 @@ before assuming it contains a particular change.
 Every pull request and push to `main` runs the `CI` workflow: the Windows x64 and macOS
 builds, the Windows regression tests (`scripts\run-tests.bat`) and the installer checks.
 Changes that only touch documentation skip it.
+
+After any change to decoding, rendering or the network code, run Norishine's benchmark check
+on the real PC with a release build of Norilight (`python scripts/benchmark/compare.py` in the
+Norishine repository; see its
+[BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#check-against-apollo-vibepollo-and-sunshine))
+and put the verdict in the pull request. A metric worse than Apollo, Vibepollo or Sunshine
+with Moonlight is fixed before merging, or explained.
 
 ## Upstream
 
