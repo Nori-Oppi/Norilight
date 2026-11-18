@@ -2,7 +2,10 @@
 
 Planned, not available yet:
 
-- **Automatic hardware and network tuning** to help pick good streaming settings.
+- **Automatic hardware and network tuning**: Norishine already adapts the bitrate during a
+  stream from Norilight's reports. Next: "Auto" profile settings picked from the display,
+  decoder, host encoder and network at each launch, and start bitrates learned per host and
+  network.
 - More Norishine diagnostics as the host adds them (host stats and per-session metrics).
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.

@@ -40,6 +40,9 @@ These need [Apollo](https://github.com/ClassicOldSong/Apollo) or
 - Virtual displays that match the client, with a resolution scale (needs SudoVDA on the host).
 - Text clipboard sync, with an option to keep host text out of Windows clipboard history.
 - Run host server commands during a stream with Ctrl+Alt+Shift+R.
+- Adaptive bitrate (Norishine): Norilight reports lost frames, round-trip time and decode
+  time once a second, and the host lowers the bitrate or adds error correction when the
+  network can't keep up, then returns to your bitrate. See [the guide](GUIDE.md#adaptive-bitrate).
 
 ## Managing a Norishine host
 
