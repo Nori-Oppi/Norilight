@@ -836,58 +836,75 @@ ApplicationWindow {
             }
         }
 
-        footer: DialogButtonBox {
+        // A plain row rather than a DialogButtonBox: Material's box gives every button,
+        // hidden ones included, an equal share of the width, which left a gap and put
+        // the primary button in the middle. RowLayout skips hidden buttons.
+        footer: Item {
             visible: updateDialog.phase !== "installing"
+            implicitHeight: updateButtons.implicitHeight + 16
 
-            Button {
-                id: updatePrimaryButton
-                flat: true
-                visible: updateDialog.phase !== "downloading"
-                text: AutoUpdateChecker.canInstall
-                      ? (updateDialog.phase === "failed" ? qsTr("Try again") : qsTr("Install and restart"))
-                      : qsTr("Open release page")
-                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
-                Keys.onReturnPressed: clicked()
-                Keys.onEnterPressed: clicked()
-                onClicked: {
-                    if (AutoUpdateChecker.canInstall) {
-                        updateDialog.received = 0
-                        updateDialog.total = -1
-                        updateDialog.phase = "downloading"
-                        AutoUpdateChecker.installUpdate()
-                    }
-                    else {
+            RowLayout {
+                id: updateButtons
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                // DialogButtonBox gave its buttons the accent colour
+                Material.foreground: Material.accent
+
+                Button {
+                    flat: true
+                    visible: updateDialog.phase === "failed" && SystemProperties.hasBrowser
+                    text: qsTr("Download in browser")
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocus)
+                    Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocus)
+                    onClicked: {
                         Qt.openUrlExternally(AutoUpdateChecker.downloadUrl)
                         updateDialog.close()
                     }
                 }
-            }
 
-            Button {
-                flat: true
-                visible: updateDialog.phase === "failed" && SystemProperties.hasBrowser
-                text: qsTr("Download in browser")
-                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
-                Keys.onReturnPressed: clicked()
-                Keys.onEnterPressed: clicked()
-                onClicked: {
-                    Qt.openUrlExternally(AutoUpdateChecker.downloadUrl)
-                    updateDialog.close()
-                }
-            }
-
-            Button {
-                flat: true
-                text: updateDialog.phase === "downloading" ? qsTr("Cancel") : qsTr("Later")
-                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
-                Keys.onReturnPressed: clicked()
-                Keys.onEnterPressed: clicked()
-                onClicked: {
-                    if (updateDialog.phase === "downloading") {
-                        AutoUpdateChecker.cancelInstall()
+                Button {
+                    flat: true
+                    text: updateDialog.phase === "downloading" ? qsTr("Cancel") : qsTr("Later")
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocus)
+                    Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocus)
+                    onClicked: {
+                        if (updateDialog.phase === "downloading") {
+                            AutoUpdateChecker.cancelInstall()
+                        }
+                        updateDialog.phase = "offer"
+                        updateDialog.close()
                     }
-                    updateDialog.phase = "offer"
-                    updateDialog.close()
+                }
+
+                Button {
+                    id: updatePrimaryButton
+                    flat: true
+                    visible: updateDialog.phase !== "downloading"
+                    text: AutoUpdateChecker.canInstall
+                          ? (updateDialog.phase === "failed" ? qsTr("Try again") : qsTr("Install and restart"))
+                          : qsTr("Open release page")
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocus)
+                    Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocus)
+                    onClicked: {
+                        if (AutoUpdateChecker.canInstall) {
+                            updateDialog.received = 0
+                            updateDialog.total = -1
+                            updateDialog.phase = "downloading"
+                            AutoUpdateChecker.installUpdate()
+                        }
+                        else {
+                            Qt.openUrlExternally(AutoUpdateChecker.downloadUrl)
+                            updateDialog.close()
+                        }
+                    }
                 }
             }
         }
