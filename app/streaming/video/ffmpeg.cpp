@@ -760,6 +760,7 @@ void FFmpegVideoDecoder::addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst)
     dst.totalFrames += src.totalFrames;
     dst.networkDroppedFrames += src.networkDroppedFrames;
     dst.pacerDroppedFrames += src.pacerDroppedFrames;
+    dst.pacerEnqueueDroppedFrames += src.pacerEnqueueDroppedFrames;
     dst.totalReassemblyTimeUs += src.totalReassemblyTimeUs;
     dst.totalDecodeTimeUs += src.totalDecodeTimeUs;
     dst.totalPacerTimeUs += src.totalPacerTimeUs;
@@ -1019,6 +1020,15 @@ void FFmpegVideoDecoder::logVideoStats(VIDEO_STATS& stats, const char* title)
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "\n%s\n------------------\n%s",
                     title, videoStatsStr);
+
+        // Norilight: log only (not the overlay). Lets a comparison with clients that don't
+        // count these drops (Moonlight 6.2.0 and earlier) leave them out on both sides.
+        if (stats.decodedFrames != 0) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Of those, dropped because the frame queue was full: %.2f%% (%u frames)",
+                        (float)stats.pacerEnqueueDroppedFrames / stats.decodedFrames * 100,
+                        stats.pacerEnqueueDroppedFrames);
+        }
     }
 }
 

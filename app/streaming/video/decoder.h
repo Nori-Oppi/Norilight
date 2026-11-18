@@ -15,6 +15,9 @@ typedef struct _VIDEO_STATS {
     uint32_t totalFrames;
     uint32_t networkDroppedFrames;
     uint32_t pacerDroppedFrames;
+    // Norilight: of pacerDroppedFrames, those dropped because the queue was full when a new
+    // frame arrived. Moonlight 6.2.0 and earlier drop these without counting them.
+    uint32_t pacerEnqueueDroppedFrames;
     uint16_t minHostProcessingLatency;         // low-res from RTP
     uint16_t maxHostProcessingLatency;         // low-res from RTP
     uint32_t totalHostProcessingLatency;       // low-res from RTP
