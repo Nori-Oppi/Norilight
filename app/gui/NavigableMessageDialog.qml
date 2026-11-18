@@ -10,7 +10,7 @@ NavigableDialog {
     property alias imageSrc: dialogImage.source
 
     property string helpText
-    property string helpUrl : "https://github.com/moonlight-stream/moonlight-docs/wiki/Troubleshooting"
+    property string helpUrl : "https://github.com/Nori-Oppi/norilight-docs/blob/main/troubleshooting.md"
     property string helpTextSeparator : " "
 
     // Norilight: verb labels for confirmations ("Delete", "Cancel") instead of

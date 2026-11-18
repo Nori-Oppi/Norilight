@@ -377,7 +377,7 @@ CenteredGridView {
 
         // Using Setup-Guide here instead of Troubleshooting because it's likely that users
         // will arrive here by forgetting to enable GameStream or not forwarding ports.
-        helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Setup-Guide"
+        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/blob/main/setup-guide.md"
     }
 
     NavigableMessageDialog {

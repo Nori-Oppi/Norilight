@@ -15,7 +15,7 @@
           Version="!(bind.PackageVersion.Moonlight_x64)"
           Manufacturer="Moonlight Game Streaming Project"
           UpgradeCode="466fa35d-4be4-40ef-9ce5-afadc3b63bc5"
-          HelpUrl="https://github.com/moonlight-stream/moonlight-docs/wiki/Setup-Guide"
+          HelpUrl="https://github.com/Nori-Oppi/norilight-docs/blob/main/setup-guide.md"
           UpdateUrl="https://github.com/moonlight-stream/moonlight-qt/releases"
           DisableModify="yes"
           IconSourceFile="..\..\app\norilight.ico">

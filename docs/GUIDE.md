@@ -135,6 +135,8 @@ reads the pipe, Norilight pauses as soon as it fills, which can make pairing tim
 
 ## More
 
+- [norilight-docs](https://github.com/Nori-Oppi/norilight-docs): setup guide,
+  troubleshooting, hardware decoding and gamepad mapping (the help buttons open these)
 - [Features](FEATURES.md), with screenshots
 - [Roadmap and branches](ROADMAP.md)
 - [Building](../BUILDING.md)
