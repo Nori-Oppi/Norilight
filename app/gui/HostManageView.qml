@@ -36,6 +36,12 @@ Item {
     property int pending: 0
     property int busy: 0
 
+    // Host update (GET /api/v1/update); null on hosts without it
+    property var hostUpdate: null
+    property string updateTarget: ""      // set while waiting for the host to come back updated
+    property int updateWaited: 0          // seconds since the update started
+    readonly property bool updateRunning: hostUpdate !== null && (hostUpdate.state === "downloading" || hostUpdate.state === "installing")
+
     readonly property int manageRead: 0x10000000
     readonly property int manageWrite: 0x20000000
     readonly property bool canWrite: hostStatus !== null && (hostStatus.device.permissions & manageWrite) !== 0
@@ -87,6 +93,7 @@ Item {
         case "devices": request("devices", "GET", "/api/v1/devices"); break
         case "displays": request("displays", "GET", "/api/v1/displays"); break
         case "config": request("config", "GET", "/api/v1/config"); break
+        case "update": request("update", "GET", "/api/v1/update"); break
         }
     }
 
@@ -98,6 +105,7 @@ Item {
         load("devices")
         load("displays")
         load("config")
+        load("update")
     }
 
     // A change: "what" is reloaded afterwards, "done" is shown on success
@@ -240,7 +248,7 @@ Item {
                 var editorSaving = appEditor.saving || deviceEditor.saving
                 appEditor.saving = false
                 deviceEditor.saving = false
-                if (status === 200 && data !== null) {
+                if ((status === 200 || status === 202) && data !== null) {
                     var text = typeof done === "function" ? done(data) : done
                     if (data.closed_running_app) {
                         text = (text ? text + " " : "") + qsTr("The app that was running was closed.")
@@ -257,6 +265,11 @@ Item {
                     else if (what === "displays") {
                         managePage.load("displays")
                         managePage.load("config")
+                    }
+                    else if (what === "update") {
+                        managePage.updateTarget = data.target ? data.target.version : ""
+                        managePage.updateWaited = 0
+                        managePage.load("update")
                     }
                     else if (what === "unpair-self") {
                         managePage.devices = []
@@ -281,6 +294,10 @@ Item {
             }
 
             managePage.pending = Math.max(0, managePage.pending - 1)
+            if (kind === "update") {
+                managePage.handleUpdate(status, data)
+                return
+            }
             if (status === 403) {
                 managePage.accessDenied = true
                 managePage.loadError = managePage.describeFailure(status, data, error)
@@ -313,11 +330,56 @@ Item {
         }
     }
 
+    function handleUpdate(status, data) {
+        if (status === 200 && data !== null) {
+            if (updateTarget !== "" && data.current === updateTarget) {
+                notice = qsTr("The host was updated to %1.").arg(updateTarget)
+                updateTarget = ""
+                hostUpdate = data
+                reload()
+                return
+            }
+            if (updateTarget !== "" && data.state === "failed") {
+                notice = data.error || qsTr("The update failed.")
+                updateTarget = ""
+            }
+            else if (updateTarget !== "" && data.last_update && data.last_update.to === updateTarget && data.last_update.result === "failed") {
+                // The host restarted on its old version: the installer failed.
+                notice = data.last_update.error || qsTr("The update failed.")
+                updateTarget = ""
+            }
+            hostUpdate = data
+        }
+        else if (updateTarget === "") {
+            // An older host without updates (404), or no answer: no update card.
+            hostUpdate = null
+        }
+        // While updating, no answer just means the host is restarting.
+    }
+
+    // While the host updates: follow the download, then wait for it to come back.
+    Timer {
+        interval: 3000
+        repeat: true
+        running: managePage.updateTarget !== ""
+        onTriggered: {
+            managePage.updateWaited += 3
+            if (managePage.updateWaited > 600) {
+                managePage.notice = qsTr("The host hasn't come back after the update. It may still be installing; try Refresh in a minute. If it stays away, it needs a look at the PC.")
+                managePage.updateTarget = ""
+                return
+            }
+            if (managePage.pending === 0) {
+                managePage.load("update")
+            }
+        }
+    }
+
     // Streams start and stop on their own; keep the device list current while open.
     Timer {
         interval: 10000
         repeat: true
-        running: managePage.StackView.status === StackView.Active && managePage.hostStatus !== null && managePage.busy === 0
+        running: managePage.StackView.status === StackView.Active && managePage.hostStatus !== null && managePage.busy === 0 && managePage.updateTarget === ""
         onTriggered: {
             managePage.load("status")
             managePage.load("devices")
@@ -422,6 +484,75 @@ Item {
                         text: managePage.loadError !== "" ? managePage.loadError : qsTr("Loading...")
                         hint: managePage.accessDenied ?
                                   qsTr("On the host, open the web UI, go to paired devices, and choose \"View\" under host management for this device (or \"Manage\" to also change things here).") : ""
+                    }
+                }
+
+                // Host update, on every tab
+                SettingsCard {
+                    visible: managePage.hostUpdate !== null && (managePage.updateTarget !== "" || managePage.updateRunning ||
+                             managePage.hostUpdate.available !== null ||
+                             (managePage.hostUpdate.last_update !== null && managePage.hostUpdate.last_update.result === "failed"))
+                    title: qsTr("Host update")
+
+                    SettingsRow {
+                        visible: managePage.updateTarget !== "" || managePage.updateRunning
+                        text: {
+                            var u = managePage.hostUpdate
+                            var version = managePage.updateTarget !== "" ? managePage.updateTarget : (u && u.target ? u.target.version : "")
+                            if (u && u.state === "downloading" && u.progress && u.progress.total > 0) {
+                                return qsTr("Downloading Norishine %1 (%2%)").arg(version).arg(Math.floor(100 * u.progress.bytes / u.progress.total))
+                            }
+                            if (u && u.state === "downloading") {
+                                return qsTr("Downloading Norishine %1").arg(version)
+                            }
+                            return qsTr("Installing Norishine %1").arg(version)
+                        }
+                        hint: qsTr("The host restarts and comes back by itself. Streams end until then.")
+                        BusyIndicator { running: true; implicitWidth: 32; implicitHeight: 32 }
+                    }
+
+                    SettingsRow {
+                        visible: managePage.updateTarget === "" && !managePage.updateRunning && managePage.hostUpdate !== null && managePage.hostUpdate.available !== null
+                        text: managePage.hostUpdate && managePage.hostUpdate.available ?
+                                  qsTr("Norishine %1 is available").arg(managePage.hostUpdate.available.version) : ""
+                        hint: {
+                            var u = managePage.hostUpdate
+                            if (!u) {
+                                return ""
+                            }
+                            var text = qsTr("This host runs %1.").arg(u.current)
+                            if (u.state === "failed" && u.error) {
+                                text += " " + u.error
+                            }
+                            if (!u.supported && u.unsupported_reason) {
+                                text += " " + u.unsupported_reason
+                            }
+                            return text
+                        }
+                        Button {
+                            text: qsTr("Update")
+                            highlighted: true
+                            visible: managePage.canWrite && managePage.hostUpdate !== null && managePage.hostUpdate.supported
+                            enabled: managePage.busy === 0
+                            onClicked: {
+                                var version = managePage.hostUpdate.available.version
+                                confirmDialog.ask(qsTr("Update the host to %1?").arg(version),
+                                                  qsTr("Streams end while the host installs the update and restarts. It comes back by itself, usually within a minute."),
+                                                  function() {
+                                                      managePage.change("update", "POST", "/api/v1/update", {"version": version}, qsTr("Updating the host..."))
+                                                  })
+                            }
+                        }
+                    }
+
+                    SettingsRow {
+                        visible: managePage.updateTarget === "" && !managePage.updateRunning && managePage.hostUpdate !== null &&
+                                 managePage.hostUpdate.last_update !== null && managePage.hostUpdate.last_update.result === "failed"
+                        text: managePage.hostUpdate && managePage.hostUpdate.last_update ?
+                                  qsTr("The update to %1 failed").arg(managePage.hostUpdate.last_update.to) : ""
+                        hint: managePage.hostUpdate && managePage.hostUpdate.last_update && managePage.hostUpdate.last_update.error ?
+                                  managePage.hostUpdate.last_update.error : ""
+                        hintIsError: true
                     }
                 }
 
