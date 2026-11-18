@@ -21,6 +21,10 @@ numbers below match it.
 - **Help links** (N3): the help buttons open
   [norilight-docs](https://github.com/Nori-Oppi/norilight-docs), written for Norilight and
   Norishine, instead of moonlight-docs.
+- **Norishine setup wizard and reset** (N4, Norishine): a first-start wizard in the host's
+  web UI (import, name, display, encoder check, first device) and Reset Norishine. After a
+  host reset, Norilight sees a new host and pairs again. See Norishine's
+  [GUIDE.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/GUIDE.md#first-start).
 
 ## Next
 
