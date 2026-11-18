@@ -46,13 +46,15 @@ These need [Apollo](https://github.com/ClassicOldSong/Apollo) or
 These need [Norishine](https://github.com/Nori-Oppi/Norishine) on the host, and permission
 for this device in its web UI (see the [guide](GUIDE.md#managing-a-norishine-host)).
 
-- **Host Settings:** the host's settings, laid out as in its web UI: the same categories
+- **Host settings:** the host's settings, laid out as in its web UI: the same categories
   and sub-headings, an Expert group with only the encoder the host uses, and search across
   every setting. The host checks every value and marks the ones it rejects. Save and
   restart in one step.
-- **Manage Host:** add, edit, reorder, start, close and remove apps; rename paired devices,
+- **Manage host:** add, edit, reorder, start, close and remove apps; rename paired devices,
   change their permissions and display mode, end their streams or unpair them; see the
-  displays and pick the one to stream.
+  displays and pick the one to stream; update the host to its newest version.
+- Norishine hosts show a seal on their icon and a gear at the top right of the tile that
+  opens both pages.
 - A device can't change its own permissions. Settings with lists or scripts, such as app
   commands, are changed in the host's web UI.
 

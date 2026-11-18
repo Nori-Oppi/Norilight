@@ -109,6 +109,7 @@ CenteredGridView {
     model: computerModel
 
     delegate: NavigableItemDelegate {
+        id: pcTile
         width: 300; height: 320;
         grid: pcGrid
 
@@ -122,6 +123,65 @@ CenteredGridView {
                 width: 200
                 height: 200
             }
+        }
+
+        // Norilight: Nori peeks over the monitor's corner on Norishine hosts
+        Image {
+            id: sealBadge
+            visible: model.norishineApi >= 1
+            source: "qrc:/res/norishine-seal.svg"
+            x: pcIcon.x + 6
+            y: pcIcon.y + 2
+            sourceSize {
+                width: 72
+                height: 72
+            }
+        }
+
+        // Norilight: the host's own settings and management, on Norishine hosts
+        ToolButton {
+            id: hostToolsButton
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: 4
+            anchors.rightMargin: 4
+            visible: model.online && model.paired && model.norishineApi >= 1
+            focusPolicy: Qt.NoFocus
+            icon.source: "qrc:/res/settings.svg"
+            icon.width: 28
+            icon.height: 28
+            ToolTip.text: qsTr("Host settings")
+            ToolTip.delay: 600
+            ToolTip.visible: hovered
+            Accessible.name: qsTr("Host settings")
+            onClicked: hostToolsMenu.open()
+
+            Menu {
+                id: hostToolsMenu
+                y: hostToolsButton.height
+
+                MenuItem {
+                    text: qsTr("Host settings")
+                    onTriggered: pcTile.openHostSettings()
+                }
+                MenuItem {
+                    text: qsTr("Manage host")
+                    enabled: model.norishineFeatures.indexOf("apps") >= 0
+                    onTriggered: pcTile.openManageHost()
+                }
+            }
+        }
+
+        function openHostSettings() {
+            var component = Qt.createComponent("HostSettingsView.qml")
+            var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("%1 settings").arg(model.name)})
+            stackView.push(hostView)
+        }
+
+        function openManageHost() {
+            var component = Qt.createComponent("HostManageView.qml")
+            var manageView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("Manage %1").arg(model.name)})
+            stackView.push(manageView)
         }
 
         Image {
@@ -179,13 +239,11 @@ CenteredGridView {
             sourceComponent: NavigableMenu {
                 id: pcContextMenu
                 initiator: pcContextMenuLoader.parent
-                MenuItem {
-                    text: qsTr("PC Status: %1").arg(model.online ? qsTr("Online") : qsTr("Offline"))
-                    font.bold: true
-                    enabled: false
-                }
+
+                readonly property bool norishineHost: model.online && model.paired && model.norishineApi >= 1
+
                 NavigableMenuItem {
-                    text: qsTr("View All Apps")
+                    text: qsTr("View all apps")
                     onTriggered: {
                         var component = Qt.createComponent("AppView.qml")
                         var appView = component.createObject(stackView, {"computerIndex": index, "objectName": model.name, "showHiddenGames": true})
@@ -193,41 +251,41 @@ CenteredGridView {
                     }
                     visible: model.online && model.paired
                 }
+                MenuSeparator {
+                    visible: model.online && model.paired
+                    height: visible ? implicitHeight : 0
+                }
+
+                // Norilight: Norishine hosts have a management API for paired clients
                 NavigableMenuItem {
-                    // Norilight: Norishine hosts have a management API for paired clients
-                    text: qsTr("Host Settings")
-                    onTriggered: {
-                        var component = Qt.createComponent("HostSettingsView.qml")
-                        var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("%1 settings").arg(model.name)})
-                        stackView.push(hostView)
-                    }
-                    visible: model.online && model.paired && model.norishineApi >= 1
+                    text: qsTr("Host settings")
+                    onTriggered: pcTile.openHostSettings()
+                    visible: pcContextMenu.norishineHost
                 }
                 NavigableMenuItem {
-                    // Norilight: apps, paired devices, streams and displays (Norishine hosts with M7)
-                    text: qsTr("Manage Host")
-                    onTriggered: {
-                        var component = Qt.createComponent("HostManageView.qml")
-                        var manageView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("Manage %1").arg(model.name)})
-                        stackView.push(manageView)
-                    }
-                    visible: model.online && model.paired && model.norishineApi >= 1 && model.norishineFeatures.indexOf("apps") >= 0
+                    text: qsTr("Manage host")
+                    onTriggered: pcTile.openManageHost()
+                    visible: pcContextMenu.norishineHost && model.norishineFeatures.indexOf("apps") >= 0
                 }
+                MenuSeparator {
+                    visible: pcContextMenu.norishineHost
+                    height: visible ? implicitHeight : 0
+                }
+
                 NavigableMenuItem {
                     text: qsTr("Wake PC")
                     onTriggered: computerModel.wakeComputer(index)
                     visible: !model.online && model.wakeable
                 }
                 NavigableMenuItem {
-                    text: qsTr("Test Network")
+                    text: qsTr("Test network")
                     onTriggered: {
                         computerModel.testConnectionForComputer(index)
                         testConnectionDialog.open()
                     }
                 }
-
                 NavigableMenuItem {
-                    text: qsTr("Rename PC")
+                    text: qsTr("Rename")
                     onTriggered: {
                         renamePcDialog.pcIndex = index
                         renamePcDialog.originalName = model.name
@@ -235,18 +293,19 @@ CenteredGridView {
                     }
                 }
                 NavigableMenuItem {
-                    text: qsTr("Delete PC")
+                    text: qsTr("Details")
+                    onTriggered: {
+                        showPcDetailsDialog.pcDetails = model.details
+                        showPcDetailsDialog.open()
+                    }
+                }
+                MenuSeparator {}
+                NavigableMenuItem {
+                    text: qsTr("Remove")
                     onTriggered: {
                         deletePcDialog.pcIndex = index
                         deletePcDialog.pcName = model.name
                         deletePcDialog.open()
-                    }
-                }
-                NavigableMenuItem {
-                    text: qsTr("View Details")
-                    onTriggered: {
-                        showPcDetailsDialog.pcDetails = model.details
-                        showPcDetailsDialog.open()
                     }
                 }
             }
