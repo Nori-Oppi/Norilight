@@ -36,6 +36,12 @@ more.
 | N12 | Android build, for handhelds | XL | Qt for Android or a start from Artemis, decided by a short spike; controller-first, battery-aware |
 | N13 | iOS build | XL | After Android; installing unsigned builds needs sideloading |
 
+Small fix, any time between the items above:
+
+| # | Item | Effort | Notes |
+| --- | --- | --- | --- |
+| N14 | Fewer full-queue frame drops in the pacer | S–M | About 0.15–0.3 % of frames dropped when the pacer's queue is full; Moonlight 6.2.0 drops the same, so not a regression, but fewer would put Norilight ahead. Prove it with the benchmark check |
+
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
 
 ## Branches
