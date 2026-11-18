@@ -55,10 +55,15 @@ for this device in its web UI (see the [guide](GUIDE.md#managing-a-norishine-hos
 - **Host settings:** the host's settings, laid out as in its web UI: the same categories
   and sub-headings, an Expert group with only the encoder the host uses, and search across
   every setting. The host checks every value and marks the ones it rejects. Save and
-  restart in one step.
+  restart in one step. Encoder settings the host recommends from earlier streams appear at
+  the top, current value → recommended value, with Apply and Undo (Norishine
+  [AUTOTUNE.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/AUTOTUNE.md#host-settings-norishine)).
 - **Manage host:** add, edit, reorder, start, close and remove apps; rename paired devices,
   change their permissions and display mode, end their streams or unpair them; see the
-  displays and pick the one to stream; update the host to its newest version.
+  displays and pick the one to stream; update the host to its newest version. A Stats tab
+  shows the host's CPU, memory, GPU and encoder load and, for each stream, frame rate,
+  bitrate, latency, recovery requests and what the adaptive bitrate and FEC are doing,
+  refreshed every 3 seconds.
 - Norishine hosts show a seal on their icon and a gear at the top right of the tile that
   opens both pages.
 - A device can't change its own permissions. Settings with lists or scripts, such as app

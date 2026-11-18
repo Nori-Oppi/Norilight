@@ -16,6 +16,8 @@ Item {
 
     property int computerIndex
     property ComputerModel computerModel
+    // The host's Norishine features (serverinfo)
+    property var hostFeatures: []
 
     // From the host
     property var hostStatus: null
@@ -28,6 +30,12 @@ Item {
     property bool appsLoaded: false
     property bool devicesLoaded: false
     property bool displaysLoaded: false
+
+    // Host load and streams (GET /api/v1/stats), on hosts with the "stats" feature
+    readonly property bool statsSupported: hostFeatures.indexOf("stats") >= 0
+    readonly property int statsTab: 3
+    property var hostStats: null
+    property string statsError: ""
 
     // Local state
     property string loadError: ""
@@ -214,6 +222,59 @@ Item {
         return ""
     }
 
+    function percentText(value) {
+        return value === null || value === undefined ? "–" : qsTr("%1 %").arg(Math.round(value))
+    }
+
+    function mbpsText(kbps) {
+        return kbps === null || kbps === undefined ? "–" : qsTr("%1 Mbps").arg((kbps / 1000).toFixed(1))
+    }
+
+    function msText(value) {
+        return value === null || value === undefined ? "–" : qsTr("%1 ms").arg(value.toFixed(1))
+    }
+
+    function memoryText(host) {
+        if (!host || host.memory_used_mb === null || host.memory_total_mb === null) {
+            return "–"
+        }
+        return qsTr("%1 of %2 GB").arg((host.memory_used_mb / 1024).toFixed(1)).arg((host.memory_total_mb / 1024).toFixed(1))
+    }
+
+    readonly property var adaptiveReasons: ({
+        "congestion": qsTr("congestion"),
+        "delay": qsTr("rising delay"),
+        "loss": qsTr("loss"),
+        "probe": qsTr("raising"),
+        "fec_relax": qsTr("network clean")
+    })
+
+    function streamSummary(s) {
+        var parts = [s.fps === null ? "–" : qsTr("%1 fps").arg(Math.round(s.fps)), mbpsText(s.bitrate_kbps)]
+        if (s.latency_ms) {
+            parts.push(qsTr("latency %1 (%2–%3)").arg(msText(s.latency_ms.avg)).arg(s.latency_ms.min.toFixed(1)).arg(s.latency_ms.max.toFixed(1)))
+        }
+        parts.push(qsTr("recovery %1").arg(s.recent_recovery_requests))
+        return parts.join(" · ")
+    }
+
+    function adaptiveSummary(a) {
+        if (!a) {
+            return ""
+        }
+        var text = qsTr("Adaptive %1 · FEC %2 %").arg(mbpsText(a.bitrate_kbps)).arg(a.fec_percent)
+        if (adaptiveReasons[a.last_reason]) {
+            text += " · " + adaptiveReasons[a.last_reason]
+        }
+        if (a.host_limited) {
+            text += " · " + qsTr("host limited")
+        }
+        if (a.client_limited) {
+            text += " · " + qsTr("client limited")
+        }
+        return text
+    }
+
     function moveApp(index, delta) {
         var order = apps.map(function(a) { return a.uuid })
         var target = index + delta
@@ -289,6 +350,17 @@ Item {
                 }
                 else {
                     managePage.notice = managePage.describeFailure(status, data, error)
+                }
+                return
+            }
+
+            if (kind === "stats") {
+                if (status === 200 && data !== null) {
+                    managePage.hostStats = data
+                    managePage.statsError = ""
+                }
+                else {
+                    managePage.statsError = managePage.describeFailure(status, data, error)
                 }
                 return
             }
@@ -386,10 +458,24 @@ Item {
         }
     }
 
+    // Host load and streams: every few seconds while the Stats tab is shown
+    Timer {
+        interval: 3000
+        repeat: true
+        triggeredOnStart: true
+        running: managePage.statsSupported && managePage.StackView.status === StackView.Active && tabs.currentIndex === managePage.statsTab
+        onTriggered: managePage.request("stats", "GET", "/api/v1/stats")
+    }
+
     StackView.onActivated: {
         if (hostStatus === null) {
             reload()
         }
+    }
+
+    Component {
+        id: statsTabButton
+        TabButton { text: qsTr("Stats") }
     }
 
     ColumnLayout {
@@ -406,6 +492,13 @@ Item {
             TabButton { text: qsTr("Apps") }
             TabButton { text: qsTr("Devices") }
             TabButton { text: qsTr("Displays") }
+
+            // Only on hosts that report stats
+            Component.onCompleted: {
+                if (managePage.statsSupported) {
+                    addItem(statsTabButton.createObject(tabs))
+                }
+            }
         }
 
         Flickable {
@@ -772,6 +865,56 @@ Item {
                             onClicked: managePage.change("displays", "PATCH", "/api/v1/config", {"reset": ["output_name"]}, function(data) {
                                 return data.restart_required ? qsTr("Saved. Restart the host (Host Settings) to apply it.") : qsTr("Streams use the main display again.")
                             })
+                        }
+                    }
+                }
+
+                // Stats: host load
+                SettingsCard {
+                    visible: tabs.currentIndex === managePage.statsTab
+                    title: qsTr("Host load")
+
+                    SettingsRow {
+                        visible: managePage.statsError !== "" || managePage.hostStats === null
+                        text: managePage.statsError !== "" ? managePage.statsError : qsTr("Loading...")
+                    }
+
+                    Repeater {
+                        model: managePage.hostStats === null ? [] : [
+                            {"title": qsTr("CPU"), "value": managePage.percentText(managePage.hostStats.host.cpu_percent)},
+                            {"title": qsTr("Memory"), "value": managePage.memoryText(managePage.hostStats.host)},
+                            {"title": qsTr("GPU"), "value": managePage.percentText(managePage.hostStats.host.gpu_percent)},
+                            {"title": qsTr("Encoder"), "value": managePage.percentText(managePage.hostStats.host.encoder_percent)}
+                        ]
+
+                        SettingsRow {
+                            text: modelData.title
+                            Label {
+                                text: modelData.value
+                                color: Theme.textPrimary
+                                font.pointSize: Theme.fontBody
+                            }
+                        }
+                    }
+                }
+
+                // Stats: one row per stream
+                SettingsCard {
+                    visible: tabs.currentIndex === managePage.statsTab && managePage.hostStats !== null
+                    title: qsTr("Streams")
+
+                    SettingsRow {
+                        visible: managePage.hostStats !== null && managePage.hostStats.sessions.length === 0
+                        text: qsTr("No streams")
+                    }
+
+                    Repeater {
+                        model: managePage.hostStats === null ? [] : managePage.hostStats.sessions
+
+                        SettingsRow {
+                            text: modelData.name
+                            hint: managePage.streamSummary(modelData) +
+                                  (modelData.adaptive ? "\n" + managePage.adaptiveSummary(modelData.adaptive) : "")
                         }
                     }
                 }
