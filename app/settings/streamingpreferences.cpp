@@ -77,6 +77,7 @@
 #define SER_REVERSESCROLL "reversescroll"
 #define SER_SWAPFACEBUTTONS "swapfacebuttons"
 #define SER_CAPTURESYSKEYS "capturesyskeys"
+#define SER_TUNINGGOAL "norilighttuninggoal"
 #define SER_KEEPAWAKE "keepawake"
 #define SER_LANGUAGE "language"
 #define SER_RENDERER "renderer"
@@ -225,6 +226,9 @@ void StreamingPreferences::loadFrom(QSettings& settings)
     enableHdr = settings.value(SER_HDR, false).toBool();
     captureSysKeysMode = static_cast<CaptureSysKeysMode>(settings.value(SER_CAPTURESYSKEYS,
                                                          static_cast<int>(CaptureSysKeysMode::CSK_OFF)).toInt());
+    tuningGoal = static_cast<TuningGoal>(qBound(static_cast<int>(TG_OFF),
+                                                settings.value(SER_TUNINGGOAL, static_cast<int>(TG_BALANCED)).toInt(),
+                                                static_cast<int>(TG_QUALITY)));
     audioConfig = static_cast<AudioConfig>(settings.value(SER_AUDIOCFG,
                                                   static_cast<int>(AudioConfig::AC_STEREO)).toInt());
     videoCodecConfig = static_cast<VideoCodecConfig>(settings.value(SER_VIDEOCFG,
@@ -470,6 +474,7 @@ void StreamingPreferences::saveTo(QSettings& settings) const
     settings.setValue(SER_REVERSESCROLL, reverseScrollDirection);
     settings.setValue(SER_SWAPFACEBUTTONS, swapFaceButtons);
     settings.setValue(SER_CAPTURESYSKEYS, captureSysKeysMode);
+    settings.setValue(SER_TUNINGGOAL, tuningGoal);
     settings.setValue(SER_KEEPAWAKE, keepAwake);
 }
 

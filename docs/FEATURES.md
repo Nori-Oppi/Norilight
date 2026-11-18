@@ -31,6 +31,9 @@
 - Fit, Fill or Stretch the picture, with optional top alignment.
 - Type an exact bitrate, and request full-range colour.
 - Compact performance stats, and an optional latency summary when a stream ends.
+- Tuning per profile (Performance, Balanced, Quality): codec, HDR, V-sync, frame pacing and
+  start bitrate picked at each launch from this PC, its display, the host and the network.
+  See [the guide](GUIDE.md#tuning).
 
 ## Apollo and Norishine extras
 

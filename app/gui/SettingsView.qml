@@ -1070,6 +1070,52 @@ Item {
                 SettingsCard {
                     title: qsTr("Picture")
 
+                    // Norilight: launch-time tuning goal (docs/GUIDE.md, "Tuning")
+                    SettingsRow {
+                        text: qsTr("Tuning")
+                        info: qsTr("Picks codec, HDR, V-sync, frame pacing and the start bitrate for each stream from this PC, the host and the network.")
+                        focusTarget: tuningComboBox
+
+                        AutoResizingComboBox {
+                            id: tuningComboBox
+                            maximumWidth: Math.min(260, settingsColumn.width * 0.4)
+                            minimumWidth: 200
+                            textRole: "text"
+                            model: ListModel {
+                                id: tuningListModel
+                                ListElement {
+                                    text: qsTr("Performance")
+                                    val: StreamingPreferences.TG_PERFORMANCE
+                                }
+                                ListElement {
+                                    text: qsTr("Balanced")
+                                    val: StreamingPreferences.TG_BALANCED
+                                }
+                                ListElement {
+                                    text: qsTr("Quality")
+                                    val: StreamingPreferences.TG_QUALITY
+                                }
+                                ListElement {
+                                    text: qsTr("Off")
+                                    val: StreamingPreferences.TG_OFF
+                                }
+                            }
+                            Component.onCompleted: {
+                                currentIndex = 1
+                                for (var i = 0; i < tuningListModel.count; i++) {
+                                    if (tuningListModel.get(i).val === StreamingPreferences.tuningGoal) {
+                                        currentIndex = i
+                                        break
+                                    }
+                                }
+                            }
+                            // ::onActivated must be used, as it only listens for when the index is changed by a human
+                            onActivated: {
+                                StreamingPreferences.tuningGoal = tuningListModel.get(currentIndex).val
+                            }
+                        }
+                    }
+
                     SettingsRow {
                         id: bitrateRow
                         text: qsTr("Video bitrate")
