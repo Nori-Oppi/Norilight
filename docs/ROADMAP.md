@@ -1,23 +1,43 @@
 # Roadmap
 
-Done:
+Updated 2026-11-18. Norishine's roadmap holds the full ranked list for both projects
+([Next](https://github.com/Nori-Oppi/Norishine/blob/master/docs/ROADMAP.md#next)); the
+numbers below match it.
 
-- **Automatic hardware and network tuning**: Norishine adapts the bitrate and error
-  correction during a stream from Norilight's reports; each profile's Tuning goal picks
-  launch settings and learns start bitrates per host and network; Host Settings shows the
-  host's encoder recommendations with Apply and Undo. See
-  [FEATURES.md](FEATURES.md#picture-and-performance).
-- **Norishine diagnostics**: Manage Host's Stats tab shows host load and each stream. See
-  [FEATURES.md](FEATURES.md#managing-a-norishine-host).
+## Done
 
-Next: whatever Norishine's measured improvements (its roadmap milestone M10) add for
-clients.
+- **Profiles, monitors and several streams at once**, the first-start wizard, Moonlight
+  settings import. See [FEATURES.md](FEATURES.md).
+- **Managing a Norishine host**: Host Settings, Manage Host (apps, devices, displays,
+  updates) and its Stats tab. See [FEATURES.md](FEATURES.md#managing-a-norishine-host).
+- **Automatic tuning**: reports to Norishine's adaptive bitrate, Tuning goals that pick
+  launch settings and learn start bitrates per host and network, the host's encoder
+  recommendations with Apply and Undo. See [FEATURES.md](FEATURES.md#picture-and-performance).
+
+## Next
+
+In order. Effort: **S** days, **M** one to two weeks, **L** several weeks, **XL** a month or
+more.
+
+| # | Item | Effort | Notes |
+| --- | --- | --- | --- |
+| N1 | Reset button | S | Settings › Reset Norilight: settings moved to a backup, restart into the first-start wizard |
+| N2 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
+| N4 | Comparison test suite (with Norishine) | M–L | Norilight against Moonlight, on Norishine, Apollo, Vibepollo and Sunshine |
+| N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |
+| N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
+| N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |
+| N8 | Separate command-line build | M | `norilight-cli` without the Qt GUI: pair, list, stream, quit |
+| N9 | Change settings during a stream (with Norishine) | L | Bitrate first, then resolution, frame rate and codec without reconnecting |
+| N10 | Keep the stream through a host update (with Norishine) | L | Reconnect to the same app by itself when the host comes back |
+| N12 | Android build, for handhelds | XL | Qt for Android or a start from Artemis, decided by a short spike; controller-first, battery-aware |
+| N13 | iOS build | XL | After Android; installing unsigned builds needs sideloading |
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
 
 ## Branches
 
-Branch review: **16 November 2026**. Nightlies build `main`; check a build's commit
+Branch review: **18 November 2026**. Nightlies build `main`; check a build's commit
 before assuming it contains a particular change.
 
 | Branch | Changes | Status |
