@@ -444,6 +444,7 @@ void Pacer::dropFrameForEnqueue(QQueue<AVFrame*>& queue)
         // Drop the lock while we call av_frame_free()
         m_FrameQueueLock.unlock();
         m_VideoStats->pacerDroppedFrames++;
+        m_VideoStats->pacerEnqueueDroppedFrames++;
         av_frame_free(&frame);
         m_FrameQueueLock.lock();
     }
