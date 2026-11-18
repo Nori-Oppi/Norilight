@@ -56,6 +56,7 @@
 #include "settings/streamingpreferences.h"
 #include "settings/displaymanager.h"
 #include "settings/profilemanager.h"
+#include "settings/settingsreset.h"
 
 #include <QScreen>
 #include <QWindow>
@@ -455,6 +456,11 @@ int main(int argc, char *argv[])
         Path::initialize(false);
     }
 
+    // Norilight: "--reset" moves the settings to a backup before anything
+    // reads them, so this run starts in the first-start wizard
+    QString resetMessage;
+    bool resetRequested = SettingsReset::handleCommandLine(argc, argv, &resetMessage);
+
     ProfileManager::migrateMonitorProfiles();
 
     // Norilight: "--profile <name>" picks the profile whose settings this run
@@ -525,6 +531,10 @@ int main(int argc, char *argv[])
 #ifdef HAVE_FFMPEG
     av_log_set_callback(ffmpegLogToDiskHandler);
 #endif
+
+    if (resetRequested) {
+        qInfo() << "Reset:" << resetMessage;
+    }
 
 #ifdef Q_OS_WIN32
     // Create a crash dump when we crash on Windows

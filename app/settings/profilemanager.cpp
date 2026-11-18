@@ -1,5 +1,6 @@
 #include "profilemanager.h"
 #include "streamingpreferences.h"
+#include "settingsreset.h"
 
 #include <QGuiApplication>
 #include <QScreen>
@@ -187,6 +188,11 @@ bool ProfileManager::hasMoonlightSettings() const
 {
     QScopedPointer<QSettings> moonlight(openMoonlightSettings());
     return moonlight->contains(SER_SETTINGS_MARKER);
+}
+
+bool ProfileManager::restartIntoReset()
+{
+    return SettingsReset::restartIntoReset();
 }
 
 bool ProfileManager::nameTaken(const QString& name, const QString& exceptId) const

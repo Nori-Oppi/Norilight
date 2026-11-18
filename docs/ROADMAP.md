@@ -13,6 +13,9 @@ numbers below match it.
 - **Automatic tuning**: reports to Norishine's adaptive bitrate, Tuning goals that pick
   launch settings and learn start bitrates per host and network, the host's encoder
   recommendations with Apply and Undo. See [FEATURES.md](FEATURES.md#picture-and-performance).
+- **Reset button** (N1): Settings › Reset Norilight moves the settings to a dated backup and
+  restarts into the first-start wizard; `Norilight --reset` does the same. See
+  [GUIDE.md](GUIDE.md#resetting-norilight).
 
 ## Next
 
@@ -21,7 +24,6 @@ more.
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N1 | Reset button | S | Settings › Reset Norilight: settings moved to a backup, restart into the first-start wizard |
 | N2 | Benchmark check (with Norishine) | M | After each streaming change: Norishine with Norilight against stored Apollo, Vibepollo and Sunshine results with Moonlight; never worse |
 | N3 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
 | N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |

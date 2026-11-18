@@ -50,7 +50,7 @@ win32 {
     }
 
     INCLUDEPATH += $$PWD/../libs/windows/include
-    LIBS += ws2_32.lib winmm.lib dxva2.lib ole32.lib gdi32.lib user32.lib d3d9.lib dwmapi.lib dbghelp.lib shell32.lib
+    LIBS += ws2_32.lib winmm.lib dxva2.lib ole32.lib gdi32.lib user32.lib d3d9.lib dwmapi.lib dbghelp.lib shell32.lib advapi32.lib
 }
 macx:!disable-prebuilts {
     !exists($$PWD/../libs/mac) {
@@ -187,6 +187,7 @@ SOURCES += \
     settings/streamingpreferences.cpp \
     settings/displaymanager.cpp \
     settings/profilemanager.cpp \
+    settings/settingsreset.cpp \
     streaming/input/abstouch.cpp \
     streaming/input/gamepad.cpp \
     streaming/input/input.cpp \
@@ -234,6 +235,7 @@ HEADERS += \
     settings/streamingpreferences.h \
     settings/displaymanager.h \
     settings/profilemanager.h \
+    settings/settingsreset.h \
     streaming/input/input.h \
     streaming/input/localscreenshot.h \
     streaming/session.h \
