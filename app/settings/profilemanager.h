@@ -71,6 +71,10 @@ public:
     // as they did before profiles)
     static QString settingsGroup();
 
+    // Settings > Reset Norilight: starts a Norilight that moves the settings
+    // to a backup once this one has quit (settingsreset.h). QML quits after.
+    Q_INVOKABLE bool restartIntoReset();
+
     // "--profile <name or id>": use this profile for this run
     static void setLaunchProfile(const QString& nameOrId);
 

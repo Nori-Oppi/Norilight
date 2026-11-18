@@ -235,7 +235,7 @@ Item {
             category: QT_TR_NOOP("General")
             name: QT_TR_NOOP("Network & diagnostics")
             summary: QT_TR_NOOP("Host discovery, stats overlay")
-            keywords: "advanced mdns network discover blocked firewall performance stats overlay compact lite summary latency"
+            keywords: "advanced mdns network discover blocked firewall performance stats overlay compact lite summary latency reset backup first start wizard"
         }
     }
 
@@ -2653,6 +2653,41 @@ Item {
                             StreamingPreferences.liteStats = checked
                         }
                     }
+                }
+
+                SettingsCard {
+                    SettingsRow {
+                        text: qsTr("Reset Norilight")
+                        focusTarget: resetButton
+
+                        Button {
+                            id: resetButton
+                            text: qsTr("Reset…")
+                            onClicked: resetDialog.open()
+                        }
+                    }
+                }
+
+                NavigableMessageDialog {
+                    id: resetDialog
+                    text: qsTr("Reset Norilight? Its settings, profiles and paired PCs are moved to a backup, and it restarts in the first-start wizard.")
+                    standardButtons: Dialog.Yes | Dialog.No
+                    acceptText: qsTr("Reset and restart")
+                    rejectText: qsTr("Cancel")
+                    onAccepted: {
+                        if (ProfileManager.restartIntoReset()) {
+                            Qt.quit()
+                        }
+                        else {
+                            resetFailedDialog.open()
+                        }
+                    }
+                }
+
+                NavigableMessageDialog {
+                    id: resetFailedDialog
+                    text: qsTr("Norilight couldn't restart. Nothing was changed.")
+                    standardButtons: Dialog.Ok
                 }
             }
         }

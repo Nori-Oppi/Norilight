@@ -6,6 +6,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 #include "settings/profilemanager.h"
+#include "settings/settingsreset.h"
 #include "settings/displaymanager.h"
 #include "settings/streamingpreferences.h"
 
@@ -212,6 +213,51 @@ private slots:
         prefs->resolveDisplaySettings(screen);
         QCOMPARE(prefs->bitrateKbps, 42000);
     }
+
+    void resetMovesSettingsToBackup() {
+        seed();
+        const QString settingsFile = QSettings().fileName();
+        QString error;
+        const QString backup = SettingsReset::moveToBackup(&error);
+        QVERIFY2(!backup.isEmpty(), qPrintable(error));
+        QVERIFY(!QFile::exists(settingsFile));
+        QVERIFY(QSettings().allKeys().isEmpty());
+
+        // The backup is the settings folder, renamed next to it
+        QCOMPARE(QFileInfo(backup).absolutePath(), QFileInfo(QFileInfo(settingsFile).absolutePath()).absolutePath());
+        QVERIFY(QFileInfo(backup).fileName().startsWith("NorilightProfileTests-backup-"));
+        QSettings saved(QDir(backup).filePath(QFileInfo(settingsFile).fileName()), QSettings::IniFormat);
+        QCOMPARE(saved.value("norilightprofiles/active").toString(), QString("base"));
+        QCOMPARE(saved.value("norilightprofiles/other/settings/fps").toInt(), 144);
+
+        // Nothing left to move
+        QVERIFY(SettingsReset::moveToBackup(&error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
+
+#ifdef Q_OS_WIN32
+    // An installed Norilight keeps its settings in the registry. This uses the
+    // test's own key, HKCU\Software\NorilightProfileTests, and removes it after.
+    void resetMovesRegistrySettings() {
+        QSettings::setDefaultFormat(QSettings::NativeFormat);
+        const QString parent = "HKEY_CURRENT_USER\\Software\\NorilightProfileTests";
+        QSettings(parent, QSettings::NativeFormat).remove("");
+        seed();
+
+        QString error;
+        const QString backup = SettingsReset::moveToBackup(&error);
+        QVERIFY2(!backup.isEmpty(), qPrintable(error));
+        QVERIFY(backup.startsWith("HKCU\\Software\\NorilightProfileTests\\ProfilesTest-backup-"));
+        QVERIFY(QSettings().allKeys().isEmpty());
+
+        QSettings saved("HKEY_CURRENT_USER\\Software\\NorilightProfileTests\\" + backup.section('\\', -1),
+                        QSettings::NativeFormat);
+        QCOMPARE(saved.value("norilightprofiles/active").toString(), QString("base"));
+        QCOMPARE(saved.value("norilightprofiles/other/settings/fps").toInt(), 144);
+
+        QSettings(parent, QSettings::NativeFormat).remove("");
+    }
+#endif
 };
 QTEST_MAIN(ProfilesTest)
 #include "ProfilesTest.moc"

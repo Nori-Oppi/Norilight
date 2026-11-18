@@ -41,6 +41,7 @@ public:
 
         // Norilight: handled in main() before the settings are loaded
         addOption(QCommandLineOption("profile", "Use the settings of this profile.", "name"));
+        addOption(QCommandLineOption("reset", "Move the settings to a backup and start the first-start wizard."));
     }
 
     void handleHelpAndVersionOptions()

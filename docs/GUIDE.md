@@ -85,6 +85,31 @@ nightly's name, such as `nightly-20261115-0f4841b`: the build date and commit.
 New nightlies are built daily at 20:17 Europe/Amsterdam time, when `main` has changed.
 They are unsigned pre-releases. Builds you compile yourself don't check for updates.
 
+## Resetting Norilight
+
+**Settings > Network & diagnostics > Reset Norilight** starts over, for example when a broken
+setting is hard to find. After you confirm, Norilight closes, moves its settings to a backup
+and opens again in the first-start wizard. `Norilight --reset` does the same from the
+command line. Close any streams first.
+
+Nothing is deleted. Everything Norilight stores goes into the backup: settings, profiles,
+added and paired PCs, and the client identity hosts know it by. So after a reset, each host
+has to be paired again (it sees a new device; remove the old one from its device list).
+
+Where the backup goes, named with the date and time of the reset:
+
+| Norilight | Settings | Backup |
+| --- | --- | --- |
+| Windows, installed | Registry, `HKEY_CURRENT_USER\Software\Norilight\Norilight` | The key `Norilight-backup-<date>-<time>` next to it |
+| Windows, ZIP (portable) | The `Norilight` folder next to `Norilight.exe` | The folder `Norilight-backup-<date>-<time>` next to it; `portable.dat` stays, so it stays portable |
+| macOS | `~/Library/Preferences/com.moonlight-stream.Norilight.plist` | `~/Library/Preferences/Norilight-backup-<date>-<time>/Norilight.ini` |
+| Linux | `~/.config/Norilight/Norilight.conf` | The folder `~/.config/Norilight-backup-<date>-<time>` |
+
+To undo a reset, quit Norilight and put the backup back: rename the backup folder (or, on
+Windows, the registry key with Registry Editor) to `Norilight`, replacing the new one. On
+macOS the backup is a copy of the preferences in `.ini` form, not the original file. Norilight's log (`Norilight-<time>.log`, in the temp folder or next to a portable
+`Norilight.exe`) names the backup on the line starting with `Reset:`.
+
 ## Shortcuts while streaming
 
 **Settings > Shortcuts** lists every keyboard and controller shortcut. The most useful:
@@ -104,6 +129,7 @@ They are unsigned pre-releases. Builds you compile yourself don't check for upda
 
 `Norilight pair <host> --pin 1234`, `Norilight stream <host> <app>`, `Norilight list <host>`
 and `Norilight quit <host>` work as in Moonlight; `Norilight --help` lists the options.
+`Norilight --reset` starts over with fresh settings ([Resetting Norilight](#resetting-norilight)).
 Scripts that capture Norilight's output must keep reading it while it runs. If nobody
 reads the pipe, Norilight pauses as soon as it fills, which can make pairing time out.
 
