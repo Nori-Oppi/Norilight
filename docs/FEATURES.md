@@ -15,6 +15,9 @@
   own window. The **Streams** bar in the main window lists your sessions, so you can stop
   running ones or restart ended ones. How many connections work at once depends on the
   host; separate windows don't give you separate host desktops.
+- **Help for Norilight and Norishine.** The help buttons (the **?** in the toolbar, and
+  Help in error messages) open [norilight-docs](https://github.com/Nori-Oppi/norilight-docs):
+  setup, troubleshooting, hardware decoding and gamepad mapping.
 
 ## Desktop and input
 

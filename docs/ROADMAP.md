@@ -18,6 +18,9 @@ numbers below match it.
   [GUIDE.md](GUIDE.md#resetting-norilight).
 - **Benchmark check** (N2, with Norishine): Norishine with Norilight against stored Apollo,
   Vibepollo and Sunshine results with Moonlight. See [Checks](#checks).
+- **Help links** (N3): the help buttons open
+  [norilight-docs](https://github.com/Nori-Oppi/norilight-docs), written for Norilight and
+  Norishine, instead of moonlight-docs.
 
 ## Next
 
@@ -26,7 +29,6 @@ more.
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N3 | Help links to `norilight-docs` | S | The guide and help buttons still open moonlight-docs; a new `Nori-Oppi/norilight-docs` repository replaces it |
 | N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |
 | N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
 | N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |

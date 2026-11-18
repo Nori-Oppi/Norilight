@@ -22,7 +22,7 @@
 
 	<url type="homepage">https://moonlight-stream.org</url>
 	<url type="bugtracker">https://github.com/moonlight-stream/moonlight-qt/issues</url>
-	<url type="help">https://github.com/moonlight-stream/moonlight-docs/wiki/Setup-Guide</url>
+	<url type="help">https://github.com/Nori-Oppi/norilight-docs/blob/main/setup-guide.md</url>
 	<url type="vcs-browser">https://github.com/moonlight-stream/moonlight-qt</url>
 	<developer id="org.moonlight-stream">
 		<name>Moonlight Game Streaming Team</name>
