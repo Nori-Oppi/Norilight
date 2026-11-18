@@ -1,12 +1,17 @@
 # Roadmap
 
-Planned, not available yet:
+Done:
 
-- **Automatic hardware and network tuning**: Norishine adapts the bitrate during a stream
-  from Norilight's reports, and each profile's Tuning goal picks launch settings and learns
-  start bitrates per host and network. Next: recommendations for the host's own encoder
-  settings from what streams measured.
-- More Norishine diagnostics as the host adds them (host stats and per-session metrics).
+- **Automatic hardware and network tuning**: Norishine adapts the bitrate and error
+  correction during a stream from Norilight's reports; each profile's Tuning goal picks
+  launch settings and learns start bitrates per host and network; Host Settings shows the
+  host's encoder recommendations with Apply and Undo. See
+  [FEATURES.md](FEATURES.md#picture-and-performance).
+- **Norishine diagnostics**: Manage Host's Stats tab shows host load and each stream. See
+  [FEATURES.md](FEATURES.md#managing-a-norishine-host).
+
+Next: whatever Norishine's measured improvements (its roadmap milestone M10) add for
+clients.
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
 
