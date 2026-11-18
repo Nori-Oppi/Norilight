@@ -174,13 +174,13 @@ CenteredGridView {
 
         function openHostSettings() {
             var component = Qt.createComponent("HostSettingsView.qml")
-            var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("%1 settings").arg(model.name)})
+            var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "hostFeatures": model.norishineFeatures, "objectName": qsTr("%1 settings").arg(model.name)})
             stackView.push(hostView)
         }
 
         function openManageHost() {
             var component = Qt.createComponent("HostManageView.qml")
-            var manageView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "objectName": qsTr("Manage %1").arg(model.name)})
+            var manageView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "hostFeatures": model.norishineFeatures, "objectName": qsTr("Manage %1").arg(model.name)})
             stackView.push(manageView)
         }
 

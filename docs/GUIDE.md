@@ -25,7 +25,8 @@
 Norishine hosts have a seal on their icon. With
 [Norishine](https://github.com/Nori-Oppi/Norishine) on the host, click the gear at the top
 right of its tile (or right-click it) and choose **Host settings** (settings, restart)
-or **Manage host** (apps, paired devices and displays, and updating the host). First allow it on the host: in its web UI, open **Devices**, edit
+or **Manage host** (apps, paired devices and displays, host load and streams under
+**Stats**, and updating the host). First allow it on the host: in its web UI, open **Devices**, edit
 this device, and under **Host management** choose **View** or **Manage**. Norilight signs
 in with the certificate from pairing, never the web UI password.
 

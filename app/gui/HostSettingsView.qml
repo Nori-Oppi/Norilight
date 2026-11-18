@@ -18,6 +18,8 @@ Item {
 
     property int computerIndex
     property ComputerModel computerModel
+    // The host's Norishine features (serverinfo)
+    property var hostFeatures: []
 
     // From the host
     property var hostStatus: null
@@ -45,6 +47,17 @@ Item {
     property string category: "general"
     property int pendingLoads: 0
 
+    // Recommended encoder settings (GET /api/v1/recommendations), on hosts with the feature
+    readonly property bool recommendationsSupported: hostFeatures.indexOf("recommendations") >= 0
+    property var recommendations: null
+    property bool recommendBusy: false
+    readonly property string recommendDocsUrl: "https://github.com/Nori-Oppi/Norishine/blob/master/docs/AUTOTUNE.md#host-settings-norishine"
+    readonly property var recommendReasons: ({
+        "encoder_limited": qsTr("Encoder was the bottleneck"),
+        "headroom": qsTr("Encoder has room to spare"),
+        "loss": qsTr("Frequent frame loss")
+    })
+
     readonly property int manageWrite: 0x20000000
     readonly property bool canWrite: hostStatus !== null && (hostStatus.device.permissions & manageWrite) !== 0
     readonly property int editCount: Object.keys(edits).length
@@ -65,6 +78,29 @@ Item {
         request("schema", "GET", "/api/v1/config/schema?locale=" + Qt.locale().name)
         request("values", "GET", "/api/v1/config")
         request("displays", "GET", "/api/v1/displays")
+        loadRecommendations()
+    }
+
+    function loadRecommendations() {
+        if (recommendationsSupported) {
+            request("recommendations", "GET", "/api/v1/recommendations")
+        }
+    }
+
+    function settingTitle(key) {
+        var setting = settingByKey(key)
+        return setting ? setting.title : key
+    }
+
+    function settingValue(key, value) {
+        var setting = settingByKey(key)
+        return setting ? plainTitle(valueTitle(setting, value)) : String(value)
+    }
+
+    function changeRecommendations(path, body) {
+        recommendBusy = true
+        notice = ""
+        request("recommendChange", "POST", path, body)
     }
 
     function same(a, b) {
@@ -635,6 +671,33 @@ Item {
             }
             catch (e) {
                 data = null
+            }
+
+            if (requestId === "recommendations") {
+                hostPage.recommendations = status === 200 && data ? data : null
+                return
+            }
+            if (requestId === "recommendChange") {
+                hostPage.recommendBusy = false
+                if (status === 200 && data !== null) {
+                    hostPage.restartNeeded = hostPage.restartNeeded || data.restart_required
+                    var skipped = data.skipped || []
+                    if (skipped.length > 0) {
+                        hostPage.notice = qsTr("Changed since, so kept: %1").arg(skipped.map(hostPage.settingTitle).join(", "))
+                    }
+                    else {
+                        hostPage.notice = hostPage.restartNeeded ? qsTr("Saved. Restart Norishine to apply the changes.") : qsTr("Saved.")
+                    }
+                    hostPage.noticeKind = hostPage.restartNeeded ? "restart" : "ok"
+                    hostPage.request("values", "GET", "/api/v1/config")
+                    hostPage.pendingLoads += 1
+                }
+                else {
+                    hostPage.notice = hostPage.describeFailure(status, data, error)
+                    hostPage.noticeKind = "error"
+                }
+                hostPage.loadRecommendations()
+                return
             }
 
             if (requestId === "displays") {
@@ -1243,6 +1306,86 @@ Item {
                             color: Theme.textPrimary
                             onLinkActivated: hostPage.reveal(modelData.key)
                         }
+                    }
+                }
+            }
+
+            // Recommended encoder settings, with Apply and Undo
+            SettingsCard {
+                id: recommendCard
+                readonly property var items: hostPage.recommendations ? hostPage.recommendations.recommendations : []
+                readonly property var applied: hostPage.recommendations ? hostPage.recommendations.applied : null
+                visible: hostPage.schema !== null && !hostPage.searching && (items.length > 0 || applied !== null)
+                title: qsTr("Recommended")
+
+                Repeater {
+                    model: recommendCard.items
+
+                    SettingsRow {
+                        text: hostPage.settingTitle(modelData.key)
+                        hint: hostPage.recommendReasons[modelData.reason] || ""
+
+                        Label {
+                            text: hostPage.settingValue(modelData.key, modelData.current) + "  →  " +
+                                  hostPage.settingValue(modelData.key, modelData.recommended)
+                            color: Theme.textPrimary
+                            font.pointSize: Theme.fontBody
+                        }
+
+                        Button {
+                            visible: hostPage.canWrite
+                            enabled: !hostPage.recommendBusy
+                            text: qsTr("Apply")
+                            flat: true
+                            onClicked: hostPage.changeRecommendations("/api/v1/recommendations/apply", {"keys": [modelData.key]})
+                        }
+                    }
+                }
+
+
+                SettingsRow {
+                    visible: recommendCard.applied !== null
+                    text: qsTr("Applied recommendations")
+                    hint: {
+                        var a = recommendCard.applied
+                        if (!a) {
+                            return ""
+                        }
+                        return a.settings.map(function(s) {
+                            return hostPage.settingTitle(s.key) + ": " + hostPage.settingValue(s.key, s.previous) +
+                                   " → " + hostPage.settingValue(s.key, s.value)
+                        }).join("\n")
+                    }
+
+                    Button {
+                        visible: hostPage.canWrite
+                        enabled: !hostPage.recommendBusy
+                        text: qsTr("Undo")
+                        flat: true
+                        onClicked: hostPage.changeRecommendations("/api/v1/recommendations/rollback", {})
+                    }
+                }
+
+                SettingsRow {
+                    Button {
+                        visible: hostPage.canWrite && recommendCard.items.length > 1
+                        enabled: !hostPage.recommendBusy
+                        text: qsTr("Apply all")
+                        highlighted: true
+                        onClicked: hostPage.changeRecommendations("/api/v1/recommendations/apply", {})
+                    }
+
+                    ToolButton {
+                        display: AbstractButton.IconOnly
+                        icon.source: "qrc:/res/baseline-help_outline-24px.svg"
+                        icon.width: 20
+                        icon.height: 20
+                        icon.color: Theme.textTertiary
+                        onClicked: Qt.openUrlExternally(hostPage.recommendDocsUrl)
+                        Accessible.name: qsTr("How recommendations work")
+                        ToolTip.text: Accessible.name
+                        ToolTip.delay: 600
+                        ToolTip.visible: hovered
                     }
                 }
             }
