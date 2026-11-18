@@ -199,6 +199,7 @@ SOURCES += \
     gui/computermodel.cpp \
     gui/appmodel.cpp \
     streaming/bandwidth.cpp \
+    streaming/adaptivereporter.cpp \
     streaming/streamutils.cpp \
     backend/autoupdatechecker.cpp \
     path.cpp \
@@ -240,6 +241,7 @@ HEADERS += \
     gui/appmodel.h \
     streaming/video/decoder.h \
     streaming/bandwidth.h \
+    streaming/adaptivereporter.h \
     streaming/streamutils.h \
     backend/autoupdatechecker.h \
     path.h \

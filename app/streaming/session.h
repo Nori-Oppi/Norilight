@@ -272,6 +272,9 @@ private:
     QQuickWindow* m_QtWindow;
     bool m_UnexpectedTermination;
     SdlInputHandler* m_InputHandler;
+
+    // Norilight: reports measurements to a Norishine host during the stream
+    class AdaptiveReporter* m_AdaptiveReporter = nullptr;
     int m_MouseEmulationRefCount;
     int m_FlushingWindowEventsRef;
     QStringList m_LaunchWarnings;

@@ -29,6 +29,18 @@ or **Manage host** (apps, paired devices and displays, and updating the host). F
 this device, and under **Host management** choose **View** or **Manage**. Norilight signs
 in with the certificate from pairing, never the web UI password.
 
+## Adaptive bitrate
+
+On a Norishine host, a stream follows the network: when frames are lost or the round-trip
+time climbs, the host lowers the bitrate or adds error correction, and once the network is
+clean again it climbs back to the bitrate in your profile, never above it. Norilight helps by
+reporting what it measures once a second. The performance stats (Ctrl+Alt+Shift+S) show it
+as **Host bitrate** (now / your bitrate) and **FEC**; **Host busy** or **Decoder busy** means
+a machine, not the network, is the limit, so a lower resolution or frame rate would help more.
+
+It's on by default and set on the host (**Adapt to the network** in its network settings).
+Set your profile's bitrate to the most you'd want: the host only goes lower when it must.
+
 ## Updating
 
 Norilight checks for a newer nightly each time it starts. When one is available, an update

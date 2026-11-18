@@ -2,6 +2,7 @@
 #include "ffmpeg.h"
 #include "utils.h"
 #include "streaming/session.h"
+#include "streaming/adaptivereporter.h"
 
 #include <QStringList>
 
@@ -2208,8 +2209,23 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
                                     Session::get()->getOverlayManager().getOverlayText(Overlay::OverlayDebug),
                                     Session::get()->getOverlayManager().getOverlayMaxTextLength());
             }
+
+            // Norilight: what a Norishine host's adaptive bitrate does
+            {
+                char* out = Session::get()->getOverlayManager().getOverlayText(Overlay::OverlayDebug);
+                int used = (int)strlen(out);
+                AdaptiveReporter::appendOverlayLine(out + used, Session::get()->getOverlayManager().getOverlayMaxTextLength() - used);
+            }
             Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayDebug);
         }
+
+        // Norilight: this window's figures for the host's adaptive bitrate
+        AdaptiveReporter::publishWindow(m_ActiveWndVideoStats.totalFrames,
+                                        m_ActiveWndVideoStats.networkDroppedFrames,
+                                        m_ActiveWndVideoStats.decodedFrames,
+                                        m_ActiveWndVideoStats.totalDecodeTimeUs,
+                                        m_ActiveWndVideoStats.receivedFrames,
+                                        LiGetMicroseconds() - m_ActiveWndVideoStats.measurementStartUs);
 
         // Accumulate these values into the global stats
         addVideoStats(m_ActiveWndVideoStats, m_GlobalVideoStats);

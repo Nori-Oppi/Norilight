@@ -1,6 +1,7 @@
 #include "session.h"
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
+#include "streaming/adaptivereporter.h"
 #include "backend/richpresencemanager.h"
 #include "settings/displaymanager.h"
 
@@ -1311,6 +1312,10 @@ private:
         // LiStartConnection() and LiStopConnection().
         SDL_assert(m_Session->m_VideoDecoder == nullptr);
 
+        // Norilight: stop reporting to the host (waits for a report in flight)
+        delete m_Session->m_AdaptiveReporter;
+        m_Session->m_AdaptiveReporter = nullptr;
+
         // Finish cleanup of the connection state
         LiStopConnection();
 
@@ -1994,6 +1999,12 @@ void Session::exec()
     // we've emitted from the async connection thread.
     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     QCoreApplication::sendPostedEvents();
+
+    // Norilight: let a Norishine host adapt the stream to what this client measures
+    if (AdaptiveReporter::isSupported(m_Computer)) {
+        m_AdaptiveReporter = new AdaptiveReporter(m_Computer);
+        m_AdaptiveReporter->start(QThread::LowPriority);
+    }
 
     int x, y, width, height;
     getWindowDimensions(x, y, width, height);
