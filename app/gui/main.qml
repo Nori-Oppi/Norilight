@@ -460,7 +460,7 @@ ApplicationWindow {
                 }
 
                 // TODO need to make sure browser is brought to foreground.
-                onClicked: Qt.openUrlExternally("https://github.com/Nori-Oppi/norilight-docs/blob/main/setup-guide.md");
+                onClicked: Qt.openUrlExternally("https://github.com/Nori-Oppi/norilight-docs/wiki/Setup-Guide");
 
                 Keys.onDownPressed: {
                     stackView.currentItem.forceActiveFocus(Qt.TabFocus)
@@ -915,7 +915,7 @@ ApplicationWindow {
         text: qsTr("No functioning hardware accelerated video decoder was detected by Norilight. " +
                    "Your streaming performance may be severely degraded in this configuration.")
         helpText: qsTr("Click the Help button for more information on solving this problem.")
-        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/blob/main/hardware-decoding.md"
+        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/wiki/Fixing-Hardware-Decoding-Problems"
     }
 
     ErrorMessageDialog {
@@ -923,7 +923,7 @@ ApplicationWindow {
         text: qsTr("Hardware acceleration doesn't work on XWayland. Continuing on XWayland may result in poor streaming performance. " +
                    "Try running with QT_QPA_PLATFORM=wayland or switch to X11.")
         helpText: qsTr("Click the Help button for more information.")
-        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/blob/main/hardware-decoding.md"
+        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/wiki/Fixing-Hardware-Decoding-Problems"
     }
 
     NavigableMessageDialog {
@@ -941,7 +941,7 @@ ApplicationWindow {
         text: qsTr("Norilight detected gamepads without a mapping:") + "\n" + unmappedGamepads
         helpTextSeparator: "\n\n"
         helpText: qsTr("Click the Help button for information on how to map your gamepads.")
-        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/blob/main/gamepad-mapping.md"
+        helpUrl: "https://github.com/Nori-Oppi/norilight-docs/wiki/Gamepad-Mapping"
     }
 
     // This dialog appears when quitting via keyboard or gamepad button

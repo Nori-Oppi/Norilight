@@ -1070,7 +1070,7 @@ Item {
                 SettingsCard {
                     title: qsTr("Picture")
 
-                    // Norilight: launch-time tuning goal (docs/GUIDE.md, "Tuning")
+                    // Norilight: launch-time tuning goal (the Norilight-Guide wiki page, "Tuning")
                     SettingsRow {
                         text: qsTr("Tuning")
                         info: qsTr("Picks codec, HDR, V-sync, frame pacing and the start bitrate for each stream from this PC, the host and the network.")

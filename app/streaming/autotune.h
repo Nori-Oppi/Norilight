@@ -7,7 +7,7 @@
 // host can do, and the start bitrate from the link to the host and what earlier streams
 // to that host on the same network sustained. Starting high is safe on hosts that adapt
 // the bitrate during the stream (Norishine feature "adaptive"): the host lowers it when
-// it must. See docs/GUIDE.md, "Tuning".
+// it must. See the Norilight-Guide wiki page, "Tuning".
 namespace AutoTune
 {
     // What the profile's "Tuning" favours.

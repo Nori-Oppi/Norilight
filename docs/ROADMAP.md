@@ -7,24 +7,24 @@ numbers below match it.
 ## Done
 
 - **Profiles, monitors and several streams at once**, the first-start wizard, Moonlight
-  settings import. See [FEATURES.md](FEATURES.md).
+  settings import. See [Features](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Features).
 - **Managing a Norishine host**: Host Settings, Manage Host (apps, devices, displays,
-  updates) and its Stats tab. See [FEATURES.md](FEATURES.md#managing-a-norishine-host).
+  updates) and its Stats tab. See [Features](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Features#managing-a-norishine-host).
 - **Automatic tuning**: reports to Norishine's adaptive bitrate, Tuning goals that pick
   launch settings and learn start bitrates per host and network, the host's encoder
-  recommendations with Apply and Undo. See [FEATURES.md](FEATURES.md#picture-and-performance).
+  recommendations with Apply and Undo. See [Features](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Features#picture-and-performance).
 - **Reset button** (N1): Settings › Reset Norilight moves the settings to a dated backup and
   restarts into the first-start wizard; `Norilight --reset` does the same. See
-  [GUIDE.md](GUIDE.md#resetting-norilight).
+  [the guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide#resetting-norilight).
 - **Benchmark check** (N2, with Norishine): Norishine with Norilight against stored Apollo,
   Vibepollo and Sunshine results with Moonlight. See [Checks](#checks).
 - **Help links** (N3): the help buttons open
-  [norilight-docs](https://github.com/Nori-Oppi/norilight-docs), written for Norilight and
+  [norilight-docs wiki](https://github.com/Nori-Oppi/norilight-docs/wiki), written for Norilight and
   Norishine, instead of moonlight-docs.
 - **Norishine setup wizard and reset** (N4, Norishine): a first-start wizard in the host's
   web UI (import, name, display, encoder check, first device) and Reset Norishine. After a
-  host reset, Norilight sees a new host and pairs again. See Norishine's
-  [GUIDE.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/GUIDE.md#first-start).
+  host reset, Norilight sees a new host and pairs again. See
+  [the Norishine guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norishine-Guide#first-start).
 
 ## Next
 

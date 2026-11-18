@@ -5,7 +5,7 @@
 // Norilight: "Reset Norilight" (Settings > Network & diagnostics, or
 // "Norilight --reset"). Nothing is deleted: the settings are moved to a dated
 // backup next to where they are kept, and Norilight starts as on its first run,
-// in the first-start wizard. Moving the backup back undoes it (docs/GUIDE.md).
+// in the first-start wizard. Moving the backup back undoes it (the Norilight-Guide wiki page).
 namespace SettingsReset
 {
     // Moves the settings to the backup. Returns where the backup went, or an

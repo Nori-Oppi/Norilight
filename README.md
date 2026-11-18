@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://github.com/Nori-Oppi/Norilight/releases/tag/nightly"><strong>Download nightly</strong></a> ·
-  <a href="docs/GUIDE.md">Guide</a> ·
-  <a href="docs/FEATURES.md">Features</a> ·
+  <a href="https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide">Guide</a> ·
+  <a href="https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Features">Features</a> ·
   <a href="BUILDING.md">Build from source</a>
 </p>
 
@@ -31,9 +31,9 @@ their own windows. It works with [Sunshine](https://github.com/LizardByte/Sunshi
 2. On first start, pick a starting profile: Gaming, Work and desktop, or Standard.
 3. Pair with your PC. It usually appears by itself; otherwise add it with **+**.
 
-The [guide](docs/GUIDE.md) covers installing on macOS, profiles, updating and shortcuts.
+The [guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide) covers installing on macOS, profiles, updating and shortcuts.
 Norilight checks for new nightlies itself.
 
 ## License
 
-GPL v3, like Moonlight. See [LICENSE](LICENSE) and the [credits](docs/FEATURES.md#credits).
+GPL v3, like Moonlight. See [LICENSE](LICENSE) and the [credits](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Features#credits).
