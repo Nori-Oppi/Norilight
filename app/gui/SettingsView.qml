@@ -1882,6 +1882,19 @@ Item {
                             StreamingPreferences.richPresence = checked
                         }
                     }
+
+                    SettingsSwitch {
+                        id: discordButtonCheck
+                        visible: SystemProperties.hasDiscordIntegration
+                        indented: true
+                        text: qsTr("Add a \"Try Norilight!\" button to my Discord status")
+                        info: qsTr("Lets friends find Norilight from your profile. A small way to support the project.")
+                        available: StreamingPreferences.richPresence
+                        checked: StreamingPreferences.richPresenceButton
+                        onCheckedChanged: {
+                            StreamingPreferences.richPresenceButton = checked
+                        }
+                    }
                 }
             }
 
