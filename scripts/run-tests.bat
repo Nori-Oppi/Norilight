@@ -42,6 +42,13 @@ qmake.exe "%SOURCE_ROOT%\tests\profiles\profiles.pro" CONFIG+=release || goto Er
 !MAKE_CMD! release || goto Error
 popd
 
+echo === Building launch tuning test
+if not exist "%SOURCE_ROOT%\build\autotune-tests" mkdir "%SOURCE_ROOT%\build\autotune-tests"
+pushd "%SOURCE_ROOT%\build\autotune-tests"
+qmake.exe "%SOURCE_ROOT%\tests\autotune\autotune.pro" CONFIG+=release || goto Error
+!MAKE_CMD! release || goto Error
+popd
+
 echo === Building screenshot shortcut test
 cl /nologo /EHsc /std:c++17 /MD /I"%SOURCE_ROOT%\app" /I"%SOURCE_ROOT%\libs\windows\include\x64\SDL2" ^
     "%SOURCE_ROOT%\tests\input\ScreenshotShortcutTest.cpp" /Fo"%SOURCE_ROOT%\build\ScreenshotShortcutTest.obj" ^
@@ -51,6 +58,9 @@ cl /nologo /EHsc /std:c++17 /MD /I"%SOURCE_ROOT%\app" /I"%SOURCE_ROOT%\libs\wind
 echo === Running profile tests
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_ROOT%\tests\profiles\run.ps1" ^
     -QtDir "%QT_DIR%" -Binary "%TEST_FOLDER%\release\ProfilesTest.exe" || exit /b 1
+
+echo === Running launch tuning test
+"%SOURCE_ROOT%\build\autotune-tests\release\AutoTuneTest.exe" || exit /b 1
 
 echo === Running screenshot shortcut test
 "%DEPLOY_FOLDER%\ScreenshotShortcutTest.exe" || exit /b 1

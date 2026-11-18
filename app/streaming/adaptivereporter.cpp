@@ -2,6 +2,7 @@
 
 #include "backend/nvcomputer.h"
 #include "backend/nvhttp.h"
+#include "autotune.h"
 
 #include <Limelight.h>
 #include "SDL_compat.h"
@@ -11,6 +12,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -34,11 +36,23 @@ namespace {
 
     // Give up after this many failed reports in a row (other than "no stream yet").
     constexpr int k_MaxFailures = 10;
+
+    // Learn only from streams with this many answers (about a second each), and skip the
+    // first ones while the stream settles.
+    constexpr int k_MinSamples = 30;
+    constexpr int k_SettleSamples = 5;
 }
 
-AdaptiveReporter::AdaptiveReporter(NvComputer* computer)
-    : m_Computer(computer)
+AdaptiveReporter::AdaptiveReporter(NvComputer* computer, const QString& networkKey, int requestedKbps)
+    : m_Computer(computer),
+      m_NetworkKey(networkKey),
+      m_RequestedKbps(requestedKbps)
 {
+    {
+        QReadLocker locker(&computer->lock);
+        m_HostUuid = computer->uuid;
+    }
+
     QMutexLocker locker(&s_Lock);
     s_Window = Window();
     s_HostState = HostState();
@@ -182,9 +196,40 @@ void AdaptiveReporter::run()
             strncpy(state.reason, reason.constData(), sizeof(state.reason) - 1);
             state.hostLimited = adaptive.value("host_limited").toBool();
             state.clientLimited = adaptive.value("client_limited").toBool();
+
+            if (adaptive.value("live_bitrate").toBool()) {
+                m_BitrateSamples.append(state.bitrateKbps);
+                m_MaxKbps = state.maxKbps;
+                m_Decreases = adaptive.value("decreases").toInt();
+            }
         }
 
         QMutexLocker locker(&s_Lock);
         s_HostState = state;
     }
+
+    learn();
+}
+
+void AdaptiveReporter::learn()
+{
+    if (m_NetworkKey.isEmpty() || m_BitrateSamples.size() < k_MinSamples || m_MaxKbps <= 0) {
+        return;
+    }
+
+    // In the units this client asks in: the host's maximum is what was asked for.
+    double scale = m_RequestedKbps > 0 ? (double)m_RequestedKbps / m_MaxKbps : 1.0;
+    bool limited = m_Decreases > 0;
+    int sustained = m_RequestedKbps > 0 ? m_RequestedKbps : m_MaxKbps;
+    if (limited) {
+        // The median of what the host held once the stream had settled
+        QVector<int> settled = m_BitrateSamples.mid(k_SettleSamples);
+        std::sort(settled.begin(), settled.end());
+        sustained = (int)(settled[settled.size() / 2] * scale);
+    }
+
+    AutoTune::learn(m_HostUuid, m_NetworkKey, sustained, limited);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Learned for this host and network (%s): %d kbps, %s",
+                qPrintable(m_NetworkKey), sustained, limited ? "limited" : "never limited");
 }

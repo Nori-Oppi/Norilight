@@ -200,6 +200,8 @@ SOURCES += \
     gui/appmodel.cpp \
     streaming/bandwidth.cpp \
     streaming/adaptivereporter.cpp \
+    streaming/autotune.cpp \
+    streaming/displayhdr.cpp \
     streaming/streamutils.cpp \
     backend/autoupdatechecker.cpp \
     path.cpp \
@@ -242,6 +244,8 @@ HEADERS += \
     streaming/video/decoder.h \
     streaming/bandwidth.h \
     streaming/adaptivereporter.h \
+    streaming/autotune.h \
+    streaming/displayhdr.h \
     streaming/streamutils.h \
     backend/autoupdatechecker.h \
     path.h \
@@ -601,3 +605,8 @@ BUILDINFO_LINES = "$${LITERAL_HASH}define NORILIGHT_BUILD_SHA \"$$NORILIGHT_BUIL
                   "$${LITERAL_HASH}define NORILIGHT_BUILD_VERSION \"$$NORILIGHT_BUILD_VERSION\""
 !write_file($$OUT_PWD/buildinfo.h, BUILDINFO_LINES): error("Failed to write buildinfo.h")
 INCLUDEPATH += $$OUT_PWD
+
+# Norilight: display HDR state for launch tuning
+macx {
+    SOURCES += streaming/displayhdr_mac.mm
+}

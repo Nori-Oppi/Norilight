@@ -194,7 +194,8 @@ public:
              bool persistGameControllersOnDisconnect,
              bool virtualDisplay,
              int virtualDisplayScale,
-             QString& rtspSessionUrl);
+             QString& rtspSessionUrl,
+             const QString& tuningGoal = QString());
 
     QVector<NvApp>
     getAppList();

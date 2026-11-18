@@ -275,6 +275,18 @@ private:
 
     // Norilight: reports measurements to a Norishine host during the stream
     class AdaptiveReporter* m_AdaptiveReporter = nullptr;
+
+    // Norilight: this stream's choices after launch tuning (streaming/autotune.h). The
+    // profile keeps its own settings; tuning only changes these copies.
+    bool m_EnableHdr = false;
+    bool m_EnableVsync = true;
+    bool m_FramePacing = false;
+    QString m_TuneNetworkKey;  // the network learned bitrates are kept for
+    int m_TunedCodec = 0;      // 0 keep the automatic order, 1 prefer HEVC, 2 prefer AV1
+
+    void applyLaunchTuning(SDL_Window* testWindow);
+    void tuneStartBitrate();
+    QString tuningGoalForHost();
     int m_MouseEmulationRefCount;
     int m_FlushingWindowEventsRef;
     QStringList m_LaunchWarnings;

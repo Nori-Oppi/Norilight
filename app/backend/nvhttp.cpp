@@ -207,7 +207,8 @@ NvHTTP::startApp(QString verb,
                  bool persistGameControllersOnDisconnect,
                  bool virtualDisplay,
                  int virtualDisplayScale,
-                 QString& rtspSessionUrl)
+                 QString& rtspSessionUrl,
+                 const QString& tuningGoal)
 {
     int riKeyId;
 
@@ -240,6 +241,8 @@ NvHTTP::startApp(QString verb,
                                    (isGfe ? QString() :
                                        "&virtualDisplay="+QString::number(virtualDisplay ? 1 : 0)+
                                        "&scaleFactor="+QString::number(virtualDisplayScale))+
+                                   // Norilight: Norishine sets the encoder for this goal (feature "tuning")
+                                   (tuningGoal.isEmpty() ? QString() : "&norishineTuning="+tuningGoal)+
                                    LiGetLaunchUrlQueryParameters(),
                                    LAUNCH_TIMEOUT_MS);
 

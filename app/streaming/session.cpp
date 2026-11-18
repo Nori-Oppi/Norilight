@@ -2,6 +2,8 @@
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "streaming/adaptivereporter.h"
+#include "streaming/autotune.h"
+#include "streaming/displayhdr.h"
 #include "backend/richpresencemanager.h"
 #include "settings/displaymanager.h"
 
@@ -610,6 +612,131 @@ Session::~Session()
     SDL_DestroyMutex(m_DecoderLock);
 }
 
+// Norilight: the profile's tuning goal, or false when tuning is off
+static bool tuningGoal(StreamingPreferences* prefs, AutoTune::Goal& goal)
+{
+    switch (prefs->tuningGoal) {
+    case StreamingPreferences::TG_PERFORMANCE:
+        goal = AutoTune::Goal::Performance;
+        return true;
+    case StreamingPreferences::TG_BALANCED:
+        goal = AutoTune::Goal::Balanced;
+        return true;
+    case StreamingPreferences::TG_QUALITY:
+        goal = AutoTune::Goal::Quality;
+        return true;
+    case StreamingPreferences::TG_OFF:
+        break;
+    }
+    return false;
+}
+
+void Session::applyLaunchTuning(SDL_Window* testWindow)
+{
+    AutoTune::Goal goal;
+    if (!tuningGoal(m_Preferences, goal)) {
+        return;
+    }
+
+    // What both machines can do. Decoder probes match how the stream will be decoded.
+    AutoTune::Capabilities caps;
+    auto hardware = [&](int format) {
+        return getDecoderAvailability(testWindow, m_Preferences->videoDecoderSelection, format,
+                                      m_StreamConfig.width, m_StreamConfig.height,
+                                      m_StreamConfig.fps) == DecoderAvailability::Hardware;
+    };
+    caps.hevcHardware = hardware(VIDEO_FORMAT_H265);
+    caps.av1Hardware = hardware(VIDEO_FORMAT_AV1_MAIN8);
+
+    {
+        QReadLocker lock(&m_Computer->lock);
+        caps.hostHevc = m_Computer->maxLumaPixelsHEVC != 0 && (m_Computer->serverCodecModeSupport & SCM_HEVC);
+        caps.hostAv1 = (m_Computer->serverCodecModeSupport & SCM_MASK_AV1) != 0;
+        caps.hostHdr = (m_Computer->serverCodecModeSupport & SCM_MASK_10BIT) != 0;
+    }
+
+    if (goal == AutoTune::Goal::Quality) {
+        // Only worth probing when the display could show it
+        QScreen* screen = DisplayManager::findScreen(m_Preferences->targetMonitor);
+        if (!screen) {
+            screen = m_QtWindow ? m_QtWindow->screen() : QGuiApplication::primaryScreen();
+        }
+        caps.displayHdr = DisplayHdr::isActive(screen);
+        if (caps.displayHdr) {
+            caps.hdrDecode = hardware(VIDEO_FORMAT_H265_MAIN10) || hardware(VIDEO_FORMAT_AV1_MAIN10);
+        }
+    }
+
+    AutoTune::LaunchPicks picks = AutoTune::pickFor(goal, caps);
+    if (m_Preferences->videoCodecConfig == StreamingPreferences::VCC_AUTO) {
+        m_TunedCodec = picks.codec == AutoTune::LaunchPicks::Codec::PreferAv1 ? 2 :
+                       picks.codec == AutoTune::LaunchPicks::Codec::PreferHevc ? 1 : 0;
+    }
+    if (picks.hdr >= 0) {
+        m_EnableHdr = picks.hdr == 1;
+    }
+    if (picks.vsync >= 0) {
+        m_EnableVsync = picks.vsync == 1;
+    }
+    if (picks.framePacing >= 0) {
+        m_FramePacing = picks.framePacing == 1;
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Tuning (%s): decode HEVC %d AV1 %d HDR %d, display HDR %d, host HEVC %d AV1 %d HDR %d -> codec %s, HDR %d, V-sync %d, frame pacing %d",
+                AutoTune::goalName(goal),
+                caps.hevcHardware, caps.av1Hardware, caps.hdrDecode, caps.displayHdr,
+                caps.hostHevc, caps.hostAv1, caps.hostHdr,
+                m_TunedCodec == 2 ? "AV1 first" : m_TunedCodec == 1 ? "HEVC first" : "automatic",
+                m_EnableHdr, m_EnableVsync, m_FramePacing);
+}
+
+QString Session::tuningGoalForHost()
+{
+    AutoTune::Goal goal;
+    QReadLocker lock(&m_Computer->lock);
+    if (!tuningGoal(m_Preferences, goal) || !m_Computer->norishineFeatures.contains("tuning")) {
+        return QString();
+    }
+    return AutoTune::goalName(goal);
+}
+
+void Session::tuneStartBitrate()
+{
+    bool adaptive = AdaptiveReporter::isSupported(m_Computer);
+    AutoTune::Network network;
+    if (adaptive) {
+        // Known even when the bitrate isn't tuned, so this stream still teaches the next one
+        network = AutoTune::describeNetwork(m_Computer->activeAddress.address());
+        m_TuneNetworkKey = network.key;
+    }
+
+    AutoTune::Goal goal;
+    if (!tuningGoal(m_Preferences, goal) || !m_Preferences->autoAdjustBitrate) {
+        return;
+    }
+
+    bool yuv444 = (m_StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_YUV444) != 0;
+    bool hdr = (m_StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_10BIT) != 0;
+    int recommended = StreamingPreferences::getDefaultBitrate(m_StreamConfig.width, m_StreamConfig.height,
+                                                              m_StreamConfig.fps, yuv444);
+    int maxKbps = m_Preferences->unlockBitrate ? 500000 : 150000;
+
+    if (adaptive) {
+        AutoTune::Learned learned = AutoTune::learned(m_Computer->uuid, network.key);
+        AutoTune::Pick pick = AutoTune::startBitrate(recommended, hdr, network.link, learned, maxKbps, goal);
+        m_StreamConfig.bitrate = pick.kbps;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Start bitrate %d kbps (%s; network %s)",
+                    pick.kbps, qPrintable(pick.reason), qPrintable(network.key));
+    }
+    else {
+        // The host can't lower it during the stream, so stay near the recommended bitrate.
+        m_StreamConfig.bitrate = qBound(500, (int)(recommended * AutoTune::bitrateFactor(goal)) / 500 * 500, maxKbps);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Start bitrate %d kbps (%s, host doesn't adapt)",
+                    m_StreamConfig.bitrate, AutoTune::goalName(goal));
+    }
+}
+
 bool Session::initialize(QQuickWindow* qtWindow)
 {
     m_QtWindow = qtWindow;
@@ -745,6 +872,12 @@ bool Session::initialize(QQuickWindow* qtWindow)
                 "Audio channel mask: %X",
                 CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(m_StreamConfig.audioConfiguration));
 
+    // Norilight: this stream's own copies of the settings launch tuning may change
+    m_EnableHdr = m_Preferences->enableHdr;
+    m_EnableVsync = m_Preferences->enableVsync;
+    m_FramePacing = m_Preferences->framePacing;
+    applyLaunchTuning(testWindow);
+
     // Start with all codecs and profiles in priority order
     m_SupportedVideoFormats.append(VIDEO_FORMAT_AV1_HIGH10_444);
     m_SupportedVideoFormats.append(VIDEO_FORMAT_AV1_MAIN10);
@@ -770,12 +903,12 @@ bool Session::initialize(QQuickWindow* qtWindow)
         auto hevcDA = getDecoderAvailability(testWindow,
                                              m_Preferences->videoDecoderSelection,
                                              m_Preferences->enableYUV444 ?
-                                                 (m_Preferences->enableHdr ? VIDEO_FORMAT_H265_REXT10_444 : VIDEO_FORMAT_H265_REXT8_444) :
-                                                 (m_Preferences->enableHdr ? VIDEO_FORMAT_H265_MAIN10 : VIDEO_FORMAT_H265),
+                                                 (m_EnableHdr ? VIDEO_FORMAT_H265_REXT10_444 : VIDEO_FORMAT_H265_REXT8_444) :
+                                                 (m_EnableHdr ? VIDEO_FORMAT_H265_MAIN10 : VIDEO_FORMAT_H265),
                                              m_StreamConfig.width,
                                              m_StreamConfig.height,
                                              m_StreamConfig.fps);
-        if (hevcDA == DecoderAvailability::None && m_Preferences->enableHdr) {
+        if (hevcDA == DecoderAvailability::None && m_EnableHdr) {
             // Remove all 10-bit HEVC profiles
             m_SupportedVideoFormats.removeByMask(VIDEO_FORMAT_MASK_H265 & VIDEO_FORMAT_MASK_10BIT);
 
@@ -806,7 +939,7 @@ bool Session::initialize(QQuickWindow* qtWindow)
             // Deprioritize HEVC unless the user forced software decoding and enabled HDR.
             // We need HEVC in that case because we cannot support 10-bit content with H.264,
             // which would ordinarily be prioritized for software decoding performance.
-            if (m_Preferences->videoDecoderSelection != StreamingPreferences::VDS_FORCE_SOFTWARE || !m_Preferences->enableHdr) {
+            if (m_Preferences->videoDecoderSelection != StreamingPreferences::VDS_FORCE_SOFTWARE || !m_EnableHdr) {
                 m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_H265);
             }
         }
@@ -833,18 +966,27 @@ bool Session::initialize(QQuickWindow* qtWindow)
         // because dav1d is higher performance than FFmpeg's HEVC software decoder.
         if (hevcDA == DecoderAvailability::Hardware
 #if !defined(Q_OS_WIN32) && (!(defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN)) || defined(Q_PROCESSOR_X86))
-            || !m_Preferences->enableHdr
+            || !m_EnableHdr
 #endif
             ) {
             m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
         }
-        else if (!m_Preferences->enableHdr &&
+        else if (!m_EnableHdr &&
                    getDecoderAvailability(testWindow,
                                           m_Preferences->videoDecoderSelection,
                                           m_Preferences->enableYUV444 ? VIDEO_FORMAT_AV1_HIGH8_444 : VIDEO_FORMAT_AV1_MAIN8,
                                           m_StreamConfig.width,
                                           m_StreamConfig.height,
                                           m_StreamConfig.fps) != DecoderAvailability::Hardware) {
+            m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
+        }
+
+        // Norilight: the codec launch tuning picked from both machines' hardware
+        if (m_TunedCodec == 2) {
+            // AV1 first: everything else goes below it
+            m_SupportedVideoFormats.deprioritizeByMask(~VIDEO_FORMAT_MASK_AV1);
+        }
+        else if (m_TunedCodec == 1) {
             m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
         }
 
@@ -899,7 +1041,7 @@ bool Session::initialize(QQuickWindow* qtWindow)
     }
 
     // Mask off 10-bit codecs if HDR is not enabled
-    if (!m_Preferences->enableHdr) {
+    if (!m_EnableHdr) {
         m_SupportedVideoFormats.removeByMask(VIDEO_FORMAT_MASK_10BIT);
     }
     else {
@@ -1020,7 +1162,7 @@ bool Session::validateLaunch(SDL_Window* testWindow)
             m_SupportedVideoFormats.removeByMask(VIDEO_FORMAT_MASK_AV1);
         }
         else {
-            if (!m_Preferences->enableHdr && // HDR is checked below
+            if (!m_EnableHdr && // HDR is checked below
                  m_Preferences->videoDecoderSelection == StreamingPreferences::VDS_AUTO && // Force hardware decoding checked below
                  m_Preferences->videoCodecConfig != StreamingPreferences::VCC_AUTO && // Auto VCC is already checked in initialize()
                  getDecoderAvailability(testWindow,
@@ -1050,7 +1192,7 @@ bool Session::validateLaunch(SDL_Window* testWindow)
             m_SupportedVideoFormats.removeByMask(VIDEO_FORMAT_MASK_H265);
         }
         else {
-            if (!m_Preferences->enableHdr && // HDR is checked below
+            if (!m_EnableHdr && // HDR is checked below
                  m_Preferences->videoDecoderSelection == StreamingPreferences::VDS_AUTO && // Force hardware decoding checked below
                  m_Preferences->videoCodecConfig != StreamingPreferences::VCC_AUTO && // Auto VCC is already checked in initialize()
                  getDecoderAvailability(testWindow,
@@ -1096,7 +1238,7 @@ bool Session::validateLaunch(SDL_Window* testWindow)
         }
     }
 
-    if (m_Preferences->enableHdr) {
+    if (m_EnableHdr) {
         if (m_Preferences->videoCodecConfig == StreamingPreferences::VCC_FORCE_H264) {
             emitLaunchWarning(tr("HDR is not supported using the H.264 codec."));
             m_SupportedVideoFormats.removeByMask(VIDEO_FORMAT_MASK_10BIT);
@@ -1674,7 +1816,8 @@ bool Session::startConnectionAsync()
                       !m_Preferences->multiController,
                       m_Preferences->useVirtualDisplay,
                       m_Preferences->virtualDisplayScale,
-                      rtspSessionUrl);
+                      rtspSessionUrl,
+                      tuningGoalForHost());
     } catch (const GfeHttpResponseException& e) {
         emit displayLaunchError(tr("Host returned error: %1").arg(e.toQString()));
         return false;
@@ -1758,6 +1901,9 @@ bool Session::startConnectionAsync()
                                                                          m_StreamConfig.fps,
                                                                          false);
     }
+
+    // Norilight: start bitrate from the network, earlier streams and the tuning goal
+    tuneStartBitrate();
 
     int err = LiStartConnection(&hostInfo, &m_StreamConfig, &k_ConnCallbacks,
                                 &m_VideoCallbacks, &m_AudioCallbacks,
@@ -2002,7 +2148,7 @@ void Session::exec()
 
     // Norilight: let a Norishine host adapt the stream to what this client measures
     if (AdaptiveReporter::isSupported(m_Computer)) {
-        m_AdaptiveReporter = new AdaptiveReporter(m_Computer);
+        m_AdaptiveReporter = new AdaptiveReporter(m_Computer, m_TuneNetworkKey, m_StreamConfig.bitrate);
         m_AdaptiveReporter->start(QThread::LowPriority);
     }
 
@@ -2476,7 +2622,7 @@ void Session::exec()
                 // forcefully disable V-sync to allow the stream to render faster
                 // than the display.
                 int displayHz = StreamUtils::getDisplayRefreshRate(m_Window);
-                bool enableVsync = m_Preferences->enableVsync;
+                bool enableVsync = m_EnableVsync;
                 if (displayHz + 5 < m_StreamConfig.fps) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                                 "Disabling V-sync because refresh rate limit exceeded");
@@ -2490,7 +2636,7 @@ void Session::exec()
                                    m_Window, m_ActiveVideoFormat, m_ActiveVideoWidth,
                                    m_ActiveVideoHeight, m_ActiveVideoFrameRate,
                                    enableVsync,
-                                   enableVsync && m_Preferences->framePacing,
+                                   enableVsync && m_FramePacing,
                                    false,
                                    s_ActiveSession->m_VideoDecoder)) {
                     SDL_UnlockMutex(m_DecoderLock);

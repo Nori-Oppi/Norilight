@@ -1,0 +1,9 @@
+QT += core network testlib
+QT -= gui
+CONFIG += console testcase c++17
+CONFIG -= app_bundle
+TARGET = AutoTuneTest
+TEMPLATE = app
+INCLUDEPATH += ../../app
+SOURCES += AutoTuneTest.cpp ../../app/streaming/autotune.cpp
+HEADERS += ../../app/streaming/autotune.h

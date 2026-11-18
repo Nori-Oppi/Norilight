@@ -29,6 +29,27 @@ or **Manage host** (apps, paired devices and displays, and updating the host). F
 this device, and under **Host management** choose **View** or **Manage**. Norilight signs
 in with the certificate from pairing, never the web UI password.
 
+## Tuning
+
+Each profile has a **Tuning** choice (Settings, Picture): **Performance**, **Balanced**
+(the default), **Quality** or **Off**. At every launch Norilight looks at this PC, the
+display the stream opens on, the host and the network, and picks for that stream:
+
+| | Performance | Balanced | Quality |
+| --- | --- | --- | --- |
+| Codec (when it's Automatic) | HEVC when both PCs do it in hardware | HEVC when both PCs do it in hardware | AV1 when both PCs do it in hardware, else HEVC |
+| HDR | Off | Your setting | On when the display has HDR on and both PCs can do it |
+| V-sync and frame pacing | Off (lowest latency) | Your settings | On (smoothest) |
+| Start bitrate (when it's the recommended one) | Lower | From the network | Higher |
+| Host encoder (Norishine) | Fastest preset | Host's settings | Higher-quality preset |
+
+On a Norishine host the start bitrate comes from the link (Ethernet starts higher than Wi-Fi
+or a VPN) and from earlier streams to that host on the same network: if the host had to
+lower the bitrate, the next stream starts near what held; if it never had to, the next one
+starts a bit higher (except with Performance, which keeps its lower start). Tuning never changes the profile itself; choose **Off** to use exactly
+what's in the profile. The details are in Norishine's
+[AUTOTUNE.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/AUTOTUNE.md).
+
 ## Adaptive bitrate
 
 On a Norishine host, a stream follows the network: when frames are lost or the round-trip
@@ -39,7 +60,8 @@ as **Host bitrate** (now / your bitrate) and **FEC**; **Host busy** or **Decoder
 a machine, not the network, is the limit, so a lower resolution or frame rate would help more.
 
 It's on by default and set on the host (**Adapt to the network** in its network settings).
-Set your profile's bitrate to the most you'd want: the host only goes lower when it must.
+Set your profile's bitrate to the most you'd want, or leave it at the recommended one and let
+[Tuning](#tuning) pick it: the host only goes lower when it must.
 
 ## Updating
 

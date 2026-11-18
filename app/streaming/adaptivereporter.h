@@ -2,6 +2,9 @@
 
 #include <QThread>
 
+#include <QString>
+#include <QVector>
+
 #include <atomic>
 #include <cstdint>
 
@@ -27,7 +30,10 @@ public:
         bool clientLimited = false;
     };
 
-    explicit AdaptiveReporter(NvComputer* computer);
+    // networkKey: where to remember what the host sustained (autotune.h); empty to not learn.
+    // requestedKbps: the bitrate this client asked for. The host reports bitrates after
+    // its overhead allowance, so learning converts back to what to ask for next time.
+    AdaptiveReporter(NvComputer* computer, const QString& networkKey, int requestedKbps);
     ~AdaptiveReporter() override;
 
     // Whether this host takes reports.
@@ -50,6 +56,16 @@ protected:
     void run() override;
 
 private:
+    void learn();
+
     NvComputer* m_Computer;
+    QString m_HostUuid;
+    QString m_NetworkKey;
+    int m_RequestedKbps;
     std::atomic<bool> m_Stop {false};
+
+    // The host's answers over the stream, for learning
+    QVector<int> m_BitrateSamples;
+    int m_MaxKbps = 0;
+    int m_Decreases = 0;
 };
