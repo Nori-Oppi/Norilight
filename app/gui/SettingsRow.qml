@@ -23,6 +23,10 @@ Item {
     property bool hintIsError: false
     // Longer explanation, shown when the (i) button is opened
     property string info: ""
+    // Explanation shown on hover over the name instead (Host Settings, like the web UI)
+    property string tooltip: ""
+    // Changed but not saved: a bar at the card's edge (red with hintIsError)
+    property bool modified: false
     // Key combination that changes this setting during a stream
     property string shortcut: ""
     // Depends on the setting above it
@@ -86,6 +90,16 @@ Item {
         anchors.fill: parent
         enabled: row.available
         onClicked: row.rowClicked()
+    }
+
+    Rectangle {
+        x: -Theme.cardPadding
+        y: 10
+        width: 3
+        height: row.height - 20
+        radius: 1.5
+        color: row.hintIsError ? Theme.statusError : Material.accent
+        visible: row.modified || row.hintIsError
     }
 
     // Keyboard and controller focus on the row's control outlines the row
@@ -194,6 +208,32 @@ Item {
             lineHeight: 1.1
             color: row.hintIsError ? Theme.statusError : row.available ? Theme.textSecondary : Theme.textDisabledSecondary
             wrapMode: Text.Wrap
+        }
+    }
+
+    // Hovering the name shows the explanation
+    MouseArea {
+        id: tooltipArea
+        x: textColumn.x
+        y: textColumn.y
+        width: textColumn.width
+        height: textColumn.height
+        visible: row.tooltip !== ""
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+
+        ToolTip {
+            id: rowTip
+            visible: tooltipArea.containsMouse
+            delay: 500
+            text: row.tooltip
+            width: Math.min(implicitWidth, 440)
+            contentItem: Label {
+                text: rowTip.text
+                wrapMode: Text.Wrap
+                font.pointSize: Theme.fontDetail
+                color: Theme.textPrimary
+            }
         }
     }
 

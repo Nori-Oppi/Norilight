@@ -22,9 +22,10 @@
 
 ## Managing a Norishine host
 
-With [Norishine](https://github.com/Nori-Oppi/Norishine) on the host, right-click it and
-choose **Host Settings** (status, settings, restart) or **Manage Host** (apps, paired
-devices and displays). First allow it on the host: in its web UI, open **Devices**, edit
+Norishine hosts have a seal on their icon. With
+[Norishine](https://github.com/Nori-Oppi/Norishine) on the host, click the gear at the top
+right of its tile (or right-click it) and choose **Host settings** (settings, restart)
+or **Manage host** (apps, paired devices and displays, and updating the host). First allow it on the host: in its web UI, open **Devices**, edit
 this device, and under **Host management** choose **View** or **Manage**. Norilight signs
 in with the certificate from pairing, never the web UI password.
 
@@ -63,6 +64,13 @@ They are unsigned pre-releases. Builds you compile yourself don't check for upda
 | Ctrl+Alt+Shift+V | Type this PC's clipboard text into the host |
 | Ctrl+Alt+Shift+S | Show or hide performance stats |
 | Ctrl+Alt+Shift+R | List Apollo server commands (1–9 runs one, Esc closes) |
+
+## Command line
+
+`Norilight pair <host> --pin 1234`, `Norilight stream <host> <app>`, `Norilight list <host>`
+and `Norilight quit <host>` work as in Moonlight; `Norilight --help` lists the options.
+Scripts that capture Norilight's output must keep reading it while it runs. If nobody
+reads the pipe, Norilight pauses as soon as it fills, which can make pairing time out.
 
 ## More
 

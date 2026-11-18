@@ -1,10 +1,12 @@
----
 # Norilight nightly builds for Windows (x64 installer and ZIP) and macOS (universal DMG).
 #
 # Runs every night and publishes the result to the rolling "nightly"
-# pre-release, replacing the previous build. Nights without new commits on
-# main are skipped. Start a build by hand from the Actions tab
-# ("Run workflow") to build even when nothing changed.
+# pre-release, replacing the previous build. Scheduled runs are skipped when
+# main hasn't changed since the last nightly, or only its documentation has.
+# When CI already built this commit on main (ci.yml), its build is published
+# as is instead of compiling the same commit again. Start a run by hand from
+# the Actions tab ("Run workflow") to publish even when nothing changed, and
+# tick "Build from scratch" to ignore the CI build.
 name: Nightly
 
 on:
@@ -14,6 +16,11 @@ on:
     - cron: '17 20 * * *'
       timezone: 'Europe/Amsterdam'
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: Build from scratch even if CI already built this commit
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,266 +29,92 @@ concurrency:
   group: nightly
   cancel-in-progress: true
 
-env:
-  QT_VERSION: 6.11.3
-  # Same aqtinstall revision upstream Moonlight uses; it understands Qt 6.11's archive layout
-  AQT_SOURCE: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
-  # Compiler caches (release tags of ccache/ccache and mozilla/sccache)
-  CCACHE_VERSION: 4.14.3
-  SCCACHE_VERSION: v0.19.0
-
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      should_build: ${{ steps.check.outputs.should_build }}
+      should_publish: ${{ steps.check.outputs.should_publish }}
       version: ${{ steps.check.outputs.version }}
+      reuse_run_id: ${{ steps.reuse.outputs.run_id }}
     steps:
-      - name: Skip nights without new commits
+      - name: Skip nights without new code
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Named after the commit's own date, as ci.yml names builds of main
+          DATE=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" --jq '.commit.committer.date')
+          echo "version=nightly-$(date -u -d "${DATE}" +%Y%m%d)-${GITHUB_SHA:0:7}" >> "${GITHUB_OUTPUT}"
+
+          SHOULD=true
           LAST_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/nightly" --jq '.object.sha' 2>/dev/null || true)
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] && [ "${LAST_SHA}" = "${GITHUB_SHA}" ]; then
-            echo "Nightly is already at ${GITHUB_SHA}; nothing to build."
-            echo "should_build=false" >> "${GITHUB_OUTPUT}"
-          else
-            echo "should_build=true" >> "${GITHUB_OUTPUT}"
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] && [ -n "${LAST_SHA}" ]; then
+            if [ "${LAST_SHA}" = "${GITHUB_SHA}" ]; then
+              echo "Nightly is already at ${GITHUB_SHA}; nothing to build."
+              SHOULD=false
+            elif FILES=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${LAST_SHA}...${GITHUB_SHA}" --jq '.files[].filename' 2>/dev/null) \
+                && [ -n "${FILES}" ] && [ "$(echo "${FILES}" | wc -l)" -lt 300 ] \
+                && ! echo "${FILES}" | grep -qvE '^docs/|\.md$|^LICENSE$'; then
+              echo "Only documentation changed since the last nightly (${LAST_SHA:0:7}); nothing to build."
+              SHOULD=false
+            fi
           fi
-          echo "version=nightly-$(date -u +%Y%m%d)-$(echo ${GITHUB_SHA} | cut -c1-7)" >> "${GITHUB_OUTPUT}"
+          echo "should_publish=${SHOULD}" >> "${GITHUB_OUTPUT}"
+
+      - name: Find a CI build of this commit
+        id: reuse
+        if: steps.check.outputs.should_publish == 'true' && !inputs.force_build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          # The newest successful push build of this exact commit on main whose
+          # Windows and macOS artifacts both still exist
+          for RUN in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&branch=main&event=push&status=success&per_page=5" --jq '.workflow_runs[].id'); do
+            FOUND=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN}/artifacts" \
+              --jq "[.artifacts[] | select(.expired == false) | .name] | map(select(. == \"Norilight-Windows-x64-${VERSION}\" or . == \"Norilight-macOS-${VERSION}\")) | length")
+            if [ "${FOUND}" = "2" ]; then
+              echo "Publishing CI run ${RUN} instead of building again."
+              echo "run_id=${RUN}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          done
+          echo "No usable CI build of ${GITHUB_SHA}; building it here."
 
   build:
     needs: check
-    if: needs.check.outputs.should_build == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2025
-            name: Windows-x64
-            qt_dir: msvc2022_64
-          - os: macos-26
-            name: macOS
-            qt_dir: macos
-
-    runs-on: ${{ matrix.os }}
-    env:
-      CI_VERSION: ${{ needs.check.outputs.version }}
-      # Lets the app compare itself against the latest nightly (see autoupdatechecker.cpp)
-      NORILIGHT_BUILD_SHA: ${{ github.sha }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-          fetch-depth: 1
-
-      # Qt is cached directly: on a hit the install action is skipped entirely,
-      # which avoids a minute of Python package setup that it runs even when
-      # its own cache hits.
-      - name: Restore Qt
-        id: qt-cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.workspace }}/Qt
-          key: qt-${{ matrix.os }}-${{ env.QT_VERSION }}
-
-      - name: Install Qt
-        if: steps.qt-cache.outputs.cache-hit != 'true'
-        uses: jurplel/install-qt-action@v4
-        with:
-          cache: false
-          set-env: false
-          dir: ${{ runner.workspace }}
-          version: ${{ env.QT_VERSION }}
-          aqtsource: ${{ env.AQT_SOURCE }}
-
-      - name: Set Qt environment
-        shell: pwsh
-        run: |
-          # Resolve-Path fails the step if Qt is not where it is expected
-          $qt = (Resolve-Path (Join-Path $env:RUNNER_WORKSPACE "Qt/$env:QT_VERSION/${{ matrix.qt_dir }}")).Path
-          if (!(Get-Command (Join-Path $qt 'bin/qmake') -ErrorAction SilentlyContinue)) { throw "qmake not found in $qt" }
-          "QT_ROOT_DIR=$qt" >> $env:GITHUB_ENV
-          (Join-Path $qt 'bin') >> $env:GITHUB_PATH
-
-      # Windows ------------------------------------------------------------
-
-      - name: Download dependencies (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        # Only x64 is built here, so skip the ARM64 libraries
-        run: ./setup-deps.ps1 -Assets windows-x64.zip
-
-      # jom builds in parallel where nmake is serial. The build script falls
-      # back to nmake if the download fails.
-      - name: Install jom (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          curl.exe -s -L -f --retry 2 -o "$env:RUNNER_TEMP\jom.zip" https://download.qt.io/official_releases/jom/jom.zip
-          if ($LASTEXITCODE -ne 0) { throw "jom download failed ($LASTEXITCODE)" }
-          Expand-Archive -Path "$env:RUNNER_TEMP\jom.zip" -DestinationPath "$env:RUNNER_TEMP\jom" -Force
-          Add-Content -Path $env:GITHUB_PATH -Value "$env:RUNNER_TEMP\jom"
-
-      # sccache reuses compiled objects from earlier runs. If the download
-      # fails, USE_SCCACHE stays unset and everything is compiled normally.
-      - name: Install sccache (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $name = "sccache-$env:SCCACHE_VERSION-x86_64-pc-windows-msvc"
-          curl.exe -s -L -f --retry 2 -o "$env:RUNNER_TEMP\sccache.zip" "https://github.com/mozilla/sccache/releases/download/$env:SCCACHE_VERSION/$name.zip"
-          if ($LASTEXITCODE -ne 0) { throw "sccache download failed ($LASTEXITCODE)" }
-          Expand-Archive -Path "$env:RUNNER_TEMP\sccache.zip" -DestinationPath "$env:RUNNER_TEMP\sccache" -Force
-          if (!(Test-Path "$env:RUNNER_TEMP\sccache\$name\sccache.exe")) { throw "sccache.exe not found in the archive" }
-          Add-Content -Path $env:GITHUB_PATH -Value "$env:RUNNER_TEMP\sccache\$name"
-          Add-Content -Path $env:GITHUB_ENV -Value "USE_SCCACHE=1"
-          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_DIR=$env:RUNNER_TEMP\compiler-cache"
-          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_CACHE_SIZE=600M"
-
-      # ccache does the same for macOS. Falls back to Homebrew if the
-      # download fails.
-      - name: Install ccache (macOS)
-        if: runner.os == 'macOS'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-        run: |
-          mkdir -p "${RUNNER_TEMP}/ccache-dist"
-          if curl -sLf --retry 2 "https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-darwin.tar.gz" | tar -xz -C "${RUNNER_TEMP}/ccache-dist"; then
-            CCACHE_BIN=$(find "${RUNNER_TEMP}/ccache-dist" -type f -name ccache | head -n 1)
-          fi
-          if [ -n "${CCACHE_BIN}" ] && "${CCACHE_BIN}" --version; then
-            dirname "${CCACHE_BIN}" >> "${GITHUB_PATH}"
-          else
-            brew install ccache
-          fi
-          echo "CCACHE_DIR=${RUNNER_TEMP}/compiler-cache" >> "${GITHUB_ENV}"
-          echo "CCACHE_MAXSIZE=400M" >> "${GITHUB_ENV}"
-
-      # Each commit saves its own compiler cache and starts from the newest earlier one.
-      - name: Restore compiler cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.temp }}/compiler-cache
-          key: compiler-cache-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ github.sha }}
-          restore-keys: |
-            compiler-cache-${{ matrix.os }}-${{ env.QT_VERSION }}-
-
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          set "QT_DIR=%QT_ROOT_DIR%"
-          call scripts\build-norilight.bat release
-          set BUILD_RESULT=%ERRORLEVEL%
-          rem Stop the sccache server so it cannot keep this step from finishing
-          if "%USE_SCCACHE%"=="1" sccache --show-stats
-          if "%USE_SCCACHE%"=="1" sccache --stop-server >nul
-          exit /b %BUILD_RESULT%
-
-      - name: Package ZIP and installer (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force out | Out-Null
-          # 7-Zip (preinstalled) makes the same ZIP several times faster than Compress-Archive
-          7z a -tzip -mx=3 "out\Norilight-Windows-x64-$env:CI_VERSION.zip" ".\build\Norilight-x64-release\*" | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "ZIP creation failed ($LASTEXITCODE)" }
-          # Inno Setup is preinstalled on the windows-2025 runner.
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (!(Test-Path $iscc)) { throw "Inno Setup 6 compiler not found: $iscc" }
-          # Normal compression on four threads builds in under half the time for a 3% larger installer
-          & $iscc "/DPayloadDir=$env:GITHUB_WORKSPACE\build\Norilight-x64-release" "/DBuildVersion=$env:CI_VERSION" "/DOutputDir=$env:GITHUB_WORKSPACE\out" "/DInstallerCompression=lzma2/normal" "/DInstallerThreads=4" scripts\norilight-installer.iss
-          if ($LASTEXITCODE -ne 0) { throw "Windows installer compilation failed ($LASTEXITCODE)" }
-          if (!(Test-Path "out\Norilight-Windows-x64-$env:CI_VERSION-Setup.exe")) { throw "Windows installer was not created" }
-
-      - name: Verify Windows install, upgrade and uninstall
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $installer = (Resolve-Path "out\Norilight-Windows-x64-$env:CI_VERSION-Setup.exe").Path
-          $installDir = Join-Path $env:RUNNER_TEMP 'Norilight-install-test'
-          $uninstallKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{8B45E372-762F-4BF8-9B49-8363BD838E65}_is1'
-          # Installing twice exercises replacement of an existing nightly installation.
-          foreach ($attempt in 1..2) {
-            $log = Join-Path $env:RUNNER_TEMP "Norilight-install-$attempt.log"
-            $process = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installDir`"", "/LOG=`"$log`"") -Wait -PassThru
-            if ($process.ExitCode -ne 0) { Get-Content $log; throw "Installer failed ($($process.ExitCode))" }
-            foreach ($file in @('Norilight.exe', 'Qt6Core.dll', 'gamecontrollerdb.txt', 'unins000.exe')) {
-              if (!(Test-Path (Join-Path $installDir $file))) { throw "Installed file missing: $file" }
-            }
-            if (Test-Path (Join-Path $installDir 'portable.dat')) { throw 'Installed build must not use portable settings' }
-            $registration = Get-ItemProperty $uninstallKey -ErrorAction Stop
-            if ($registration.DisplayName -notlike 'Norilight*') { throw 'Norilight uninstall registration missing' }
-            if (!(Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Norilight.lnk")) { throw 'Start menu shortcut missing' }
-          }
-          $log = Join-Path $env:RUNNER_TEMP 'Norilight-uninstall.log'
-          $process = Start-Process -FilePath (Join-Path $installDir 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log`"") -Wait -PassThru
-          if ($process.ExitCode -ne 0) { Get-Content $log; throw "Uninstaller failed ($($process.ExitCode))" }
-          if (Test-Path (Join-Path $installDir 'Norilight.exe')) { throw 'Uninstall left the application installed' }
-          if (Test-Path $uninstallKey) { throw 'Uninstall left the registration behind' }
-          if (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Norilight.lnk") { throw 'Uninstall left the Start menu shortcut behind' }
-
-      # macOS --------------------------------------------------------------
-
-      # Reuse deployment work when Qt, native dependencies, build settings and
-      # QML imports are unchanged. The app executable is always rebuilt.
-      - name: Restore deployed frameworks (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.temp }}/macos-deployment
-          key: macos-deployment-${{ matrix.os }}-${{ env.QT_VERSION }}-${{ hashFiles('setup-deps.py', '**/*.pro', '**/*.pri', 'app/gui/**', 'scripts/generate-dmg.sh', 'scripts/strip-macos.py') }}
-
-      - name: Build and package (macOS)
-        if: runner.os == 'macOS'
-        env:
-          # Nightlies trade link-time optimisation and the styled DMG window for speed
-          USE_CCACHE: 1
-          DISABLE_LTO: 1
-          PLAIN_DMG: 1
-          FAST_DEPLOY: 1
-          DEPLOY_CACHE_DIR: ${{ runner.temp }}/macos-deployment
-        run: |
-          ccache --zero-stats
-          bash scripts/generate-dmg.sh Release
-          ccache --show-stats
-          # Check both universal slices and load the deployed libraries/plugins
-          # without letting the Qt installation supply missing plugins.
-          lipo build/build-Release/app/Norilight.app/Contents/MacOS/Norilight -verify_arch x86_64 arm64
-          env -u QT_PLUGIN_PATH -u QML2_IMPORT_PATH -u QML_IMPORT_PATH python3 -c 'import subprocess; subprocess.run(["build/build-Release/app/Norilight.app/Contents/MacOS/Norilight", "--version"], check=True, timeout=30)'
-          mkdir -p out
-          cp build/installer-Release/*.dmg out/
-
-      # --------------------------------------------------------------------
-
-      - name: Upload build
-        uses: actions/upload-artifact@v6
-        with:
-          name: Norilight-${{ matrix.name }}-${{ env.CI_VERSION }}
-          path: out/*
-          compression-level: 0
-          if-no-files-found: error
+    if: needs.check.outputs.should_publish == 'true' && needs.check.outputs.reuse_run_id == ''
+    uses: ./.github/workflows/norilight-build.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+      build_sha: ${{ github.sha }}
+      save_caches: ${{ github.ref == 'refs/heads/main' }}
+      # The builds live on in the release; the artifacts only carry them there
+      artifact_retention_days: 3
 
   publish:
     needs: [check, build]
     # Runs from other branches (to test this workflow) build but never replace the release
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      needs.check.outputs.should_publish == 'true' &&
+      (needs.build.result == 'success' || (needs.build.result == 'skipped' && needs.check.outputs.reuse_run_id != ''))
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Download builds
         uses: actions/download-artifact@v6
         with:
           path: out
+          pattern: Norilight-*-${{ needs.check.outputs.version }}
           merge-multiple: true
+          run-id: ${{ needs.check.outputs.reuse_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Replace the nightly pre-release
         env:
