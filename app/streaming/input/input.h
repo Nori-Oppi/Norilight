@@ -167,6 +167,9 @@ public:
     // Norilight (N9): the host answered the stream settings menu's changes
     void streamSettingsResult(bool ok, const QString& error);
 
+    // Norilight (N9): the stream's picture size changed during the stream
+    void setStreamSize(int width, int height) { m_StreamWidth = width; m_StreamHeight = height; }
+
     bool isSystemKeyCaptureActive();
 
     void setCaptureActive(bool active);

@@ -8,7 +8,9 @@
 // Norilight (N9): the stream settings menu, drawn in the status overlay while a stream to a
 // Norishine host runs (Ctrl+Alt+Shift+O). It changes the running stream without reconnecting:
 // bitrate, error correction and the encoder preset through the host's
-// POST /api/v1/session/settings (feature "session.settings").
+// POST /api/v1/session/settings (feature "session.settings"); resolution, frame rate and
+// codec too on hosts with feature "session.video" (the decoder is rebuilt when the host's
+// new format arrives).
 //
 // This is the menu's state only (no SDL, no network), so it can be tested on its own.
 class LiveSettingsMenu
@@ -18,6 +20,9 @@ public:
         Bitrate,
         ErrorCorrection,
         EncoderPreset,
+        Resolution,
+        FrameRate,
+        Codec,
     };
 
     enum Key {
@@ -43,6 +48,13 @@ public:
         int fecPercent = 20;
         int goal = 2;              // 1 Performance, 2 Balanced, 3 Quality (AutoTune::Goal + 1)
         bool encoderPreset = true; // the host takes tuning goals (feature "tuning")
+
+        bool videoFormat = false;  // the host changes size, frame rate and codec (feature "session.video")
+        int width = 1920;
+        int height = 1080;
+        int fps = 60;
+        int codec = 1;             // 0 H.264, 1 HEVC, 2 AV1
+        QVector<int> codecs = {0}; // codecs both sides can stream now
     };
 
     explicit LiveSettingsMenu(const Start& start);
@@ -68,10 +80,16 @@ public:
     int bitrateKbps() const;
     int fecPercent() const;
     int goal() const;
+    int width() const;
+    int height() const;
+    int fps() const;
+    int codec() const;
 
     // Values offered for each row
     static QVector<int> bitrateSteps(int currentKbps, int maxKbps);
     static QVector<int> fecSteps(int currentPercent);
+    static QVector<int> resolutionSteps(int width, int height);  // (width << 16) | height
+    static QVector<int> fpsSteps(int currentFps);
 
 private:
     struct Item {
@@ -83,6 +101,7 @@ private:
     };
 
     QString valueText(const Item& item, int index) const;
+    int value(Row row, int fallback) const;
 
     QVector<Item> m_Items;
     int m_Selected = 0;

@@ -47,6 +47,36 @@ QVector<int> LiveSettingsMenu::fecSteps(int currentPercent)
     return values;
 }
 
+QVector<int> LiveSettingsMenu::resolutionSteps(int width, int height)
+{
+    static const int sizes[][2] = {{1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440}, {3840, 2160}};
+    QVector<int> values;
+    for (const auto& size : sizes) {
+        values.append((size[0] << 16) | size[1]);
+    }
+    int current = (width << 16) | height;
+    if (!values.contains(current)) {
+        // Sorted by pixels
+        int pixels = width * height;
+        int at = 0;
+        while (at < values.size() && (values[at] >> 16) * (values[at] & 0xFFFF) <= pixels) {
+            at++;
+        }
+        values.insert(at, current);
+    }
+    return values;
+}
+
+QVector<int> LiveSettingsMenu::fpsSteps(int currentFps)
+{
+    QVector<int> values = {30, 60, 90, 120, 144, 165, 240};
+    if (currentFps > 0 && !values.contains(currentFps)) {
+        values.append(currentFps);
+        std::sort(values.begin(), values.end());
+    }
+    return values;
+}
+
 LiveSettingsMenu::LiveSettingsMenu(const Start& start)
 {
     Item bitrate;
@@ -70,6 +100,33 @@ LiveSettingsMenu::LiveSettingsMenu(const Start& start)
         preset.values = {1, 2, 3};
         preset.current = preset.pending = indexOf(preset.values, start.goal >= 1 && start.goal <= 3 ? start.goal : 2);
         m_Items.append(preset);
+    }
+
+    if (start.videoFormat) {
+        Item resolution;
+        resolution.row = Resolution;
+        resolution.label = tr("Resolution");
+        resolution.values = resolutionSteps(start.width, start.height);
+        resolution.current = resolution.pending = indexOf(resolution.values, (start.width << 16) | start.height);
+        m_Items.append(resolution);
+
+        Item fps;
+        fps.row = FrameRate;
+        fps.label = tr("Frame rate");
+        fps.values = fpsSteps(start.fps);
+        fps.current = fps.pending = indexOf(fps.values, start.fps);
+        m_Items.append(fps);
+
+        Item codec;
+        codec.row = Codec;
+        codec.label = tr("Codec");
+        codec.values = start.codecs;
+        if (!codec.values.contains(start.codec)) {
+            codec.values.append(start.codec);
+        }
+        std::sort(codec.values.begin(), codec.values.end());
+        codec.current = codec.pending = indexOf(codec.values, start.codec);
+        m_Items.append(codec);
     }
 }
 
@@ -115,6 +172,12 @@ QString LiveSettingsMenu::valueText(const Item& item, int index) const
         return tr("%1 %").arg(value);
     case EncoderPreset:
         return value == 1 ? tr("Performance") : value == 3 ? tr("Quality") : tr("Balanced");
+    case Resolution:
+        return QString("%1x%2").arg(value >> 16).arg(value & 0xFFFF);
+    case FrameRate:
+        return tr("%1 fps").arg(value);
+    case Codec:
+        return value == 2 ? QString("AV1") : value == 1 ? QString("HEVC") : QString("H.264");
     }
     return QString::number(value);
 }
@@ -155,6 +218,16 @@ QJsonObject LiveSettingsMenu::changes() const
         case EncoderPreset:
             body["tuning"] = value == 1 ? "performance" : value == 3 ? "quality" : "balanced";
             break;
+        case Resolution:
+            body["width"] = value >> 16;
+            body["height"] = value & 0xFFFF;
+            break;
+        case FrameRate:
+            body["fps"] = value;
+            break;
+        case Codec:
+            body["codec"] = value == 2 ? "AV1" : value == 1 ? "HEVC" : "H.264";
+            break;
         }
     }
     return body;
@@ -186,12 +259,37 @@ int LiveSettingsMenu::fecPercent() const
     return item.values[item.current];
 }
 
-int LiveSettingsMenu::goal() const
+int LiveSettingsMenu::value(Row row, int fallback) const
 {
     for (const Item& item : m_Items) {
-        if (item.row == EncoderPreset) {
+        if (item.row == row) {
             return item.values[item.current];
         }
     }
-    return 0;
+    return fallback;
+}
+
+int LiveSettingsMenu::goal() const
+{
+    return value(EncoderPreset, 0);
+}
+
+int LiveSettingsMenu::width() const
+{
+    return value(Resolution, 0) >> 16;
+}
+
+int LiveSettingsMenu::height() const
+{
+    return value(Resolution, 0) & 0xFFFF;
+}
+
+int LiveSettingsMenu::fps() const
+{
+    return value(FrameRate, 0);
+}
+
+int LiveSettingsMenu::codec() const
+{
+    return value(Codec, -1);
 }

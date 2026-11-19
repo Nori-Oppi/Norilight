@@ -268,6 +268,10 @@ private:
     static
     void clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlags, uint8_t typeLeft, uint8_t typeRight, uint8_t *left, uint8_t *right);
 
+    // Norilight (N9): a Norishine host changed the video format during the stream
+    static
+    void clVideoFormatChanged(int videoFormat, int width, int height, int fps);
+
     static
     int arInit(int audioConfiguration,
                const POPUS_MULTISTREAM_CONFIGURATION opusConfig,
@@ -310,6 +314,14 @@ private:
 
     // Norilight (N9): sends the stream settings menu's changes to the host
     QThread* m_LiveSettingsThread = nullptr;
+
+    // Norilight (N9): the host's new video format, until the main thread rebuilds the
+    // decoder for it; frames are dropped meanwhile
+    std::atomic<bool> m_VideoFormatChanging {false};
+    std::atomic<int> m_NewVideoFormat {0};
+    std::atomic<int> m_NewVideoWidth {0};
+    std::atomic<int> m_NewVideoHeight {0};
+    std::atomic<int> m_NewVideoFps {0};
 
     // Norilight: this stream's choices after launch tuning (streaming/autotune.h). The
     // profile keeps its own settings; tuning only changes these copies.
