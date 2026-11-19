@@ -154,6 +154,11 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
     m_SpecialKeyCombos[KeyComboServerCommands].scanCode = SDL_SCANCODE_R;
     m_SpecialKeyCombos[KeyComboServerCommands].enabled = true;
 
+    m_SpecialKeyCombos[KeyComboStreamSettings].keyCombo = KeyComboStreamSettings;
+    m_SpecialKeyCombos[KeyComboStreamSettings].keyCode = SDLK_o;
+    m_SpecialKeyCombos[KeyComboStreamSettings].scanCode = SDL_SCANCODE_O;
+    m_SpecialKeyCombos[KeyComboStreamSettings].enabled = true;
+
     m_SpecialKeyCombos[KeyComboToggleKeyboardGrab].keyCombo = KeyComboToggleKeyboardGrab;
     m_SpecialKeyCombos[KeyComboToggleKeyboardGrab].keyCode = SDLK_k;
     m_SpecialKeyCombos[KeyComboToggleKeyboardGrab].scanCode = SDL_SCANCODE_K;

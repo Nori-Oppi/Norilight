@@ -12,6 +12,7 @@
 #include "video/decoder.h"
 #include "audio/renderers/renderer.h"
 #include "video/overlaymanager.h"
+#include "streaming/livesettings.h"
 
 class SupportedVideoFormatList : public QList<int>
 {
@@ -132,6 +133,11 @@ public:
 
     // Norilight: hide the status overlay after a short delay
     void scheduleStatusHide();
+
+    // Norilight (N9): change this stream's settings on a Norishine host while it runs
+    bool liveSettingsSupported();
+    LiveSettingsMenu::Start liveSettingsStart();
+    void applyLiveSettings(const QJsonObject& changes);
 
     // Norilight: put text on this PC's clipboard (optionally hidden from history)
     static void setLocalClipboard(const QString& text, bool hideFromHistory);
@@ -301,6 +307,9 @@ private:
 
     // Norilight: reports measurements to a Norishine host during the stream
     class AdaptiveReporter* m_AdaptiveReporter = nullptr;
+
+    // Norilight (N9): sends the stream settings menu's changes to the host
+    QThread* m_LiveSettingsThread = nullptr;
 
     // Norilight: this stream's choices after launch tuning (streaming/autotune.h). The
     // profile keeps its own settings; tuning only changes these copies.

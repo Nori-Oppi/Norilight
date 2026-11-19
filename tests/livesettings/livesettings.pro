@@ -1,0 +1,9 @@
+QT += core testlib
+QT -= gui
+CONFIG += console testcase c++17
+CONFIG -= app_bundle
+TARGET = LiveSettingsTest
+TEMPLATE = app
+INCLUDEPATH += ../../app
+SOURCES += LiveSettingsTest.cpp ../../app/streaming/livesettings.cpp
+HEADERS += ../../app/streaming/livesettings.h
