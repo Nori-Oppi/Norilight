@@ -52,6 +52,7 @@
 #include "backend/autoupdatechecker.h"
 #include "backend/computermanager.h"
 #include "backend/systemproperties.h"
+#include "streaming/optimiser.h"
 #include "streaming/session.h"
 #include "settings/streamingpreferences.h"
 #include "settings/displaymanager.h"
@@ -989,6 +990,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<ComputerModel>("ComputerModel", 1, 0, "ComputerModel");
     qmlRegisterType<AppModel>("AppModel", 1, 0, "AppModel");
     qmlRegisterUncreatableType<Session>("Session", 1, 0, "Session", "Session cannot be created from QML");
+    qmlRegisterType<Optimiser>("Optimiser", 1, 0, "Optimiser");
     qmlRegisterSingletonType<ComputerManager>("ComputerManager", 1, 0,
                                               "ComputerManager",
                                               [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {

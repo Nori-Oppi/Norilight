@@ -6,6 +6,7 @@
         <file>gui/SettingsView.qml</file>
         <file>gui/HostSettingsView.qml</file>
         <file>gui/HostManageView.qml</file>
+        <file>gui/OptimiseView.qml</file>
         <file>gui/SettingsGroup.qml</file>
         <file>gui/SettingsCard.qml</file>
         <file>gui/SettingsRow.qml</file>

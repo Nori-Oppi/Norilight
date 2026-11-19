@@ -47,6 +47,9 @@ public:
 
     Q_INVOKABLE Session* createSessionForCurrentGame(int computerIndex);
 
+    // Norilight (N6): the computer at this index, or null
+    NvComputer* computerAt(int computerIndex) const;
+
     // Norilight: call the host's Norishine management API (/api/v1 on the HTTPS port).
     // The answer comes back through hostApiResponse with the same requestId.
     Q_INVOKABLE void hostApiRequest(int computerIndex, QString requestId, QString verb, QString path, QString jsonBody);

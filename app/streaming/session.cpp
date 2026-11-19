@@ -1984,6 +1984,16 @@ bool Session::startConnectionAsync()
 
     StartTimeline::mark("connected");
     emit connectionStarted();
+
+    // Norilight (N6): a test stream ends by itself
+    if (m_TestSeconds > 0) {
+        m_TestTimer = SDL_AddTimer(m_TestSeconds * 1000, [](Uint32, void*) -> Uint32 {
+            SDL_Event event = {};
+            event.type = SDL_QUIT;
+            SDL_PushEvent(&event);
+            return 0;
+        }, nullptr);
+    }
     return true;
 }
 
@@ -2853,8 +2863,16 @@ DispatchDeferredCleanup:
     // Norilight: fetch the host's clipboard one last time (delivered after the stream)
     startClipboardDownload(true);
 
+    if (m_TestTimer != 0) {
+        SDL_RemoveTimer(m_TestTimer);
+        m_TestTimer = 0;
+    }
+    if (m_TestSeconds > 0) {
+        emit streamStatsReady(m_VideoDecoder != nullptr ? m_VideoDecoder->getSessionStats() : QVariantMap());
+    }
+
     // Norilight: grab the whole-session stats before the decoder goes away
-    if (m_Preferences->postStreamSummary && m_VideoDecoder != nullptr) {
+    if (m_Preferences->postStreamSummary && m_TestSeconds == 0 && m_VideoDecoder != nullptr) {
         QString summary = m_VideoDecoder->getSessionSummary();
         if (!summary.isEmpty()) {
             emit streamSummaryReady(summary);

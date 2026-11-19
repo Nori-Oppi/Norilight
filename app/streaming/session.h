@@ -106,6 +106,9 @@ public:
     Q_INVOKABLE bool initialize(QQuickWindow* qtWindow);
     Q_INVOKABLE void start();
     Q_INVOKABLE void interrupt();
+    // Norilight (N6): an optimisation test stream ends by itself after this many seconds
+    // and reports its stats with streamStatsReady
+    Q_INVOKABLE void setTestSeconds(int seconds) { m_TestSeconds = seconds; }
     Q_PROPERTY(QStringList launchWarnings MEMBER m_LaunchWarnings NOTIFY launchWarningsChanged);
 
     static
@@ -148,6 +151,9 @@ signals:
 
     // Norilight: whole-session latency summary, emitted before sessionFinished
     void streamSummaryReady(QString summary);
+
+    // Norilight (N6): a test stream's whole-stream figures (FFmpegVideoDecoder::getSessionStats)
+    void streamStatsReady(QVariantMap stats);
 
     // Emitted after sessionFinished() when the session is ready to be destroyed
     void readyForDeletion();
@@ -333,6 +339,8 @@ private:
     IAudioRenderer* m_PreparedAudio;
     OPUS_MULTISTREAM_CONFIGURATION m_PreparedAudioConfig;
     std::atomic<bool> m_AudioPending;
+    int m_TestSeconds = 0;
+    SDL_TimerID m_TestTimer = 0;
 
     Overlay::OverlayManager m_OverlayManager;
 

@@ -125,6 +125,7 @@ public:
     // (runtime only, not saved). 0 if the host has none.
     int norishineApiVersion = 0;
     QStringList norishineFeatures;
+    int norishineOptimiseAppId = 0;  // the hidden app optimisation test streams launch (N6)
 
     // Synchronization
     mutable CopySafeReadWriteLock lock;
