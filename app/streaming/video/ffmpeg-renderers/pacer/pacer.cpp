@@ -1,6 +1,7 @@
 #include "pacer.h"
 #include "streaming/streamutils.h"
 #include "streaming/session.h"
+#include "streaming/starttimeline.h"
 
 #ifdef Q_OS_WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -387,6 +388,9 @@ void Pacer::renderFrame(AVFrame* frame)
 
     m_VideoStats->totalRenderTimeUs += (afterRender - beforeRender);
     m_VideoStats->renderedFrames++;
+    if (m_VideoStats->renderedFrames == 1) {
+        StartTimeline::finish();
+    }
 
     // Wait until after next frame to free this one to ensure the GPU
     // doesn't stall or read garbage if the backing buffer gets returned

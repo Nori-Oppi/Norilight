@@ -3,6 +3,7 @@
 #include "streaming/streamutils.h"
 #include "streaming/adaptivereporter.h"
 #include "streaming/autotune.h"
+#include "streaming/starttimeline.h"
 #include "streaming/displayhdr.h"
 #include "backend/richpresencemanager.h"
 #include "settings/displaymanager.h"
@@ -61,7 +62,7 @@
 
 CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
     Session::clStageStarting,
-    nullptr,
+    Session::clStageComplete,
     Session::clStageFailed,
     nullptr,
     Session::clConnectionTerminated,
@@ -86,8 +87,14 @@ void Session::clStageStarting(int stage)
     emit s_ActiveSession->stageStarting(QString::fromLocal8Bit(LiGetStageName(stage)));
 }
 
+void Session::clStageComplete(int stage)
+{
+    StartTimeline::mark(LiGetStageName(stage));
+}
+
 void Session::clStageFailed(int stage, int errorCode)
 {
+    StartTimeline::cancel();
     // Perform the port test now, while we're on the async connection thread and not blocking the UI.
     unsigned int portFlags = LiGetPortFlagsFromStage(stage);
     s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
@@ -365,6 +372,7 @@ int Session::drSetup(int videoFormat, int width, int height, int frameRate, void
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Video stream is %dx%dx%d (format 0x%x)",
                 width, height, frameRate, videoFormat);
+    StartTimeline::mark("video set up");
 
     return 0;
 }
@@ -388,6 +396,7 @@ int Session::drSubmitDecodeUnit(PDECODE_UNIT du)
         }
         else {
             SDL_UnlockMutex(s_ActiveSession->m_DecoderLock);
+            StartTimeline::markOnce(StartTimeline::FrameBeforeDecoder, "frame before decoder");
             return DR_OK;
         }
     }
@@ -500,10 +509,32 @@ void Session::getDecoderInfo(SDL_Window* window,
                  "Failed to find ANY working H.264 or HEVC decoder!");
 }
 
+// Norilight (N5): decoder checks made during one launch, so the same check isn't made twice
+// (each one creates a test decoder, about 170 ms). Only kept while Session::initialize() runs.
+static bool s_CacheDecoderAvailability = false;
+static QHash<QString, int> s_DecoderAvailabilityCache;
+
 Session::DecoderAvailability
 Session::getDecoderAvailability(SDL_Window* window,
                                 StreamingPreferences::VideoDecoderSelection vds,
                                 int videoFormat, int width, int height, int frameRate)
+{
+    QString key = QString("%1/%2/%3x%4/%5").arg(vds).arg(videoFormat).arg(width).arg(height).arg(frameRate);
+    if (s_CacheDecoderAvailability && s_DecoderAvailabilityCache.contains(key)) {
+        return (DecoderAvailability)s_DecoderAvailabilityCache.value(key);
+    }
+
+    DecoderAvailability result = probeDecoderAvailability(window, vds, videoFormat, width, height, frameRate);
+    if (s_CacheDecoderAvailability) {
+        s_DecoderAvailabilityCache.insert(key, (int)result);
+    }
+    return result;
+}
+
+Session::DecoderAvailability
+Session::probeDecoderAvailability(SDL_Window* window,
+                                  StreamingPreferences::VideoDecoderSelection vds,
+                                  int videoFormat, int width, int height, int frameRate)
 {
     IVideoDecoder* decoder;
 
@@ -600,7 +631,10 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+      m_DropAudioEndTime(0),
+      m_AudioPrepDone(true),
+      m_PreparedAudio(nullptr),
+      m_AudioPending(false)
 {
 }
 
@@ -608,6 +642,9 @@ Session::~Session()
 {
     // NB: This may not get destroyed for a long time! Don't put any non-trivial cleanup here.
     // Use Session::exec() or DeferredSessionCleanupTask instead.
+
+    // Norilight: normally released already; this only waits if a launch was abandoned
+    discardPreparedAudio();
 
     SDL_DestroyMutex(m_DecoderLock);
 }
@@ -739,6 +776,17 @@ void Session::tuneStartBitrate()
 
 bool Session::initialize(QQuickWindow* qtWindow)
 {
+    StartTimeline::begin();
+
+    // Norilight (N5): each decoder check is made once per launch
+    s_CacheDecoderAvailability = true;
+    s_DecoderAvailabilityCache.clear();
+    struct CacheScope {
+        ~CacheScope() {
+            s_CacheDecoderAvailability = false;
+            s_DecoderAvailabilityCache.clear();
+        }
+    } cacheScope;
     m_QtWindow = qtWindow;
     m_Preferences->resolveDisplaySettings(qtWindow ? qtWindow->screen() : nullptr);
 
@@ -858,6 +906,9 @@ bool Session::initialize(QQuickWindow* qtWindow)
         m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_71_SURROUND;
         break;
     }
+
+    // Norilight (N5): open the audio device now, while the rest of the launch goes on
+    prepareAudio(m_StreamConfig.audioConfiguration);
 
     LiInitializeAudioCallbacks(&m_AudioCallbacks);
     m_AudioCallbacks.init = arInit;
@@ -1110,9 +1161,12 @@ bool Session::initialize(QQuickWindow* qtWindow)
 
     if (!ret) {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        StartTimeline::cancel();
+        discardPreparedAudio();
         return false;
     }
 
+    StartTimeline::mark("checked");
     return true;
 }
 
@@ -1348,27 +1402,34 @@ bool Session::validateLaunch(SDL_Window* testWindow)
         }
     }
 
-    // Test if audio works at the specified audio configuration
-    bool audioTestPassed = testAudio(m_StreamConfig.audioConfiguration);
+    // Norilight (N5): the audio device is being opened in the background (prepareAudio()).
+    // Stereo doesn't wait for it: if it fails, the stream shows that audio is unavailable.
+    // Surround waits, because falling back to stereo changes what the host is asked for.
+    if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(m_StreamConfig.audioConfiguration) > 2) {
+        bool audioTestPassed = waitForPreparedAudio();
 
-    // Gracefully degrade to stereo if surround sound doesn't work
-    if (!audioTestPassed && CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(m_StreamConfig.audioConfiguration) > 2) {
-        audioTestPassed = testAudio(AUDIO_CONFIGURATION_STEREO);
-        if (audioTestPassed) {
-            m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
-            emitLaunchWarning(tr("Your selected surround sound setting is not supported by the current audio device."));
+        // Gracefully degrade to stereo if surround sound doesn't work
+        if (!audioTestPassed) {
+            prepareAudio(AUDIO_CONFIGURATION_STEREO);
+            audioTestPassed = waitForPreparedAudio();
+            if (audioTestPassed) {
+                m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
+                emitLaunchWarning(tr("Your selected surround sound setting is not supported by the current audio device."));
+            }
         }
-    }
 
-    // If nothing worked, warn the user that audio will not work
-    if (!audioTestPassed) {
-        emitLaunchWarning(tr("Failed to open audio device. Audio will be unavailable during this session."));
+        // If nothing worked, warn the user that audio will not work
+        if (!audioTestPassed) {
+            emitLaunchWarning(tr("Failed to open audio device. Audio will be unavailable during this session."));
+        }
+        StartTimeline::mark("audio checked");
     }
 
     // Check for unmapped gamepads
     if (!SdlInputHandler::getUnmappedGamepads().isEmpty()) {
         emitLaunchWarning(tr("An attached gamepad has no mapping and won't be usable. See the gamepad mapping help to resolve this."));
     }
+    StartTimeline::mark("gamepads checked");
 
     // If we removed all codecs with the checks above, use H.264 as the codec of last resort.
     if (m_SupportedVideoFormats.empty()) {
@@ -1460,6 +1521,9 @@ private:
 
         // Finish cleanup of the connection state
         LiStopConnection();
+
+        // Norilight (N5): the audio device opened for a stream that never got to audio
+        m_Session->discardPreparedAudio();
 
         // Perform a best-effort app quit
         if (shouldQuit) {
@@ -1807,6 +1871,7 @@ bool Session::startConnectionAsync()
 
     try {
         NvHTTP http(m_Computer);
+        StartTimeline::mark("launch sent");
         http.startApp(m_Computer->currentGameId != 0 ? "resume" : "launch",
                       m_Computer->isNvidiaServerSoftware,
                       m_App.id, &m_StreamConfig,
@@ -1819,12 +1884,15 @@ bool Session::startConnectionAsync()
                       rtspSessionUrl,
                       tuningGoalForHost());
     } catch (const GfeHttpResponseException& e) {
+        StartTimeline::cancel();
         emit displayLaunchError(tr("Host returned error: %1").arg(e.toQString()));
         return false;
     } catch (const QtNetworkReplyException& e) {
+        StartTimeline::cancel();
         emit displayLaunchError(e.toQString());
         return false;
     }
+    StartTimeline::mark("launch answered");
 
     QByteArray hostnameStr = m_Computer->activeAddress.address().toUtf8();
     QByteArray siAppVersion = m_Computer->appVersion.toUtf8();
@@ -1914,6 +1982,7 @@ bool Session::startConnectionAsync()
         return false;
     }
 
+    StartTimeline::mark("connected");
     emit connectionStarted();
     return true;
 }
@@ -1955,6 +2024,7 @@ void Session::start()
 
     // We're now active
     s_ActiveSession = this;
+    StartTimeline::mark("previous session ended");
 
     // Initialize the gamepad code with our preferences
     // NB: m_InputHandler must be initialize before starting the connection.
@@ -2001,6 +2071,11 @@ static void pushStringEvent(int code, const QString& text)
     if (SDL_PushEvent(&event) <= 0) {
         delete (QString*)event.user.data1;
     }
+}
+
+void Session::showStatus(const QString& text)
+{
+    pushStringEvent(SDL_CODE_NORILIGHT_STATUS, text);
 }
 
 void Session::setLocalClipboard(const QString& text, bool hideFromHistory)
@@ -2267,6 +2342,7 @@ void Session::exec()
         }
     }
 
+    StartTimeline::mark("window created");
     m_InputHandler->setWindow(m_Window);
 
     // Norilight: Apollo server commands and initial clipboard upload
@@ -2645,6 +2721,7 @@ void Session::exec()
                     emit displayLaunchError(tr("Unable to initialize video decoder. Please check your streaming settings and try again."));
                     goto DispatchDeferredCleanup;
                 }
+                StartTimeline::markOnce(StartTimeline::DecoderCreated, "decoder created");
 
                 // As of SDL 2.0.12, SDL_RecreateWindow() doesn't carry over mouse capture
                 // or mouse hiding state to the new window. By capturing after the decoder

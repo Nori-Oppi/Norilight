@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "streaming/session.h"
 #include "streaming/adaptivereporter.h"
+#include "streaming/starttimeline.h"
 
 #include <QStringList>
 
@@ -1952,6 +1953,9 @@ void FFmpegVideoDecoder::decoderThreadProc()
                 if (err == 0) {
                     SDL_assert(m_FrameInfoQueue.size() == m_FramesIn - m_FramesOut);
                     m_FramesOut++;
+                    if (m_FramesOut == 1 && !m_TestOnly) {
+                        StartTimeline::markOnce(StartTimeline::FirstFrameDecoded, "first frame decoded");
+                    }
 
                     // Attach HDR metadata to the frame if it's not already present. We will defer to
                     // any metadata contained in the bitstream itself since that is guaranteed to be
@@ -2170,6 +2174,9 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
     // If this is the first frame, reject anything that's not an IDR frame
     if (m_FramesIn == 0 && du->frameType != FRAME_TYPE_IDR) {
         return DR_NEED_IDR;
+    }
+    if (m_FramesIn == 0) {
+        StartTimeline::markOnce(StartTimeline::FirstFrameToDecoder, "key frame to decoder");
     }
 
     // A new decoder starts with the frames that queued up while it was being created (the
