@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QVariantMap>
+
 #include <Limelight.h>
 #include "SDL_compat.h"
 #include "settings/streamingpreferences.h"
@@ -83,4 +85,6 @@ public:
 
     // Norilight: plain-text summary of the whole session, or empty if unknown
     virtual QString getSessionSummary() { return QString(); }
+    // Norilight: the same whole-stream figures as numbers, for optimisation test streams (N6)
+    virtual QVariantMap getSessionStats() { return QVariantMap(); }
 };

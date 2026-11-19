@@ -1,0 +1,9 @@
+QT += core testlib
+QT -= gui
+CONFIG += console testcase c++17
+CONFIG -= app_bundle
+TARGET = OptimisePickTest
+TEMPLATE = app
+INCLUDEPATH += ../../app
+SOURCES += OptimisePickTest.cpp ../../app/streaming/optimisepick.cpp
+HEADERS += ../../app/streaming/optimisepick.h

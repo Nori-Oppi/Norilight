@@ -120,6 +120,11 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     return names;
 }
 
+NvComputer* ComputerModel::computerAt(int computerIndex) const
+{
+    return computerIndex >= 0 && computerIndex < m_Computers.count() ? m_Computers[computerIndex] : nullptr;
+}
+
 Session* ComputerModel::createSessionForCurrentGame(int computerIndex)
 {
     Q_ASSERT(computerIndex >= 0 && computerIndex < m_Computers.count());

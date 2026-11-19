@@ -94,6 +94,13 @@ StreamingPreferences::StreamingPreferences(QQmlEngine *qmlEngine)
     reload();
 }
 
+StreamingPreferences* StreamingPreferences::createCopy(QObject* parent)
+{
+    StreamingPreferences* copy = new StreamingPreferences(nullptr);
+    copy->setParent(parent);
+    return copy;
+}
+
 StreamingPreferences* StreamingPreferences::get(QQmlEngine *qmlEngine)
 {
     {

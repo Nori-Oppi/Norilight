@@ -14,6 +14,10 @@ class StreamingPreferences : public QObject
 public:
     static StreamingPreferences* get(QQmlEngine *qmlEngine = nullptr);
 
+    // Norilight (N6): a separate copy of the active profile's settings, for test streams.
+    // Changing it changes nothing saved.
+    static StreamingPreferences* createCopy(QObject* parent);
+
     Q_INVOKABLE static int
     getDefaultBitrate(int width, int height, int fps, bool yuv444);
 

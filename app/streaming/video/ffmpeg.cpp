@@ -840,6 +840,32 @@ QString FFmpegVideoDecoder::getSessionSummary()
     return lines.join('\n');
 }
 
+QVariantMap FFmpegVideoDecoder::getSessionStats()
+{
+    VIDEO_STATS stats = {};
+    addVideoStats(m_GlobalVideoStats, stats);
+    addVideoStats(m_ActiveWndVideoStats, stats);
+
+    QVariantMap out;
+    if (stats.renderedFrames == 0 || stats.decodedFrames == 0 || stats.totalFrames == 0) {
+        return out;
+    }
+    out["renderedFps"] = stats.renderedFps;
+    out["receivedFps"] = stats.receivedFps;
+    out["renderedFrames"] = stats.renderedFrames;
+    out["networkDroppedPct"] = (double)stats.networkDroppedFrames / stats.totalFrames * 100;
+    out["pacerDroppedPct"] = (double)stats.pacerDroppedFrames / stats.decodedFrames * 100;
+    out["decodeMs"] = (double)stats.totalDecodeTimeUs / 1000.0 / stats.decodedFrames;
+    out["renderMs"] = (double)stats.totalRenderTimeUs / 1000.0 / stats.renderedFrames;
+    if (stats.framesWithHostProcessingLatency > 0) {
+        out["hostMs"] = (double)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency;
+    }
+    if (stats.lastRtt != 0) {
+        out["rttMs"] = stats.lastRtt;
+    }
+    return out;
+}
+
 void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, int length)
 {
     int offset = 0;

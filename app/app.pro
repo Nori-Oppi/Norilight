@@ -202,6 +202,8 @@ SOURCES += \
     streaming/bandwidth.cpp \
     streaming/adaptivereporter.cpp \
     streaming/autotune.cpp \
+    streaming/optimiser.cpp \
+    streaming/optimisepick.cpp \
     streaming/displayhdr.cpp \
     streaming/streamutils.cpp \
     backend/autoupdatechecker.cpp \
@@ -247,6 +249,8 @@ HEADERS += \
     streaming/bandwidth.h \
     streaming/adaptivereporter.h \
     streaming/autotune.h \
+    streaming/optimiser.h \
+    streaming/optimisepick.h \
     streaming/displayhdr.h \
     streaming/streamutils.h \
     backend/autoupdatechecker.h \

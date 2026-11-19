@@ -1,5 +1,6 @@
 @echo off
-rem Norilight: builds and runs the Windows regression tests (tests\profiles, tests\input).
+rem Norilight: builds and runs the Windows regression tests (tests\profiles, tests\autotune,
+rem tests\optimise, tests\input).
 rem Run after scripts\build-norilight.bat release, which deploys the DLLs the tests load.
 rem Needs: Qt 6 MSVC x64 (QT_DIR, default C:\Qt\6.11.3\msvc2022_64) and Visual Studio C++ tools.
 setlocal enableDelayedExpansion
@@ -49,6 +50,13 @@ qmake.exe "%SOURCE_ROOT%\tests\autotune\autotune.pro" CONFIG+=release || goto Er
 !MAKE_CMD! release || goto Error
 popd
 
+echo === Building optimise test
+if not exist "%SOURCE_ROOT%\build\optimise-tests" mkdir "%SOURCE_ROOT%\build\optimise-tests"
+pushd "%SOURCE_ROOT%\build\optimise-tests"
+qmake.exe "%SOURCE_ROOT%\tests\optimise\optimise.pro" CONFIG+=release || goto Error
+!MAKE_CMD! release || goto Error
+popd
+
 echo === Building screenshot shortcut test
 cl /nologo /EHsc /std:c++17 /MD /I"%SOURCE_ROOT%\app" /I"%SOURCE_ROOT%\libs\windows\include\x64\SDL2" ^
     "%SOURCE_ROOT%\tests\input\ScreenshotShortcutTest.cpp" /Fo"%SOURCE_ROOT%\build\ScreenshotShortcutTest.obj" ^
@@ -61,6 +69,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_ROOT%\tests\profile
 
 echo === Running launch tuning test
 "%SOURCE_ROOT%\build\autotune-tests\release\AutoTuneTest.exe" || exit /b 1
+
+echo === Running optimise test
+"%SOURCE_ROOT%\build\optimise-tests\release\OptimisePickTest.exe" || exit /b 1
 
 echo === Running screenshot shortcut test
 "%DEPLOY_FOLDER%\ScreenshotShortcutTest.exe" || exit /b 1

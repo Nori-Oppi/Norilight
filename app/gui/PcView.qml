@@ -169,6 +169,11 @@ CenteredGridView {
                     enabled: model.norishineFeatures.indexOf("apps") >= 0
                     onTriggered: pcTile.openManageHost()
                 }
+                MenuItem {
+                    text: qsTr("Optimise")
+                    enabled: model.norishineFeatures.indexOf("optimise") >= 0
+                    onTriggered: pcTile.openOptimise()
+                }
             }
         }
 
@@ -176,6 +181,12 @@ CenteredGridView {
             var component = Qt.createComponent("HostSettingsView.qml")
             var hostView = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "hostFeatures": model.norishineFeatures, "objectName": qsTr("%1 settings").arg(model.name)})
             stackView.push(hostView)
+        }
+
+        function openOptimise() {
+            var component = Qt.createComponent("OptimiseView.qml")
+            var view = component.createObject(stackView, {"computerIndex": index, "computerModel": computerModel, "hostFeatures": model.norishineFeatures, "objectName": qsTr("Optimise for %1").arg(model.name)})
+            stackView.push(view)
         }
 
         function openManageHost() {
@@ -266,6 +277,11 @@ CenteredGridView {
                     text: qsTr("Manage host")
                     onTriggered: pcTile.openManageHost()
                     visible: pcContextMenu.norishineHost && model.norishineFeatures.indexOf("apps") >= 0
+                }
+                NavigableMenuItem {
+                    text: qsTr("Optimise")
+                    onTriggered: pcTile.openOptimise()
+                    visible: pcContextMenu.norishineHost && model.norishineFeatures.indexOf("optimise") >= 0
                 }
                 MenuSeparator {
                     visible: pcContextMenu.norishineHost
