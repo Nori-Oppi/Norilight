@@ -33,6 +33,15 @@ numbers below match it.
   profile's codec and bitrate (and a lower frame rate or resolution when needed), saved with
   Undo; the host's encoder test picks its preset. See
   [the guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide#optimise).
+- **Settings during a stream** (N9, with Norishine): Ctrl+Alt+Shift+O opens Stream settings in
+  the overlay: bitrate, error correction, encoder preset, resolution, frame rate and codec
+  change without reconnecting (the decoder is rebuilt behind one key frame, 125–440 ms of
+  picture); the host's own settings apply at once too. See
+  [the guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide#changing-settings-during-a-stream).
+- **Through a host update** (N10, with Norishine): when the host says it restarts (an update or
+  a restart for its settings), Norilight waits for it and starts the same app again by itself;
+  its own part is half a second. A real handover isn't planned (see
+  [Norishine's BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#reconnect-after-a-host-restart-n10)).
 
 ## Next
 
@@ -43,8 +52,6 @@ more.
 | --- | --- | --- | --- |
 | N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |
 | N8 | Separate command-line build | M | `norilight-cli` without the Qt GUI: pair, list, stream, quit |
-| N9 | Change settings during a stream (with Norishine) | L | Bitrate first, then resolution, frame rate and codec without reconnecting |
-| N10 | Keep the stream through a host update (with Norishine) | L | Reconnect to the same app by itself when the host comes back |
 | N12 | Android build, for handhelds | XL | Qt for Android or a start from Artemis, decided by a short spike; controller-first, battery-aware |
 | N13 | iOS build | XL | After Android; installing unsigned builds needs sideloading |
 

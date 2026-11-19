@@ -67,8 +67,54 @@ Item {
         streamSummary = summary
     }
 
+    // Norilight (N10): the host restarts (an update, or for its settings): wait for it and
+    // start the app again on a new session
+    property Session nextSession: null
+
+    function waitForHost()
+    {
+        streamSegueErrorDialog.text = ""
+        window.visible = true
+        stageText = qsTr("Waiting for %1...").arg(session.hostName())
+        stageSpinner.visible = true
+        stageLabel.visible = true
+        hintText.visible = false
+        cancelWaitButton.visible = true
+
+        nextSession = session.createReconnectSession()
+        nextSession.hostReady.connect(hostReady)
+        nextSession.waitForHost()
+    }
+
+    function hostReady(ok)
+    {
+        cancelWaitButton.visible = false
+        if (!ok) {
+            streamSegueErrorDialog.text = qsTr("%1 didn't come back.").arg(nextSession.hostName())
+            nextSession = null
+            stackView.pop()
+            streamSegueErrorDialog.quitAfter = quitAfter
+            streamSegueErrorDialog.open()
+            return
+        }
+
+        var component = Qt.createComponent("StreamSegue.qml")
+        var segue = component.createObject(stackView, {
+                                               "appName": appName,
+                                               "session": nextSession,
+                                               "quitAfter": quitAfter
+                                           })
+        nextSession = null
+        stackView.replace(stackView.currentItem, segue, StackView.Immediate)
+    }
+
     function sessionFinished(portTestResult)
     {
+        if (session && session.hostRestarting()) {
+            waitForHost()
+            return
+        }
+
         if (portTestResult !== 0 && portTestResult !== -1 && streamSegueErrorDialog.text) {
             streamSegueErrorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking Norilight. Streaming over the Internet may not work while connected to this network.")
         }
@@ -231,6 +277,26 @@ Item {
             verticalAlignment: Text.AlignVCenter
 
             wrapMode: Text.Wrap
+        }
+    }
+
+    Button {
+        id: cancelWaitButton
+        visible: false
+        anchors.top: parent.verticalCenter
+        anchors.topMargin: 60
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: qsTr("Cancel")
+        onClicked: {
+            nextSession = null
+            gc()
+            SdlGamepadKeyNavigation.enable()
+            if (quitAfter) {
+                Qt.quit()
+            }
+            else {
+                stackView.pop()
+            }
         }
     }
 

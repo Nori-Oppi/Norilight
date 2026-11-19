@@ -55,6 +55,7 @@
 #include <QMimeData>
 #include <QAtomicInt>
 #include <QRunnable>
+#include <QElapsedTimer>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include "backend/nvhttp.h"
@@ -674,6 +675,13 @@ Session::~Session()
     discardPreparedAudio();
 
     SDL_DestroyMutex(m_DecoderLock);
+
+    // Norilight (N10)
+    if (m_HostWaitThread != nullptr) {
+        m_HostWaitCancel = true;
+        m_HostWaitThread->wait();
+        delete m_HostWaitThread;
+    }
 }
 
 // Norilight: the profile's tuning goal, or false when tuning is off
@@ -1524,10 +1532,19 @@ private:
 
     void run() override
     {
+        // Norilight (N10): the host said it restarts; the stream page waits for it and
+        // starts the app again, so there's no app to quit and no error to show
+        m_Session->m_HostRestarting = AdaptiveReporter::hostRestarting();
+        if (!m_Session->m_HostRestarting.isEmpty()) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "The stream ended because the host restarts (%s)",
+                        qPrintable(m_Session->m_HostRestarting));
+        }
+
         // Only quit the running app if our session terminated gracefully
         bool shouldQuit =
                 !m_Session->m_UnexpectedTermination &&
-                m_Session->m_Preferences->quitAppAfter;
+                m_Session->m_Preferences->quitAppAfter &&
+                m_Session->m_HostRestarting.isEmpty();
 
         // Notify the UI
         if (shouldQuit) {
@@ -2242,6 +2259,75 @@ static Uint32 hideStatusTimerCallback(Uint32, void* param)
     return 0;
 }
 
+QString Session::hostName() const
+{
+    QReadLocker lock(&m_Computer->lock);
+    return m_Computer->name;
+}
+
+Session* Session::createReconnectSession()
+{
+    Session* session = new Session(m_Computer, m_App, m_Preferences);
+    session->m_StartRunId = m_StartRunId;
+    return session;
+}
+
+void Session::waitForHost()
+{
+    if (m_HostWaitThread != nullptr) {
+        return;
+    }
+
+    // An update installs for up to a few minutes; a restart takes seconds
+    bool update = AdaptiveReporter::hostRestarting() == "update";
+    NvComputer* computer = m_Computer;
+    // The host this stream ran on; a restarted Norishine names itself differently
+    QString oldRunId = m_StartRunId;
+    m_HostWaitThread = QThread::create([this, computer, update, oldRunId]() {
+        QElapsedTimer timer;
+        timer.start();
+        qint64 limitMs = update ? 300000 : 90000;
+        bool wentAway = false;
+        bool ok = false;
+        while (timer.elapsed() < limitMs && !m_HostWaitCancel) {
+            bool answered = false;
+            QString runId;
+            try {
+                NvHTTP http(computer);
+                runId = NvHTTP::getXmlString(http.getServerInfo(NvHTTP::NVLL_NONE, true), "RunId");
+                answered = true;
+            } catch (const GfeHttpResponseException&) {
+            } catch (const QtNetworkReplyException&) {
+            }
+
+            // Back once a new run of the host answers. Hosts without a run id: once it
+            // answers after having gone away; a restart too quick to notice counts after
+            // twenty seconds
+            bool restarted = !oldRunId.isEmpty() ? (!runId.isEmpty() && runId != oldRunId)
+                                                 : (wentAway || timer.elapsed() > 20000);
+            if (answered && restarted) {
+                if (!runId.isEmpty()) {
+                    QWriteLocker lock(&computer->lock);
+                    computer->norishineRunId = runId;
+                }
+                ok = true;
+                break;
+            }
+            if (!answered && !wentAway) {
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "The host went away after %lld ms", timer.elapsed());
+            }
+            wentAway = wentAway || !answered;
+            QThread::msleep(250);
+        }
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Waited %lld ms for the host: %s",
+                    timer.elapsed(), ok ? "back" : "gave up");
+        if (!m_HostWaitCancel) {
+            QMetaObject::invokeMethod(this, [this, ok]() { emit hostReady(ok); }, Qt::QueuedConnection);
+        }
+    });
+    m_HostWaitThread->start();
+}
+
 bool Session::liveSettingsSupported()
 {
     QReadLocker lock(&m_Computer->lock);
@@ -2341,6 +2427,12 @@ void Session::exec()
     // we've emitted from the async connection thread.
     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     QCoreApplication::sendPostedEvents();
+
+    // Norilight (N10): which run of the host this stream is on
+    {
+        QReadLocker lock(&m_Computer->lock);
+        m_StartRunId = m_Computer->norishineRunId;
+    }
 
     // Norilight: let a Norishine host adapt the stream to what this client measures
     if (AdaptiveReporter::isSupported(m_Computer)) {

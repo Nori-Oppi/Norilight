@@ -52,6 +52,10 @@ public:
     // doesn't teach the next one's start bitrate
     static void noteManualBitrate();
 
+    // Norilight (N10): why the host said it is about to restart ("update" or "restart"),
+    // or empty. Kept after the stream ends, until the next stream starts reporting.
+    static QString hostRestarting();
+
     // Appends "Host bitrate ..." to overlay text when the host has answered. Returns the
     // number of characters written.
     static int appendOverlayLine(char* output, int length);
