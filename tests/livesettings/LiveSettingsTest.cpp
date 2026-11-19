@@ -80,6 +80,51 @@ private slots:
         }
         QCOMPARE(menu.changes().value("bitrate_kbps").toInt(), 2000);
     }
+
+    void videoFormatRows()
+    {
+        LiveSettingsMenu::Start start;
+        QVERIFY(!LiveSettingsMenu(start).hasRow(LiveSettingsMenu::Resolution));
+
+        start.videoFormat = true;
+        start.width = 1920;
+        start.height = 1080;
+        start.fps = 60;
+        start.codec = 1;
+        start.codecs = {0, 1};
+        LiveSettingsMenu menu(start);
+        QVERIFY(menu.hasRow(LiveSettingsMenu::Resolution));
+        QCOMPARE(menu.width(), 1920);
+        QCOMPARE(menu.codec(), 1);
+
+        // Rows: bitrate, error correction, preset, resolution, frame rate, codec
+        for (int i = 0; i < 3; i++) {
+            menu.key(LiveSettingsMenu::KeyDown);
+        }
+        menu.key(LiveSettingsMenu::KeyRight);   // 2560x1440
+        menu.key(LiveSettingsMenu::KeyDown);
+        menu.key(LiveSettingsMenu::KeyRight);   // 90 fps
+        menu.key(LiveSettingsMenu::KeyDown);
+        menu.key(LiveSettingsMenu::KeyLeft);    // H.264
+        QJsonObject body = menu.changes();
+        QCOMPARE(body.value("width").toInt(), 2560);
+        QCOMPARE(body.value("height").toInt(), 1440);
+        QCOMPARE(body.value("fps").toInt(), 90);
+        QCOMPARE(body.value("codec").toString(), QString("H.264"));
+        QVERIFY(!body.contains("bitrate_kbps"));
+        menu.applied();
+        QCOMPARE(menu.fps(), 90);
+        QCOMPARE(menu.height(), 1440);
+        QCOMPARE(menu.codec(), 0);
+    }
+
+    void oddSizesAndRatesAreKept()
+    {
+        QVector<int> sizes = LiveSettingsMenu::resolutionSteps(3440, 1440);
+        QVERIFY(sizes.contains((3440 << 16) | 1440));
+        QCOMPARE(sizes.indexOf((3440 << 16) | 1440), sizes.indexOf((3840 << 16) | 2160) - 1);
+        QVERIFY(LiveSettingsMenu::fpsSteps(75).contains(75));
+    }
 };
 
 QTEST_GUILESS_MAIN(LiveSettingsTest)

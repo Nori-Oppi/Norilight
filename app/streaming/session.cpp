@@ -37,6 +37,7 @@
 #define SDL_CODE_NORILIGHT_STATUS 201        // data1: QString* to show briefly
 #define SDL_CODE_NORILIGHT_HIDE_STATUS 202   // data1: serial of the status to hide
 #define SDL_CODE_NORILIGHT_LIVE_SETTINGS 203 // data1: QString* error, empty when the host took the changes
+#define SDL_CODE_NORILIGHT_VIDEO_FORMAT 204  // the host's video format changed: rebuild the decoder
 
 #include <openssl/rand.h>
 
@@ -77,7 +78,8 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
     Session::clRumbleTriggers,
     Session::clSetMotionEventState,
     Session::clSetControllerLED,
-    Session::clSetAdaptiveTriggers
+    Session::clSetAdaptiveTriggers,
+    Session::clVideoFormatChanged
 };
 
 Session* Session::s_ActiveSession;
@@ -219,6 +221,22 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
         s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
         break;
     }
+}
+
+void Session::clVideoFormatChanged(int videoFormat, int width, int height, int fps)
+{
+    // Called on the receive thread before the first frame in the new format: drop frames
+    // until the main thread has a decoder for it (it asks for a key frame then).
+    s_ActiveSession->m_NewVideoFormat = videoFormat;
+    s_ActiveSession->m_NewVideoWidth = width;
+    s_ActiveSession->m_NewVideoHeight = height;
+    s_ActiveSession->m_NewVideoFps = fps;
+    s_ActiveSession->m_VideoFormatChanging = true;
+
+    SDL_Event event = {};
+    event.type = SDL_USEREVENT;
+    event.user.code = SDL_CODE_NORILIGHT_VIDEO_FORMAT;
+    SDL_PushEvent(&event);
 }
 
 void Session::clSetHdrMode(bool enabled)
@@ -390,6 +408,11 @@ int Session::drSubmitDecodeUnit(PDECODE_UNIT du)
     // that means the decoder is about to be destroyed, so we can
     // safely return DR_OK and wait for the IDR frame request by
     // the decoder reinitialization code.
+
+    // Norilight (N9): the old decoder can't decode the host's new format
+    if (s_ActiveSession->m_VideoFormatChanging) {
+        return DR_OK;
+    }
 
     if (SDL_TryLockMutex(s_ActiveSession->m_DecoderLock) == 0) {
         IVideoDecoder* decoder = s_ActiveSession->m_VideoDecoder;
@@ -2238,6 +2261,24 @@ LiveSettingsMenu::Start Session::liveSettingsStart()
     start.goal = tuningGoal(m_Preferences, goal) ? (int)goal + 1 : 2;  // 1 Performance, 2 Balanced, 3 Quality
     QReadLocker lock(&m_Computer->lock);
     start.encoderPreset = m_Computer->norishineFeatures.contains("tuning");
+
+    // Norilight (N9): resolution, frame rate and codec, with the codecs this stream could use
+    start.videoFormat = m_Computer->norishineFeatures.contains("session.video");
+    start.width = m_ActiveVideoWidth;
+    start.height = m_ActiveVideoHeight;
+    start.fps = m_ActiveVideoFrameRate;
+    start.codec = (m_ActiveVideoFormat & VIDEO_FORMAT_MASK_AV1) ? 2 : (m_ActiveVideoFormat & VIDEO_FORMAT_MASK_H265) ? 1 : 0;
+    int formats = m_SupportedVideoFormats;
+    start.codecs.clear();
+    if ((formats & VIDEO_FORMAT_MASK_H264) && !(m_ActiveVideoFormat & VIDEO_FORMAT_MASK_10BIT)) {
+        start.codecs.append(0);  // H.264 has no 10-bit (HDR) profile
+    }
+    if (formats & VIDEO_FORMAT_MASK_H265) {
+        start.codecs.append(1);
+    }
+    if (formats & VIDEO_FORMAT_MASK_AV1) {
+        start.codecs.append(2);
+    }
     return start;
 }
 
@@ -2583,6 +2624,26 @@ void Session::exec()
                 delete error;
                 break;
             }
+            case SDL_CODE_NORILIGHT_VIDEO_FORMAT: {
+                // Norilight (N9): the decoder is rebuilt for the host's new format below
+                SDL_LockMutex(m_DecoderLock);
+                m_ActiveVideoFormat = m_NewVideoFormat;
+                m_ActiveVideoWidth = m_NewVideoWidth;
+                m_ActiveVideoHeight = m_NewVideoHeight;
+                m_ActiveVideoFrameRate = m_NewVideoFps;
+                m_StreamConfig.width = m_ActiveVideoWidth;
+                m_StreamConfig.height = m_ActiveVideoHeight;
+                m_StreamConfig.fps = m_ActiveVideoFrameRate;
+                SDL_UnlockMutex(m_DecoderLock);
+                m_InputHandler->setStreamSize(m_ActiveVideoWidth, m_ActiveVideoHeight);
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Video format changed by the host: 0x%x, %dx%d, %d fps",
+                            m_ActiveVideoFormat, m_ActiveVideoWidth, m_ActiveVideoHeight, m_ActiveVideoFrameRate);
+
+                SDL_Event reset = {};
+                reset.type = SDL_RENDER_DEVICE_RESET;
+                SDL_PushEvent(&reset);
+                break;
+            }
             case SDL_CODE_NORILIGHT_HIDE_STATUS:
                 if ((int)(intptr_t)event.user.data1 == s_StatusSerial.loadAcquire() &&
                         !m_InputHandler->isServerCommandMenuOpen() && m_MouseEmulationRefCount == 0) {
@@ -2808,6 +2869,9 @@ void Session::exec()
                     goto DispatchDeferredCleanup;
                 }
                 StartTimeline::markOnce(StartTimeline::DecoderCreated, "decoder created");
+
+                // Norilight (N9): frames in the host's new format can be decoded again
+                m_VideoFormatChanging = false;
 
                 // As of SDL 2.0.12, SDL_RecreateWindow() doesn't carry over mouse capture
                 // or mouse hiding state to the new window. By capturing after the decoder
