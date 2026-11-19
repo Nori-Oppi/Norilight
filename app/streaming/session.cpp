@@ -36,6 +36,7 @@
 #define SDL_CODE_NORILIGHT_CLIPBOARD 200     // data1: QString* downloaded from the host
 #define SDL_CODE_NORILIGHT_STATUS 201        // data1: QString* to show briefly
 #define SDL_CODE_NORILIGHT_HIDE_STATUS 202   // data1: serial of the status to hide
+#define SDL_CODE_NORILIGHT_LIVE_SETTINGS 203 // data1: QString* error, empty when the host took the changes
 
 #include <openssl/rand.h>
 
@@ -53,6 +54,9 @@
 #include <QMimeData>
 #include <QAtomicInt>
 #include <QRunnable>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include "backend/nvhttp.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
@@ -1519,6 +1523,13 @@ private:
         delete m_Session->m_AdaptiveReporter;
         m_Session->m_AdaptiveReporter = nullptr;
 
+        // Norilight (N9): a stream settings change in flight
+        if (m_Session->m_LiveSettingsThread != nullptr) {
+            m_Session->m_LiveSettingsThread->wait();
+            delete m_Session->m_LiveSettingsThread;
+            m_Session->m_LiveSettingsThread = nullptr;
+        }
+
         // Finish cleanup of the connection state
         LiStopConnection();
 
@@ -2208,6 +2219,65 @@ static Uint32 hideStatusTimerCallback(Uint32, void* param)
     return 0;
 }
 
+bool Session::liveSettingsSupported()
+{
+    QReadLocker lock(&m_Computer->lock);
+    return m_Computer->norishineFeatures.contains("session.settings");
+}
+
+LiveSettingsMenu::Start Session::liveSettingsStart()
+{
+    LiveSettingsMenu::Start start;
+    start.bitrateKbps = m_StreamConfig.bitrate;
+    start.maxBitrateKbps = m_Preferences->unlockBitrate ? 500000 : 150000;
+    AdaptiveReporter::HostState host = AdaptiveReporter::hostState();
+    if (host.valid && host.fecPercent > 0) {
+        start.fecPercent = host.fecPercent;
+    }
+    AutoTune::Goal goal;
+    start.goal = tuningGoal(m_Preferences, goal) ? (int)goal + 1 : 2;  // 1 Performance, 2 Balanced, 3 Quality
+    QReadLocker lock(&m_Computer->lock);
+    start.encoderPreset = m_Computer->norishineFeatures.contains("tuning");
+    return start;
+}
+
+void Session::applyLiveSettings(const QJsonObject& changes)
+{
+    if (m_LiveSettingsThread != nullptr) {
+        m_LiveSettingsThread->wait();
+        delete m_LiveSettingsThread;
+    }
+
+    if (changes.contains("bitrate_kbps")) {
+        // A bitrate picked by hand says nothing about what the network sustains
+        AdaptiveReporter::noteManualBitrate();
+    }
+
+    NvComputer* computer = m_Computer;
+    QByteArray body = QJsonDocument(changes).toJson(QJsonDocument::Compact);
+    m_LiveSettingsThread = QThread::create([computer, body]() {
+        NvHTTP http(computer);
+        NvHTTP::ApiResponse response = http.apiRequest("POST", "/api/v1/session/settings", body, 5000);
+        QString error;
+        if (response.status != 200) {
+            QJsonObject answer = QJsonDocument::fromJson(response.body).object();
+            error = answer.value("error").toString();
+            if (error.isEmpty()) {
+                error = QObject::tr("The host didn't take the change (%1).").arg(response.status);
+            }
+        }
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Stream settings %s: %d %s",
+                    body.constData(), response.status, qPrintable(error));
+
+        SDL_Event event = {};
+        event.type = SDL_USEREVENT;
+        event.user.code = SDL_CODE_NORILIGHT_LIVE_SETTINGS;
+        event.user.data1 = new QString(error);
+        SDL_PushEvent(&event);
+    });
+    m_LiveSettingsThread->start();
+}
+
 void Session::scheduleStatusHide()
 {
     int serial = s_StatusSerial.fetchAndAddOrdered(1) + 1;
@@ -2505,6 +2575,12 @@ void Session::exec()
                     scheduleStatusHide();
                 }
                 delete text;
+                break;
+            }
+            case SDL_CODE_NORILIGHT_LIVE_SETTINGS: {
+                auto error = (QString*)event.user.data1;
+                m_InputHandler->streamSettingsResult(error->isEmpty(), *error);
+                delete error;
                 break;
             }
             case SDL_CODE_NORILIGHT_HIDE_STATUS:

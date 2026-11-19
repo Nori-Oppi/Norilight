@@ -32,6 +32,7 @@ namespace {
 
     QMutex s_Lock;
     Window s_Window;
+    bool s_ManualBitrate = false;
     AdaptiveReporter::HostState s_HostState;
 
     // Give up after this many failed reports in a row (other than "no stream yet").
@@ -56,6 +57,13 @@ AdaptiveReporter::AdaptiveReporter(NvComputer* computer, const QString& networkK
     QMutexLocker locker(&s_Lock);
     s_Window = Window();
     s_HostState = HostState();
+    s_ManualBitrate = false;
+}
+
+void AdaptiveReporter::noteManualBitrate()
+{
+    QMutexLocker locker(&s_Lock);
+    s_ManualBitrate = true;
 }
 
 AdaptiveReporter::~AdaptiveReporter()
@@ -215,6 +223,13 @@ void AdaptiveReporter::learn()
 {
     if (m_NetworkKey.isEmpty() || m_BitrateSamples.size() < k_MinSamples || m_MaxKbps <= 0) {
         return;
+    }
+    {
+        QMutexLocker locker(&s_Lock);
+        if (s_ManualBitrate) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Not learning the start bitrate: it was changed by hand");
+            return;
+        }
     }
 
     // In the units this client asks in: the host's maximum is what was asked for.

@@ -1,4 +1,5 @@
 #include "streaming/session.h"
+#include "streaming/livesettings.h"
 
 #include <Limelight.h>
 #include "SDL_compat.h"
@@ -41,6 +42,29 @@ static void showServerCommandStatus(const QString& text)
     Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayStatusUpdate, text.toUtf8().constData());
     Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, true);
     Session::get()->scheduleStatusHide();
+}
+
+// Norilight (N9): the stream settings menu, drawn in the status overlay
+void SdlInputHandler::showStreamSettingsMenu()
+{
+    Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayStatusUpdate, m_StreamSettingsMenu->text().toUtf8().constData());
+    Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, true);
+}
+
+void SdlInputHandler::streamSettingsResult(bool ok, const QString& error)
+{
+    m_StreamSettingsApplying = false;
+    if (!m_StreamSettingsMenu) {
+        return;
+    }
+    if (ok) {
+        m_StreamSettingsMenu->applied();
+    }
+    else {
+        m_StreamSettingsMenu->revert();
+    }
+    m_StreamSettingsMenuOpen = false;
+    showServerCommandStatus(ok ? QObject::tr("Stream settings changed") : error);
 }
 
 void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
@@ -209,6 +233,29 @@ void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
         }
         break;
 
+    case KeyComboStreamSettings:
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Detected stream settings menu combo");
+
+        if (m_StreamSettingsMenuOpen) {
+            m_StreamSettingsMenu->revert();
+            m_StreamSettingsMenuOpen = false;
+            Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, false);
+        }
+        else if (!Session::get()->liveSettingsSupported()) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "This host can't change settings during a stream");
+            showServerCommandStatus(QObject::tr("This host can't change settings during a stream."));
+        }
+        else {
+            if (!m_StreamSettingsMenu) {
+                m_StreamSettingsMenu.reset(new LiveSettingsMenu(Session::get()->liveSettingsStart()));
+            }
+            m_ServerCommandMenuOpen = false;
+            m_StreamSettingsMenuOpen = true;
+            showStreamSettingsMenu();
+        }
+        break;
+
     case KeyComboToggleKeyboardGrab:
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "Detected keyboard grab toggle combo");
@@ -240,6 +287,47 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
         // Ignore repeat key down events
         SDL_assert(event->state == SDL_PRESSED);
         return;
+    }
+
+    // Norilight (N9): while the stream settings menu is open, arrows, Enter and Esc work it
+    if (m_StreamSettingsMenuOpen && event->state == SDL_PRESSED && !(event->keysym.mod & (KMOD_CTRL | KMOD_ALT | KMOD_GUI))) {
+        LiveSettingsMenu::Key key = LiveSettingsMenu::KeyOther;
+        switch (event->keysym.sym) {
+        case SDLK_UP: key = LiveSettingsMenu::KeyUp; break;
+        case SDLK_DOWN: key = LiveSettingsMenu::KeyDown; break;
+        case SDLK_LEFT: key = LiveSettingsMenu::KeyLeft; break;
+        case SDLK_RIGHT: key = LiveSettingsMenu::KeyRight; break;
+        case SDLK_RETURN:
+        case SDLK_KP_ENTER: key = LiveSettingsMenu::KeyEnter; break;
+        case SDLK_ESCAPE: key = LiveSettingsMenu::KeyEscape; break;
+        default: break;
+        }
+
+        if (key != LiveSettingsMenu::KeyOther) {
+            if (m_StreamSettingsApplying) {
+                return;
+            }
+            LiveSettingsMenu::Result result = m_StreamSettingsMenu->key(key);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Stream settings menu: key %d, result %d", (int)key, (int)result);
+            switch (result) {
+            case LiveSettingsMenu::Handled:
+                showStreamSettingsMenu();
+                break;
+            case LiveSettingsMenu::Apply:
+                m_StreamSettingsApplying = true;
+                Session::get()->applyLiveSettings(m_StreamSettingsMenu->changes());
+                Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayStatusUpdate,
+                    (m_StreamSettingsMenu->text() + "\n" + QObject::tr("Applying...")).toUtf8().constData());
+                break;
+            case LiveSettingsMenu::Close:
+                m_StreamSettingsMenuOpen = false;
+                Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayStatusUpdate, false);
+                break;
+            case LiveSettingsMenu::Ignored:
+                break;
+            }
+            return;
+        }
     }
 
     // Norilight: while the server command menu is open, digits pick a command

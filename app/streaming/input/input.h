@@ -6,6 +6,8 @@
 #include "SDL_compat.h"
 #include <QSet>
 
+#include <memory>
+
 struct GamepadState {
     SDL_GameController* controller;
     SDL_JoystickID jsId;
@@ -160,7 +162,10 @@ public:
 
     // Norilight: Apollo server commands offered by Ctrl+Alt+Shift+R
     void setServerCommands(const QStringList& commands, bool allowed);
-    bool isServerCommandMenuOpen() { return m_ServerCommandMenuOpen; }
+    bool isServerCommandMenuOpen() { return m_ServerCommandMenuOpen || m_StreamSettingsMenuOpen; }
+
+    // Norilight (N9): the host answered the stream settings menu's changes
+    void streamSettingsResult(bool ok, const QString& error);
 
     bool isSystemKeyCaptureActive();
 
@@ -189,6 +194,7 @@ private:
         KeyComboQuitAndExit,
         KeyComboToggleKeyboardGrab,
         KeyComboServerCommands,
+        KeyComboStreamSettings,
         KeyComboMax
     };
 
@@ -265,6 +271,12 @@ private:
     QStringList m_ServerCommands;
     bool m_ServerCommandsAllowed;
     bool m_ServerCommandMenuOpen;
+
+    // Norilight (N9): the stream settings menu (streaming/livesettings.h)
+    std::unique_ptr<class LiveSettingsMenu> m_StreamSettingsMenu;
+    bool m_StreamSettingsMenuOpen = false;
+    bool m_StreamSettingsApplying = false;
+    void showStreamSettingsMenu();
     bool m_ViewOnly;
     bool m_ScreenshotsOnClient;
     QSet<short> m_SwallowedKeys;             // keys kept on this PC (screenshots)

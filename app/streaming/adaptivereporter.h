@@ -48,6 +48,10 @@ public:
 
     static HostState hostState();
 
+    // Norilight (N9): the bitrate was changed by hand during the stream, so this stream
+    // doesn't teach the next one's start bitrate
+    static void noteManualBitrate();
+
     // Appends "Host bitrate ..." to overlay text when the host has answered. Returns the
     // number of characters written.
     static int appendOverlayLine(char* output, int length);
