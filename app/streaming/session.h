@@ -110,6 +110,16 @@ public:
     // Norilight (N6): an optimisation test stream ends by itself after this many seconds
     // and reports its stats with streamStatsReady
     Q_INVOKABLE void setTestSeconds(int seconds) { m_TestSeconds = seconds; }
+
+    // Norilight (N10): the stream ended because the host restarts (an update, or a restart
+    // for its settings); the stream page then waits for it and starts the app again
+    Q_INVOKABLE bool hostRestarting() const { return !m_HostRestarting.isEmpty(); }
+    Q_INVOKABLE QString hostName() const;
+    Q_INVOKABLE Session* createReconnectSession();
+
+    // Norilight (N10): emits hostReady once the host answers again after its restart, or
+    // hostReady(false) after a few minutes
+    Q_INVOKABLE void waitForHost();
     Q_PROPERTY(QStringList launchWarnings MEMBER m_LaunchWarnings NOTIFY launchWarningsChanged);
 
     static
@@ -163,6 +173,9 @@ signals:
 
     // Emitted after sessionFinished() when the session is ready to be destroyed
     void readyForDeletion();
+
+    // Norilight (N10): see waitForHost()
+    void hostReady(bool ok);
 
     void launchWarningsChanged();
 
@@ -314,6 +327,12 @@ private:
 
     // Norilight (N9): sends the stream settings menu's changes to the host
     QThread* m_LiveSettingsThread = nullptr;
+
+    // Norilight (N10): why the host said it restarts, when the stream ended
+    QString m_HostRestarting;
+    QThread* m_HostWaitThread = nullptr;
+    std::atomic<bool> m_HostWaitCancel {false};
+    QString m_StartRunId;  // the host's RunId when this stream started
 
     // Norilight (N9): the host's new video format, until the main thread rebuilds the
     // decoder for it; frames are dropped meanwhile

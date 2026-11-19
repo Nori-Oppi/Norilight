@@ -220,6 +220,7 @@ NvComputer::NvComputer(NvHTTP& http, QString serverInfo)
     this->norishineApiVersion = NvHTTP::getXmlString(serverInfo, "ApiVersion").toInt();
     this->norishineFeatures = NvHTTP::getXmlString(serverInfo, "Features").split(',', Qt::SkipEmptyParts);
     this->norishineOptimiseAppId = NvHTTP::getXmlString(serverInfo, "OptimiseAppId").toInt();
+    this->norishineRunId = NvHTTP::getXmlString(serverInfo, "RunId");
 
     this->pairState = NvHTTP::getXmlString(serverInfo, "PairStatus") == "1" ?
                 PS_PAIRED : PS_NOT_PAIRED;
@@ -594,6 +595,7 @@ bool NvComputer::update(const NvComputer& that)
     ASSIGN_IF_CHANGED(norishineApiVersion);
     ASSIGN_IF_CHANGED(norishineFeatures);
     ASSIGN_IF_CHANGED(norishineOptimiseAppId);
+    ASSIGN_IF_CHANGED(norishineRunId);
     ASSIGN_IF_CHANGED(maxLumaPixelsHEVC);
     ASSIGN_IF_CHANGED(gpuModel);
     ASSIGN_IF_CHANGED_AND_NONNULL(serverCert);

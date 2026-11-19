@@ -33,6 +33,7 @@ namespace {
     QMutex s_Lock;
     Window s_Window;
     bool s_ManualBitrate = false;
+    QString s_HostRestarting;
     AdaptiveReporter::HostState s_HostState;
 
     // Give up after this many failed reports in a row (other than "no stream yet").
@@ -58,6 +59,13 @@ AdaptiveReporter::AdaptiveReporter(NvComputer* computer, const QString& networkK
     s_Window = Window();
     s_HostState = HostState();
     s_ManualBitrate = false;
+    s_HostRestarting.clear();
+}
+
+QString AdaptiveReporter::hostRestarting()
+{
+    QMutexLocker locker(&s_Lock);
+    return s_HostRestarting;
 }
 
 void AdaptiveReporter::noteManualBitrate()
@@ -191,9 +199,17 @@ void AdaptiveReporter::run()
         }
         failures = 0;
 
-        QJsonObject adaptive = QJsonDocument::fromJson(response.body).object()
-                                   .value("stream").toObject()
-                                   .value("adaptive").toObject();
+        QJsonObject answer = QJsonDocument::fromJson(response.body).object();
+        QString restarting = answer.value("host_restarting").toString();
+        if (!restarting.isEmpty()) {
+            QMutexLocker locker(&s_Lock);
+            if (s_HostRestarting.isEmpty()) {
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "The host is about to restart (%s)", qPrintable(restarting));
+            }
+            s_HostRestarting = restarting;
+        }
+
+        QJsonObject adaptive = answer.value("stream").toObject().value("adaptive").toObject();
         HostState state;
         if (!adaptive.isEmpty()) {
             state.valid = true;
