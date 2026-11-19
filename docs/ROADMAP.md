@@ -29,6 +29,10 @@ numbers below match it.
   background, and each decoder check is made once per launch; the log shows every step to the
   first frame. Launch 1060 → 895 ms, resume 975 → 824 ms. See
   [Norishine's BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#stream-start-start_timepy).
+- **Optimise** (N6, with Norishine): short test streams of the host's test picture pick the
+  profile's codec and bitrate (and a lower frame rate or resolution when needed), saved with
+  Undo; the host's encoder test picks its preset. See
+  [the guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norilight-Guide#optimise).
 
 ## Next
 
@@ -37,7 +41,6 @@ more.
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
 | N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |
 | N8 | Separate command-line build | M | `norilight-cli` without the Qt GUI: pair, list, stream, quit |
 | N9 | Change settings during a stream (with Norishine) | L | Bitrate first, then resolution, frame rate and codec without reconnecting |
