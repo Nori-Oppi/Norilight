@@ -241,6 +241,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(bool testOnly)
       m_BwTracker(10, 250),
       m_FramesIn(0),
       m_FramesOut(0),
+      m_SkippedStartBacklog(false),
       m_LastFrameNumber(0),
       m_StreamFps(0),
       m_VideoFormat(0),
@@ -287,6 +288,7 @@ void FFmpegVideoDecoder::reset()
     }
 
     m_FramesIn = m_FramesOut = 0;
+    m_SkippedStartBacklog = false;
     m_FrameInfoQueue.clear();
 
     delete m_Pacer;
@@ -2170,8 +2172,32 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         return DR_NEED_IDR;
     }
 
+    // A new decoder starts with the frames that queued up while it was being created (the
+    // stream starts before the window and decoder exist). Show the first one, but if the
+    // frames behind it have already waited more than two frame intervals, don't decode that
+    // backlog only for the pacer to drop it: ask for a fresh IDR frame instead. Session
+    // already requested one when it created this decoder, and moonlight-common-c empties
+    // its queue until it arrives.
+    if (m_FramesIn == 1 && m_StreamFps > 0 && du->frameType != FRAME_TYPE_IDR &&
+            LiGetMicroseconds() - du->enqueueTimeUs > 2000000ULL / m_StreamFps) {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Skipping frames queued before the decoder started (frame %d waited %.1f ms)",
+                    du->frameNumber, (LiGetMicroseconds() - du->enqueueTimeUs) / 1000.0);
+        m_SkippedStartBacklog = true;
+        return DR_NEED_IDR;
+    }
+
     if (!m_LastFrameNumber) {
         m_ActiveWndVideoStats.measurementStartUs = LiGetMicroseconds();
+        m_LastFrameNumber = du->frameNumber;
+    }
+    else if (m_SkippedStartBacklog) {
+        // The frames skipped above were never meant to be shown, like those the
+        // depacketizer discards while no decoder reads its queue: not network drops.
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Skipped %d stale frames at decoder start",
+                    du->frameNumber - (m_LastFrameNumber + 1));
+        m_SkippedStartBacklog = false;
         m_LastFrameNumber = du->frameNumber;
     }
     else {

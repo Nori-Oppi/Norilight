@@ -125,6 +125,7 @@ private:
 
     int m_FramesIn;
     int m_FramesOut;
+    bool m_SkippedStartBacklog;
 
     int m_LastFrameNumber;
     int m_StreamFps;
