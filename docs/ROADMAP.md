@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-18. Norishine's roadmap holds the full ranked list for both projects
+Updated 2026-11-19. Norishine's roadmap holds the full ranked list for both projects
 ([Next](https://github.com/Nori-Oppi/Norishine/blob/master/docs/ROADMAP.md#next)); the
 numbers below match it.
 
@@ -25,6 +25,10 @@ numbers below match it.
   web UI (import, name, display, encoder check, first device) and Reset Norishine. After a
   host reset, Norilight sees a new host and pairs again. See
   [the Norishine guide](https://github.com/Nori-Oppi/norilight-docs/wiki/Norishine-Guide#first-start).
+- **Near-instant stream start** (N5, with Norishine): the audio device is opened once, in the
+  background, and each decoder check is made once per launch; the log shows every step to the
+  first frame. Launch 1060 → 895 ms, resume 975 → 824 ms. See
+  [Norishine's BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#stream-start-start_timepy).
 
 ## Next
 
@@ -33,7 +37,6 @@ more.
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N5 | Near-instant stream start (with Norishine) | L | Measure each step to the first frame, then cut the slow ones |
 | N6 | Auto-optimisation wizard (with Norishine) | M | Short test streams per setting, the best saved to the profile, with Undo |
 | N7 | Linux build | M | Moonlight's Linux build code is kept: CI, AppImage or Flatpak, check Norilight's own features |
 | N8 | Separate command-line build | M | `norilight-cli` without the Qt GUI: pair, list, stream, quit |
