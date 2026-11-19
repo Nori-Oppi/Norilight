@@ -51,7 +51,7 @@ IAudioRenderer* Session::createAudioRenderer(const POPUS_MULTISTREAM_CONFIGURATI
     return nullptr;
 }
 
-bool Session::initializeAudioRenderer()
+bool Session::initializeAudioRenderer(IAudioRenderer* prepared)
 {
     int error;
 
@@ -59,7 +59,7 @@ bool Session::initializeAudioRenderer()
     SDL_assert(m_AudioRenderer == nullptr);
     SDL_assert(m_OpusDecoder == nullptr);
 
-    m_AudioRenderer = createAudioRenderer(&m_OriginalAudioConfig);
+    m_AudioRenderer = prepared != nullptr ? prepared : createAudioRenderer(&m_OriginalAudioConfig);
 
     // We may be unable to create an audio renderer right now
     if (m_AudioRenderer == nullptr) {
@@ -110,14 +110,73 @@ int Session::getAudioRendererCapabilities(int audioConfiguration)
     return caps;
 }
 
-bool Session::testAudio(int audioConfiguration)
+// The configuration an audio test opens the device with. A local stream uses the same
+// (5 ms packets), so its renderer can be kept for the stream.
+static OPUS_MULTISTREAM_CONFIGURATION testAudioConfig(int audioConfiguration)
 {
-    // Build a fake OPUS_MULTISTREAM_CONFIGURATION to give
-    // the renderer the channel count and sample rate.
     OPUS_MULTISTREAM_CONFIGURATION opusConfig = {};
     opusConfig.sampleRate = 48000;
     opusConfig.samplesPerFrame = 240;
     opusConfig.channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(audioConfiguration);
+    return opusConfig;
+}
+
+void Session::prepareAudio(int audioConfiguration)
+{
+    discardPreparedAudio();
+
+    m_PreparedAudioConfig = testAudioConfig(audioConfiguration);
+    m_AudioPrepDone = false;
+    m_AudioPrepThread = std::thread([this]() {
+        // Opening the device takes about a second on Windows (WASAPI), so it runs
+        // while the decoders are checked and the host starts the stream.
+        m_PreparedAudio = createAudioRenderer(&m_PreparedAudioConfig);
+        m_AudioPrepDone = true;
+    });
+}
+
+bool Session::waitForPreparedAudio()
+{
+    if (m_AudioPrepThread.joinable()) {
+        m_AudioPrepThread.join();
+    }
+    return m_PreparedAudio != nullptr;
+}
+
+IAudioRenderer* Session::takePreparedAudio(const OPUS_MULTISTREAM_CONFIGURATION* config)
+{
+    waitForPreparedAudio();
+
+    IAudioRenderer* renderer = m_PreparedAudio;
+    m_PreparedAudio = nullptr;
+    if (renderer != nullptr &&
+            (config->sampleRate != m_PreparedAudioConfig.sampleRate ||
+             config->channelCount != m_PreparedAudioConfig.channelCount ||
+             config->samplesPerFrame != m_PreparedAudioConfig.samplesPerFrame)) {
+        // The host chose other audio settings: open the device again with those
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Audio device opened for %d channels, %d samples per frame; reopening for %d, %d",
+                    m_PreparedAudioConfig.channelCount, m_PreparedAudioConfig.samplesPerFrame,
+                    config->channelCount, config->samplesPerFrame);
+        delete renderer;
+        renderer = nullptr;
+    }
+    return renderer;
+}
+
+void Session::discardPreparedAudio()
+{
+    waitForPreparedAudio();
+    delete m_PreparedAudio;
+    m_PreparedAudio = nullptr;
+    m_AudioPrepDone = true;
+}
+
+bool Session::testAudio(int audioConfiguration)
+{
+    // Build a fake OPUS_MULTISTREAM_CONFIGURATION to give
+    // the renderer the channel count and sample rate.
+    OPUS_MULTISTREAM_CONFIGURATION opusConfig = testAudioConfig(audioConfiguration);
 
     IAudioRenderer* audioRenderer = createAudioRenderer(&opusConfig);
     if (audioRenderer == nullptr) {
@@ -134,12 +193,19 @@ int Session::arInit(int /* audioConfiguration */,
                     void* /* arContext */, int /* arFlags */)
 {
     SDL_memcpy(&s_ActiveSession->m_OriginalAudioConfig, opusConfig, sizeof(*opusConfig));
-    s_ActiveSession->initializeAudioRenderer();
+
+    // Norilight (N5): don't hold up the connection while the audio device opens. The
+    // audio thread takes over the device opened in the background (prepareAudio()),
+    // and drops the first samples until it's there.
+    s_ActiveSession->m_AudioPending = true;
     return 0;
 }
 
 void Session::arCleanup()
 {
+    s_ActiveSession->m_AudioPending = false;
+    s_ActiveSession->discardPreparedAudio();
+
     delete s_ActiveSession->m_AudioRenderer;
     s_ActiveSession->m_AudioRenderer = nullptr;
 
@@ -181,6 +247,19 @@ void Session::arDecodeAndPlaySample(char* sampleData, int sampleLength)
     }
 
     s_ActiveSession->m_AudioSampleCount++;
+
+    // Norilight (N5): the audio device was opened in the background; drop samples
+    // until it's ready, then take it over (or open one now if it can't be used)
+    if (s_ActiveSession->m_AudioPending) {
+        if (!s_ActiveSession->m_AudioPrepDone) {
+            return;
+        }
+        s_ActiveSession->m_AudioPending = false;
+        IAudioRenderer* prepared = s_ActiveSession->takePreparedAudio(&s_ActiveSession->m_OriginalAudioConfig);
+        if (!s_ActiveSession->initializeAudioRenderer(prepared)) {
+            s_ActiveSession->showStatus(QObject::tr("Audio unavailable"));
+        }
+    }
 
     // If audio is muted, don't decode or play the audio
     if (s_ActiveSession->m_AudioMuted) {

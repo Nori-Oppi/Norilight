@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QSemaphore>
+#include <atomic>
+#include <thread>
 #include <QQuickWindow>
 
 #include <Limelight.h>
@@ -169,9 +171,19 @@ private:
 
     IAudioRenderer* createAudioRenderer(const POPUS_MULTISTREAM_CONFIGURATION opusConfig);
 
-    bool initializeAudioRenderer();
+    bool initializeAudioRenderer(IAudioRenderer* prepared = nullptr);
 
     bool testAudio(int audioConfiguration);
+
+    // Norilight (N5): the audio device is opened once, in the background while the
+    // launch goes on, and the stream takes it over when its audio starts.
+    void prepareAudio(int audioConfiguration);
+    bool waitForPreparedAudio();
+    IAudioRenderer* takePreparedAudio(const OPUS_MULTISTREAM_CONFIGURATION* config);
+    void discardPreparedAudio();
+
+    // Shows a short status line in the stream window (any thread)
+    void showStatus(const QString& text);
 
     int getAudioRendererCapabilities(int audioConfiguration);
 
@@ -196,6 +208,11 @@ private:
                                                int videoFormat, int width, int height, int frameRate);
 
     static
+    DecoderAvailability probeDecoderAvailability(SDL_Window* window,
+                                                 StreamingPreferences::VideoDecoderSelection vds,
+                                                 int videoFormat, int width, int height, int frameRate);
+
+    static
     bool chooseDecoder(StreamingPreferences::VideoDecoderSelection vds,
                        StreamingPreferences::RendererSelection renderer,
                        SDL_Window* window, int videoFormat, int width, int height,
@@ -205,6 +222,9 @@ private:
 
     static
     void clStageStarting(int stage);
+
+    static
+    void clStageComplete(int stage);
 
     static
     void clStageFailed(int stage, int errorCode);
@@ -306,6 +326,13 @@ private:
     OPUS_MULTISTREAM_CONFIGURATION m_OriginalAudioConfig;
     int m_AudioSampleCount;
     Uint32 m_DropAudioEndTime;
+
+    // Norilight (N5): see prepareAudio()
+    std::thread m_AudioPrepThread;
+    std::atomic<bool> m_AudioPrepDone;
+    IAudioRenderer* m_PreparedAudio;
+    OPUS_MULTISTREAM_CONFIGURATION m_PreparedAudioConfig;
+    std::atomic<bool> m_AudioPending;
 
     Overlay::OverlayManager m_OverlayManager;
 
