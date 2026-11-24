@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-19. Norishine's roadmap holds the full ranked list for both projects
+Updated 2026-11-24. Norishine's roadmap holds the full ranked list for both projects
 ([Next](https://github.com/Nori-Oppi/Norishine/blob/master/docs/ROADMAP.md#next)); the
 numbers below match it.
 
@@ -42,6 +42,9 @@ numbers below match it.
   a restart for its settings), Norilight waits for it and starts the same app again by itself;
   its own part is half a second. A real handover isn't planned (see
   [Norishine's BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#reconnect-after-a-host-restart-n10)).
+- **Fewer full-queue frame drops** (N14): a new decoder shows its first frame and skips the
+  backlog that built up before it existed, for a fresh key frame. Dropped frames 0.08 → 0.03 %
+  in the benchmark check.
 
 ## Next
 
@@ -59,7 +62,7 @@ Small fix, any time between the items above:
 
 | # | Item | Effort | Notes |
 | --- | --- | --- | --- |
-| N14 | Fewer full-queue frame drops in the pacer | S–M | About 0.15–0.3 % of frames dropped when the pacer's queue is full; Moonlight 6.2.0 drops the same, so not a regression, but fewer would put Norilight ahead. Prove it with the benchmark check |
+| N19 | First video packet as early as Moonlight's (with Norishine) | S–M | The benchmark check shows Norishine with Norilight receiving the first video packet about 120 ms later than Apollo or Sunshine with Moonlight. Crossing hosts and clients shows which side it is |
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
 
