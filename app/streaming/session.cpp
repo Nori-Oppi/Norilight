@@ -717,8 +717,15 @@ void Session::applyLaunchTuning(SDL_Window* testWindow)
                                       m_StreamConfig.width, m_StreamConfig.height,
                                       m_StreamConfig.fps) == DecoderAvailability::Hardware;
     };
-    caps.hevcHardware = hardware(VIDEO_FORMAT_H265);
-    caps.av1Hardware = hardware(VIDEO_FORMAT_AV1_MAIN8);
+    // Each probe creates a test decoder (60-120 ms), so only probe what can change a pick
+    // (N19): the codec is picked only when it's automatic, and only Quality prefers AV1
+    const bool codecAuto = m_Preferences->videoCodecConfig == StreamingPreferences::VCC_AUTO;
+    if (codecAuto) {
+        caps.hevcHardware = hardware(VIDEO_FORMAT_H265);
+        if (goal == AutoTune::Goal::Quality) {
+            caps.av1Hardware = hardware(VIDEO_FORMAT_AV1_MAIN8);
+        }
+    }
 
     {
         QReadLocker lock(&m_Computer->lock);
@@ -755,9 +762,11 @@ void Session::applyLaunchTuning(SDL_Window* testWindow)
     }
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Tuning (%s): decode HEVC %d AV1 %d HDR %d, display HDR %d, host HEVC %d AV1 %d HDR %d -> codec %s, HDR %d, V-sync %d, frame pacing %d",
+                "Tuning (%s): decode HEVC %s AV1 %s HDR %d, display HDR %d, host HEVC %d AV1 %d HDR %d -> codec %s, HDR %d, V-sync %d, frame pacing %d",
                 AutoTune::goalName(goal),
-                caps.hevcHardware, caps.av1Hardware, caps.hdrDecode, caps.displayHdr,
+                codecAuto ? (caps.hevcHardware ? "1" : "0") : "-",
+                codecAuto && goal == AutoTune::Goal::Quality ? (caps.av1Hardware ? "1" : "0") : "-",
+                caps.hdrDecode, caps.displayHdr,
                 caps.hostHevc, caps.hostAv1, caps.hostHdr,
                 m_TunedCodec == 2 ? "AV1 first" : m_TunedCodec == 1 ? "HEVC first" : "automatic",
                 m_EnableHdr, m_EnableVsync, m_FramePacing);

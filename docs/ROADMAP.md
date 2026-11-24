@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-24. Norishine's roadmap holds the full ranked list for both projects
+Updated 2026-11-25. Norishine's roadmap holds the full ranked list for both projects
 ([Next](https://github.com/Nori-Oppi/Norishine/blob/master/docs/ROADMAP.md#next)); the
 numbers below match it.
 
@@ -45,6 +45,11 @@ numbers below match it.
 - **Fewer full-queue frame drops** (N14): a new decoder shows its first frame and skips the
   backlog that built up before it existed, for a fresh key frame. Dropped frames 0.08 → 0.03 %
   in the benchmark check.
+- **First video packet as early as Moonlight's** (N19): the extra 120 ms followed Norilight
+  with every host. The Tuning goal tested the HEVC and AV1 decoders before every launch, even
+  with a fixed codec or a goal that never picks AV1, and each test creates a decoder. It now
+  tests only what can change its pick. First video packet 1620 → 1480 ms, as with Moonlight.
+  See [Norishine's BENCHMARK.md](https://github.com/Nori-Oppi/Norishine/blob/master/docs/BENCHMARK.md#first-video-packet-n19).
 
 ## Next
 
@@ -57,12 +62,6 @@ more.
 | N8 | Separate command-line build | M | `norilight-cli` without the Qt GUI: pair, list, stream, quit |
 | N12 | Android build, for handhelds | XL | Qt for Android or a start from Artemis, decided by a short spike; controller-first, battery-aware |
 | N13 | iOS build | XL | After Android; installing unsigned builds needs sideloading |
-
-Small fix, any time between the items above:
-
-| # | Item | Effort | Notes |
-| --- | --- | --- | --- |
-| N19 | First video packet as early as Moonlight's (with Norishine) | S–M | The benchmark check shows Norishine with Norilight receiving the first video packet about 120 ms later than Apollo or Sunshine with Moonlight. Crossing hosts and clients shows which side it is |
 
 Existing Sunshine hosts and Moonlight-compatible setups will keep working.
 
